@@ -30,6 +30,26 @@ function getPlanTypeFromRequestBody(body) {
   return `${plan}_${billing === "yearly" ? "yearly" : "monthly"}`;
 }
 
+function sanitizeAbsoluteUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (!/^https?:\/\//i.test(raw)) return "";
+  return raw.replace(/\/$/, "");
+}
+
+function resolveCheckoutBaseUrl(req, publicAppUrl) {
+  const configured = sanitizeAbsoluteUrl(publicAppUrl);
+  const origin = sanitizeAbsoluteUrl(req && req.headers ? req.headers.origin : "");
+  if (!origin) return configured;
+  if (!configured) return origin;
+  const configuredIsLocalhost = /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/i.test(configured);
+  const originIsRemote = !/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/i.test(origin);
+  if (configuredIsLocalhost && originIsRemote) {
+    return origin;
+  }
+  return configured;
+}
+
 /**
  * Premium status, Stripe Checkout session, dev activation.
  *
@@ -125,7 +145,7 @@ function createPremiumRouter({
         error: `Stripe price ID is not configured for planType: ${planType}`
       });
     }
-    const baseUrl = (publicAppUrl || "").replace(/\/$/, "");
+    const baseUrl = resolveCheckoutBaseUrl(req, publicAppUrl);
     if (!baseUrl) {
       return res.status(503).json({ error: "PUBLIC_APP_URL is not configured" });
     }

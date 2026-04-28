@@ -1223,10 +1223,14 @@
 
       <form id="authForm" onsubmit="event.preventDefault(); submitAuth();">
         <div id="signupFields" class="hidden">
+          <label>First name</label>
+          <input id="firstName" type="text" placeholder="First name" />
+          <label>Last name</label>
+          <input id="lastName" type="text" placeholder="Last name" />
           <label>Username</label>
           <input id="username" type="text" placeholder="Username" />
-          <label>Email</label>
-          <input id="email" type="email" placeholder="Email" />
+          <label>Confirm Password</label>
+          <input id="confirmPassword" type="password" placeholder="Confirm password" />
         </div>
         <div id="loginFields">
           <label>Username</label>

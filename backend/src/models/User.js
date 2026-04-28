@@ -10,6 +10,7 @@ const userSchema = new mongoose.Schema(
     emailOrPhone: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     phone: { type: String, default: "" },
+    deviceId: { type: String, default: "" },
     emailVerified: { type: Boolean, default: false },
     emailVerificationTokenHash: { type: String, default: null },
     emailVerificationExpiresAt: { type: Date, default: null },
@@ -57,6 +58,21 @@ userSchema.pre("validate", function syncLegacyEmailOrPhone(next) {
   }
   next();
 });
+
+userSchema.index(
+  { username: 1 },
+  {
+    unique: true
+  }
+);
+
+userSchema.index(
+  { deviceId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { deviceId: { $type: "string", $gt: "" } }
+  }
+);
 
 userSchema.index(
   { phone: 1 },

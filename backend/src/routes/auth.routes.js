@@ -3,7 +3,6 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { publicUser } = require("../utils/serializers");
-const { sendVerificationEmail } = require("../services/emailService");
 
 function createAuthRouter({
   User,
@@ -21,19 +20,6 @@ function createAuthRouter({
       : []
   );
 
-  function isValidEmail(value) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
-  }
-
-  function buildEmailVerification() {
-    const token = crypto.randomBytes(32).toString("hex");
-    return {
-      token,
-      tokenHash: crypto.createHash("sha256").update(token).digest("hex"),
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
-    };
-  }
-
   async function issueSessionTokens(userId) {
     const accessToken = jwt.sign({ id: userId }, jwtSecret, { expiresIn: "15m" });
     const refreshToken = jwt.sign({ id: userId }, jwtRefreshSecret, { expiresIn: "7d" });
@@ -43,43 +29,57 @@ function createAuthRouter({
 
   router.post("/register", signupLimiter, async (req, res) => {
     try {
-      const { username, email, password, phone } = req.body || {};
-      const cleanEmail = String(email || "").trim().toLowerCase();
-      const cleanPhone = String(phone || "").trim();
-      const cleanUsername = String(username || "").trim();
-      if (!cleanUsername || !cleanEmail || !password) {
-        return res.status(400).json({ error: "Username, email, and password are required" });
+      const { firstName, lastName, username, password, confirmPassword, deviceId } = req.body || {};
+      const cleanFirstName = String(firstName || "").trim();
+      const cleanLastName = String(lastName || "").trim();
+      const rawUsername = String(username || "").trim();
+      const cleanUsername = rawUsername.toLowerCase();
+      const cleanPassword = String(password || "");
+      const cleanConfirmPassword = String(confirmPassword || "");
+      const cleanDeviceId = String(deviceId || "").trim();
+
+      if (!cleanFirstName || !cleanLastName || !rawUsername || !cleanPassword || !cleanConfirmPassword) {
+        return res.status(400).json({ error: "firstName, lastName, username, password, confirmPassword are required" });
       }
-      if (!isValidEmail(cleanEmail)) {
-        return res.status(400).json({ error: "Valid email is required" });
+      if (rawUsername !== cleanUsername) {
+        return res.status(400).json({ error: "Username must be lowercase" });
+      }
+      if (cleanUsername.length < 3) {
+        return res.status(400).json({ error: "Username must be at least 3 characters" });
+      }
+      if (cleanPassword.length < 6) {
+        return res.status(400).json({ error: "Password must be at least 6 characters" });
+      }
+      if (cleanPassword !== cleanConfirmPassword) {
+        return res.status(400).json({ error: "Passwords do not match" });
       }
 
-      const existing = await User.findOne({
-        $or: [
-          { username: cleanUsername },
-          { email: cleanEmail },
-          { emailOrPhone: cleanEmail },
-          ...(cleanPhone ? [{ phone: cleanPhone }] : [])
-        ]
-      });
+      const existing = await User.findOne({ username: cleanUsername });
 
       if (existing) {
-        return res.status(409).json({ error: "Username, email, or phone already registered" });
+        return res.status(409).json({ error: "Username already taken" });
       }
 
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const verification = buildEmailVerification();
+      if (cleanDeviceId) {
+        const existingDevice = await User.findOne({ deviceId: cleanDeviceId }).select("_id").lean();
+        if (existingDevice) {
+          return res.status(409).json({ error: "Only one account allowed per device" });
+        }
+      }
+
+      const hashedPassword = await bcrypt.hash(cleanPassword, 10);
+      const syntheticEmail = `${cleanUsername}@local.notesai`;
       const user = await User.create({
-        firstName: "",
-        lastName: "",
+        firstName: cleanFirstName,
+        lastName: cleanLastName,
         username: cleanUsername,
-        email: cleanEmail,
-        emailOrPhone: cleanEmail,
-        phone: cleanPhone,
+        email: syntheticEmail,
+        emailOrPhone: syntheticEmail,
+        deviceId: cleanDeviceId,
         password: hashedPassword,
-        emailVerified: false,
-        emailVerificationTokenHash: verification.tokenHash,
-        emailVerificationExpiresAt: verification.expiresAt,
+        emailVerified: true,
+        emailVerificationTokenHash: null,
+        emailVerificationExpiresAt: null,
         plan: "free",
         subscriptionPlan: "free",
         membershipRole: "free",
@@ -87,19 +87,19 @@ function createAuthRouter({
         premiumExpires: null
       });
 
-      await sendVerificationEmail({
-        to: cleanEmail,
-        firstName: user.firstName,
-        verifyUrl: `${publicAppUrl}/?verifyEmailToken=${encodeURIComponent(verification.token)}`
-      });
-
       res.status(201).json({
         user: publicUser(user),
-        message: "Account created. Please verify your email to log in."
+        message: "Account created successfully."
       });
     } catch (err) {
       if (err && err.code === 11000) {
-        return res.status(409).json({ error: "Account already exists with this username, email, or phone" });
+        if (err && err.keyPattern && err.keyPattern.username) {
+          return res.status(409).json({ error: "Username already taken" });
+        }
+        if (err && err.keyPattern && err.keyPattern.deviceId) {
+          return res.status(409).json({ error: "Only one account allowed per device" });
+        }
+        return res.status(409).json({ error: "Account already exists" });
       }
       console.error("[auth/register]", err.message);
       res.status(500).json({ error: "Registration failed" });
@@ -109,7 +109,9 @@ function createAuthRouter({
   router.post("/login", authLimiter, async (req, res) => {
     try {
       const { identifier, username, password } = req.body || {};
-      const loginId = String(identifier || username || "").trim();
+      const loginId = String(identifier || username || "")
+        .trim()
+        .toLowerCase();
       if (!loginId || !password) {
         return res.status(400).json({ error: "Username and password are required" });
       }
@@ -129,11 +131,6 @@ function createAuthRouter({
       }
       if (!valid) {
         return res.status(400).json({ error: "Invalid credentials" });
-      }
-
-      const canBypassEmailVerification = bypassSet.has(String(user.username || "").trim().toLowerCase());
-      if (!user.emailVerified && !canBypassEmailVerification) {
-        return res.status(403).json({ error: "Please verify your email before logging in" });
       }
 
       const { accessToken, refreshToken } = await issueSessionTokens(user._id);

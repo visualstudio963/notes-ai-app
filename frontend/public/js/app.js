@@ -5677,6 +5677,23 @@ function deleteReminderReminder(reminder) {
   deleteReminderById(String(reminder._id));
 }
 
+function getOrCreateDeviceId() {
+  const KEY = "notesAiDeviceId";
+  try {
+    const existing = String(localStorage.getItem(KEY) || "").trim();
+    if (existing) return existing;
+    const randomPart =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const created = `dev-${randomPart}`.toLowerCase();
+    localStorage.setItem(KEY, created);
+    return created;
+  } catch {
+    return "";
+  }
+}
+
 async function submitAuth() {
   const messageEl = document.getElementById("authMessage");
   if (messageEl) {
@@ -5720,22 +5737,42 @@ async function submitAuth() {
     return;
   }
 
-  const username = document.getElementById("username").value.trim();
-  const email = document.getElementById("email").value.trim().toLowerCase();
+  const firstName = document.getElementById("firstName").value.trim();
+  const lastName = document.getElementById("lastName").value.trim();
+  const usernameRaw = document.getElementById("username").value.trim();
+  const username = usernameRaw.toLowerCase();
   const password = document.getElementById("password").value.trim();
+  const confirmPassword = document.getElementById("confirmPassword").value.trim();
+  const deviceId = getOrCreateDeviceId();
 
-  if (!username || !email || !password) {
+  if (!firstName || !lastName || !usernameRaw || !password || !confirmPassword) {
     showAuthError("Please complete every field.");
+    return;
+  }
+  if (usernameRaw !== username) {
+    showAuthError("Username must be lowercase");
+    return;
+  }
+  if (username.length < 3) {
+    showAuthError("Username must be at least 3 characters");
+    return;
+  }
+  if (password.length < 6) {
+    showAuthError("Password must be at least 6 characters");
+    return;
+  }
+  if (password !== confirmPassword) {
+    showAuthError("Passwords do not match");
     return;
   }
 
   try {
     const data = await apiFetch("/api/register", {
       method: "POST",
-      body: JSON.stringify({ username, email, password })
+      body: JSON.stringify({ firstName, lastName, username, password, confirmPassword, deviceId })
     });
     closeAccountModal();
-    showToast(data.message || "Account created. Verify your email before logging in.");
+    showToast(data.message || "Account created successfully.");
   } catch (err) {
     showAuthError(err.message);
   }

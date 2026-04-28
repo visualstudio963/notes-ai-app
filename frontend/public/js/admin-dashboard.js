@@ -1,6 +1,5 @@
 (function () {
   const ACTIVE_LABEL = "Active (recent)";
-  const API_BASE_URL = "https://notes-ai-backend-lykf.onrender.com";
 
   let usersCache = [];
   let messagesCache = [];
@@ -8,13 +7,6 @@
   let messagesFilterTimer = null;
   let selectedUserId = "";
   let discordConfigCache = { discordInviteUrl: "", discordUpdatesCount: 0 };
-
-  function buildApiUrl(path) {
-    const normalizedPath = String(path || "").trim();
-    if (!normalizedPath) return API_BASE_URL;
-    if (/^https?:\/\//i.test(normalizedPath)) return normalizedPath;
-    return `${API_BASE_URL}${normalizedPath.startsWith("/") ? normalizedPath : `/${normalizedPath}`}`;
-  }
 
   function getAccessToken() {
     return localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");

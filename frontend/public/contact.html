@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Contact — Notes AI</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="css/legal-page.css" />
 </head>
 <body>
@@ -33,14 +34,8 @@
       <p class="legal-form-note" id="contactStatus" role="status"></p>
     </form>
   </div>
+  <script src="js/config/api-base.js"></script>
   <script>
-    var API_BASE_URL = "https://notes-ai-backend-lykf.onrender.com";
-    function buildApiUrl(path) {
-      var p = String(path || "").trim();
-      if (!p) return API_BASE_URL;
-      if (/^https?:\/\//i.test(p)) return p;
-      return API_BASE_URL + (p.charAt(0) === "/" ? p : "/" + p);
-    }
     document.getElementById("contactForm").addEventListener("submit", async function (e) {
       e.preventDefault();
       var status = document.getElementById("contactStatus");

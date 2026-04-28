@@ -76,16 +76,8 @@ let premiumLiteBillingMode = "monthly";
 let discordCommunityUrl = "";
 let discordUpdatesCount = 0;
 let stripePublishableKey = "";
-const API_BASE_URL = "https://notes-ai-backend-lykf.onrender.com";
 const REMINDER_NOTIFY_PREFS_KEY = "webReminderNotificationPrefs";
 const ANDROID_REMINDERS_CHANNEL_ID = "reminders-high";
-
-function buildApiUrl(path) {
-  const normalizedPath = String(path || "").trim();
-  if (!normalizedPath) return API_BASE_URL;
-  if (/^https?:\/\//i.test(normalizedPath)) return normalizedPath;
-  return `${API_BASE_URL}${normalizedPath.startsWith("/") ? normalizedPath : `/${normalizedPath}`}`;
-}
 
 function isNativeLocalNotificationsAvailable() {
   return Boolean(

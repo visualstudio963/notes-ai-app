@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact — Notes AI</title>
+  <link rel="stylesheet" href="css/legal-page.css" />
+</head>
+<body>
+  <div class="legal-shell">
+    <a class="legal-back" href="index.html">← Back to app</a>
+    <h1>Contact</h1>
+    <p class="legal-lead">Send us a message — we read every submission.</p>
+
+    <h2>Email</h2>
+    <p class="legal-contact-email">
+      <a href="mailto:support@yourapp.com">support@yourapp.com</a>
+    </p>
+
+    <h2>Send a message</h2>
+    <p>Your message is stored securely so our team can follow up.</p>
+    <form class="legal-form" id="contactForm">
+      <label for="contactName">Name</label>
+      <input id="contactName" type="text" name="name" required maxlength="120" placeholder="Your name" autocomplete="name" />
+
+      <label for="contactEmail">Email</label>
+      <input id="contactEmail" type="email" name="email" required maxlength="254" placeholder="you@example.com" autocomplete="email" />
+
+      <label for="contactMessage">Message</label>
+      <textarea id="contactMessage" name="message" required maxlength="8000" placeholder="How can we help?"></textarea>
+
+      <button type="submit" id="contactSubmit">Send message</button>
+      <p class="legal-form-note" id="contactStatus" role="status"></p>
+    </form>
+  </div>
+  <script>
+    var API_BASE_URL = "https://notes-ai-backend-lykf.onrender.com";
+    function buildApiUrl(path) {
+      var p = String(path || "").trim();
+      if (!p) return API_BASE_URL;
+      if (/^https?:\/\//i.test(p)) return p;
+      return API_BASE_URL + (p.charAt(0) === "/" ? p : "/" + p);
+    }
+    document.getElementById("contactForm").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      var status = document.getElementById("contactStatus");
+      var btn = document.getElementById("contactSubmit");
+      var name = document.getElementById("contactName").value.trim();
+      var email = document.getElementById("contactEmail").value.trim();
+      var message = document.getElementById("contactMessage").value.trim();
+      status.textContent = "";
+      btn.disabled = true;
+      try {
+        var res = await fetch(buildApiUrl("/api/contact"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: name, email: email, message: message })
+        });
+        var data = await res.json().catch(function () { return {}; });
+        if (!res.ok) throw new Error(data.error || "Request failed");
+        status.textContent = "Thanks — your message was sent.";
+        document.getElementById("contactForm").reset();
+      } catch (err) {
+        status.textContent = err.message || "Something went wrong.";
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

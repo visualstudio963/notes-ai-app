@@ -1,0 +1,1469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notes App</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/settings-theme.css" />
+</head>
+<body>
+  <div class="background-canvas" aria-hidden="true">
+    <div class="depth-blobs">
+      <span class="depth-blob depth-blob--a"></span>
+      <span class="depth-blob depth-blob--b"></span>
+      <span class="depth-blob depth-blob--c"></span>
+    </div>
+  </div>
+
+  <div class="app">
+    <button
+      type="button"
+      class="mobile-nav-overlay hidden"
+      id="mobileNavOverlay"
+      onclick="closeMobileNav()"
+      aria-label="Close navigation menu"
+    ></button>
+    <aside class="sidebar" id="appSidebar">
+      <div class="sidebar-top">
+        <a href="#" class="brand-lockup" onclick="goHome(); return false;" aria-label="Notes AI — Home">
+          <div class="brand-mark" aria-hidden="true">
+            <svg class="brand-mark-svg" viewBox="0 0 56 56" width="56" height="56" xmlns="http://www.w3.org/2000/svg" focusable="false">
+              <defs>
+                <linearGradient id="brandPaper" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#38bdf8"/>
+                  <stop offset="100%" stop-color="#22d3ee"/>
+                </linearGradient>
+                <linearGradient id="brandAccent" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#a78bfa"/>
+                  <stop offset="100%" stop-color="#f472b6"/>
+                </linearGradient>
+              </defs>
+              <rect x="6" y="14" width="30" height="34" rx="4" fill="url(#brandPaper)" opacity="0.35" transform="rotate(-6 21 31)"/>
+              <rect x="12" y="8" width="32" height="36" rx="4" fill="#0f172a" stroke="url(#brandAccent)" stroke-width="1.25"/>
+              <rect x="16" y="14" width="24" height="2" rx="1" fill="rgba(148,163,184,0.45)"/>
+              <rect x="16" y="20" width="18" height="2" rx="1" fill="rgba(148,163,184,0.28)"/>
+              <rect x="16" y="26" width="20" height="2" rx="1" fill="rgba(148,163,184,0.22)"/>
+              <path d="M34 6 L46 4 L48 8 L40 18 L32 14 Z" fill="url(#brandAccent)"/>
+              <path d="M32 14 L40 18 L36 22 L30 18 Z" fill="#fde68a"/>
+            </svg>
+          </div>
+          <div class="brand-copy">
+            <span class="brand-name">Notes AI</span>
+            <span class="brand-tagline" data-t="workspaceHub">Workspace hub</span>
+          </div>
+        </a>
+        <nav class="menu" aria-label="Main navigation">
+          <button type="button" class="menu-item active" id="menuHome" onclick="goHome()">
+            <span class="menu-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+            </span>
+            <span class="menu-label" data-t="home">Home</span>
+          </button>
+          <button type="button" class="menu-item" id="menuNotes" onclick="openMyNotes()">
+            <span class="menu-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11zM8 12h8v2H8v-2zm0 4h8v2H8v-2z"/></svg>
+            </span>
+            <span class="menu-label" data-t="myNotes">My notes</span>
+          </button>
+          <button type="button" class="menu-item" id="menuScanCam" onclick="openScanCamPage()">
+            <span class="menu-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M9 2 7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+            </span>
+            <span class="menu-label" data-t="menuScanCam">Scan Cam</span>
+          </button>
+          <button type="button" class="menu-item" id="menuBot" onclick="openBot()">
+            <span class="menu-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.71c.09 1.45 1.05 1.81 2.17 1.81 1.05 0 2.25-.35 2.25-1.39 0-1.17-1.08-1.49-2.34-1.88-1.76-.53-3.66-1.12-3.66-3.54 0-1.79 1.21-3.19 3-3.56V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 1.09 1.31 1.45 2.73 1.84 1.95.55 3.27 1.27 3.27 3.44 0 1.77-1.19 3.22-3 3.65z"/></svg>
+            </span>
+            <span class="menu-label" data-t="upgradePlan">Upgrade plan</span>
+          </button>
+          <button type="button" class="menu-item" id="menuHistory" onclick="openReminderHistory()">
+            <span class="menu-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+            </span>
+            <span class="menu-label" data-t="reminderHistory">Reminder History</span>
+          </button>
+          <button type="button" class="menu-item" id="menuSettings" onclick="openSettings()">
+            <span class="menu-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.31-.08.63-.08.94s.03.63.08.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+            </span>
+            <span class="menu-label" data-t="settings">Settings</span>
+          </button>
+        </nav>
+      </div>
+      <div class="sidebar-footer">
+        <div class="sidebar-discord-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20.32 4.37a19.8 19.8 0 0 0-4.92-1.53.07.07 0 0 0-.07.03c-.21.38-.44.88-.6 1.27a18.6 18.6 0 0 0-5.45 0c-.16-.39-.4-.89-.61-1.27a.08.08 0 0 0-.07-.03 19.74 19.74 0 0 0-4.92 1.53.07.07 0 0 0-.03.03C.53 9.02-.32 13.54.1 18.01a.08.08 0 0 0 .03.06 19.8 19.8 0 0 0 6.04 3.06.08.08 0 0 0 .09-.03c.47-.64.88-1.31 1.23-2.02a.08.08 0 0 0-.04-.1 12.9 12.9 0 0 1-1.87-.89.08.08 0 0 1-.01-.13c.13-.1.26-.2.38-.31a.08.08 0 0 1 .08-.02c3.93 1.8 8.18 1.8 12.06 0a.08.08 0 0 1 .08.02c.12.11.25.21.38.31a.08.08 0 0 1-.01.13c-.59.35-1.22.65-1.87.89a.08.08 0 0 0-.04.1c.36.71.77 1.38 1.24 2.02a.08.08 0 0 0 .09.03 19.74 19.74 0 0 0 6.03-3.06.08.08 0 0 0 .03-.06c.5-5.17-.84-9.65-3.54-13.61a.06.06 0 0 0-.03-.03ZM8.02 15.3c-1.18 0-2.15-1.08-2.15-2.4 0-1.33.95-2.4 2.15-2.4 1.2 0 2.16 1.08 2.15 2.4 0 1.33-.95 2.4-2.15 2.4Zm7.95 0c-1.18 0-2.15-1.08-2.15-2.4 0-1.33.95-2.4 2.15-2.4 1.2 0 2.16 1.08 2.15 2.4 0 1.33-.95 2.4-2.15 2.4Z"/>
+          </svg>
+        </div>
+        <button
+          id="sidebarDiscordBtn"
+          class="sidebar-discord-btn hidden"
+          type="button"
+          onclick="openDiscordCommunity()"
+          data-t="homeDiscordBtn"
+        >
+          <span class="sidebar-discord-btn__label">Hap Discord</span>
+          <span id="sidebarDiscordBadge" class="sidebar-discord-btn__badge hidden" aria-live="polite">0</span>
+        </button>
+        <p class="sidebar-discord-note">
+          Këtu do të merrni çdo njoftim në lidhje me njoftimet dhe updatet e fundit. Keni ndonjë problem? Na kontaktoni.
+        </p>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-inner">
+          <button
+            type="button"
+            class="mobile-menu-toggle"
+            id="mobileMenuToggle"
+            onclick="toggleMobileNav()"
+            aria-label="Open menu"
+            aria-controls="appSidebar"
+            aria-expanded="false"
+          >
+            <span class="mobile-menu-toggle__bar"></span>
+            <span class="mobile-menu-toggle__bar"></span>
+            <span class="mobile-menu-toggle__bar"></span>
+          </button>
+          <div class="topbar-brand">
+            <div class="topbar-logo" aria-hidden="true">
+              <svg class="topbar-logo-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+                <defs>
+                  <linearGradient id="topbarLogoStroke" x1="4" y1="6" x2="36" y2="34" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#22d3ee" />
+                    <stop offset="0.5" stop-color="#a78bfa" />
+                    <stop offset="1" stop-color="#34d399" />
+                  </linearGradient>
+                  <filter id="topbarLogoSoftGlow" x="-40%" y="-40%" width="180%" height="180%">
+                    <feGaussianBlur stdDeviation="1.1" result="b" />
+                    <feMerge>
+                      <feMergeNode in="b" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                </defs>
+                <rect x="5" y="6" width="22" height="28" rx="4" stroke="url(#topbarLogoStroke)" stroke-width="1.5" opacity="0.95" filter="url(#topbarLogoSoftGlow)" />
+                <path d="M10 14h12M10 18h9M10 22h11" stroke="url(#topbarLogoStroke)" stroke-width="1.35" stroke-linecap="round" opacity="0.9" />
+                <circle cx="30" cy="12" r="2.25" fill="#22d3ee" opacity="0.9" />
+                <circle cx="34" cy="20" r="2" fill="#a78bfa" opacity="0.95" />
+                <circle cx="29" cy="28" r="1.85" fill="#34d399" opacity="0.9" />
+                <path d="M27.5 13.5L31 18M31 22l-3 4.5M22 24l5.5 1" stroke="url(#topbarLogoStroke)" stroke-width="1.1" stroke-linecap="round" opacity="0.75" />
+              </svg>
+            </div>
+            <div class="topbar-titles">
+              <p class="eyebrow topbar-eyebrow" data-t="intelligentNotes">Intelligent Notes</p>
+              <h1 class="topbar-heading" data-t="cozzyNotes">Notes & reminders</h1>
+            </div>
+          </div>
+          <div class="account-area account-area-top">
+            <button type="button" class="account-button" id="accountButton" onclick="openAccountModal()">&#x1F464; Account</button>
+            <button type="button" class="logout-button hidden" id="logoutButton" onclick="logoutUser()">Log out</button>
+          </div>
+          <button
+            type="button"
+            id="mobileHeaderActionBtn"
+            class="mobile-header-action-btn mobile-header-action-btn--logout hidden"
+            onclick="mobileHeaderActionClick(event)"
+            aria-label="Log out"
+            title="Log out"
+          >
+            <svg class="mobile-header-action-btn__svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path
+                d="M10 17H7a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              />
+              <path d="M15 12H4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              <path
+                d="M12 8l4 4-4 4"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path d="M20 12h-1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+          </button>
+          <div id="mobileLogoutConfirm" class="mobile-logout-confirm hidden" role="dialog" aria-label="Log out confirmation">
+            <p class="mobile-logout-confirm__text">Are you sure?</p>
+            <div class="mobile-logout-confirm__actions">
+              <button type="button" class="mobile-logout-confirm__btn mobile-logout-confirm__btn--cancel" onclick="closeMobileLogoutConfirm()">Cancel</button>
+              <button type="button" class="mobile-logout-confirm__btn mobile-logout-confirm__btn--yes" onclick="confirmMobileLogout()">Yes</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <section id="notes-all" class="page hidden notes-all-page">
+        <div class="page-shell page-shell--notes">
+          <div class="page-header">
+            <button type="button" class="back-button" onclick="goHome()">&#x2190; Home</button>
+            <div>
+              <p class="eyebrow" data-t="myNotesEyebrow">Notes</p>
+              <h2 data-t="myNotesTitle">My notes</h2>
+              <p id="allNotesCount">0 notes</p>
+            </div>
+            <button type="button" class="add-button" onclick="openNoteEditorCreate('all')" data-t="newNote">New note</button>
+          </div>
+          <p class="home-copy notes-all-intro" data-t="myNotesIntro">Create, edit, or delete notes across all categories.</p>
+          <div class="notes-toolbar">
+            <div class="notes-toolbar-field notes-toolbar-field--search">
+              <label class="notes-search-label" for="notesSearchInput" data-t="notesSearchLabel">Search notes</label>
+              <input type="search" id="notesSearchInput" class="notes-search-input" data-t-placeholder="notesSearchPlaceholder" placeholder="Search note title or text…" autocomplete="off" oninput="debouncedFilterAllNotes()" />
+            </div>
+            <div class="notes-toolbar-field">
+              <label class="notes-search-label" for="notesCategoryFilter" data-t="notesCategoryFilterLabel">Category</label>
+              <select id="notesCategoryFilter" class="notes-select-input" onchange="filterAllNotesList()">
+                <option value="all" data-t="notesCategoryFilterAll">All categories</option>
+              </select>
+            </div>
+            <div class="notes-toolbar-field">
+              <label class="notes-search-label" for="notesSortSelect" data-t="notesSortLabel">Sort</label>
+              <select id="notesSortSelect" class="notes-select-input" onchange="setAllNotesSort(this.value)">
+                <option value="newest" data-t="notesSortNewest">Newest first</option>
+                <option value="oldest" data-t="notesSortOldest">Oldest first</option>
+                <option value="title-asc" data-t="notesSortTitleAsc">Title A-Z</option>
+                <option value="category-asc" data-t="notesSortCategoryAsc">Category A-Z</option>
+              </select>
+            </div>
+          </div>
+          <div class="notes-list" id="allNotesList"></div>
+        </div>
+      </section>
+
+      <section id="home" class="page">
+        <div class="home-dashboard">
+          <div class="home-dashboard-top">
+            <div class="home-dashboard-primary">
+              <div class="home-intro">
+                <div class="home-intro-head">
+                  <p class="eyebrow" data-t="welcomeBack">Welcome back</p>
+                  <h2 class="home-hero-title" data-t="pickCategory">Pick a category and start smart planning.</h2>
+                  <p class="home-copy" data-t="homeDescription">Your notes, reminders, and WhatsApp follow-ups live in one polished dashboard. Tap any tile to browse or create fast category notes.</p>
+                </div>
+              </div>
+
+              <div class="hex-grid home-categories-grid">
+                <div class="hex-card hex-warm">
+                  <button type="button" class="hex-card-main" onclick="openCategory('shtepia')" aria-label="Shtepia category">
+                    <div class="category-icon" aria-hidden="true">🏠</div>
+                    <strong data-t="shtepia">Shtepia</strong>
+                    <span class="card-subtitle" data-t="shtetiaSubtitle">Personal notes & home tasks</span>
+                  </button>
+                  <button type="button" class="hex-card-add" onclick="openNoteEditorCreate('home','shtepia')" data-t="homeCardAddNote">+ Add note</button>
+                </div>
+                <div class="hex-card hex-cool">
+                  <button type="button" class="hex-card-main" onclick="openCategory('puna')" aria-label="Puna category">
+                    <div class="category-icon" aria-hidden="true">💼</div>
+                    <strong data-t="puna">Puna</strong>
+                    <span class="card-subtitle" data-t="punaSubtitle">Professional work plans & meetings</span>
+                  </button>
+                  <button type="button" class="hex-card-add" onclick="openNoteEditorCreate('home','puna')" data-t="homeCardAddNote">+ Add note</button>
+                </div>
+                <div class="hex-card hex-fresh">
+                  <button type="button" class="hex-card-main" onclick="openCategory('shkolla')" aria-label="Shkolla category">
+                    <div class="category-icon" aria-hidden="true">📚</div>
+                    <strong data-t="shkolla">Shkolla</strong>
+                    <span class="card-subtitle" data-t="skollaSubtitle">Study notes, lessons, and focus goals</span>
+                  </button>
+                  <button type="button" class="hex-card-add" onclick="openNoteEditorCreate('home','shkolla')" data-t="homeCardAddNote">+ Add note</button>
+                </div>
+              </div>
+              <div class="home-bottom-info-bar" role="note" aria-label="Quick motivation">
+                <div class="home-bottom-info-bar__left">
+                  <span class="home-bottom-info-bar__star" aria-hidden="true">✦</span>
+                  <div>
+                    <p class="home-bottom-info-bar__title">Planifiko, organizo, kujto.</p>
+                    <p class="home-bottom-info-bar__sub">Inteligjenca që të ndihmon çdo ditë.</p>
+                  </div>
+                </div>
+                <span class="home-bottom-info-bar__stats" aria-hidden="true">📊</span>
+              </div>
+              <div id="homeDiscordCard" class="home-discord-card hidden">
+                <div class="home-discord-card__main">
+                  <div class="home-discord-card__icon" aria-hidden="true">💬</div>
+                  <div class="home-discord-card__copy">
+                    <h3 class="home-discord-card__title" data-t="homeDiscordTitle">Komuniteti &amp; Njoftime</h3>
+                    <p class="home-discord-card__text" data-t="homeDiscordText">Join our Discord to get updates, ask questions, and stay connected.</p>
+                  </div>
+                </div>
+                <button id="homeDiscordJoinBtn" type="button" class="home-discord-card__btn" onclick="openDiscordCommunity()" data-t="homeDiscordBtn">
+                  Hap Discord
+                </button>
+              </div>
+            </div>
+
+            <aside class="home-stats-panel" aria-label="Overview">
+              <p class="home-stats-eyebrow" data-t="homeStatsEyebrow">Overview</p>
+              <p id="homeWelcomeLine" class="home-welcome-line">—</p>
+              <div class="home-stats-grid">
+                <div class="home-stat">
+                  <span class="home-stat-value" id="homeStatNotes">—</span>
+                  <span class="home-stat-label" data-t="homeStatNotesLabel">Notes</span>
+                </div>
+                <div class="home-stat">
+                  <span class="home-stat-value" id="homeStatReminders">—</span>
+                  <span class="home-stat-label" data-t="homeStatRemindersLabel">Web reminders</span>
+                </div>
+              </div>
+              <button type="button" class="home-stats-cta" onclick="openMyNotes()" data-t="homeStatsMyNotes">My notes</button>
+            </aside>
+          </div>
+
+          <div class="home-reminders-embed" id="homeRemindersEmbed" aria-labelledby="homeRemindersTitle">
+            <div class="home-reminders-shell">
+              <div class="home-reminders-inner">
+              <header class="home-reminders-head">
+                <div class="home-reminders-head-badge" aria-hidden="true">&#x1F514;</div>
+                <div class="home-reminders-head-copy">
+                  <p class="eyebrow" data-t="remindersHubEyebrow">Reminders</p>
+                  <h3 class="home-reminders-title" id="homeRemindersTitle" data-t="remindersHubTitle">Date &amp; time alerts</h3>
+                  <p class="home-reminders-sub" data-t="remindersHubSubtitle">Browser notifications while this app is open</p>
+                  <button type="button" class="home-reminders-notify-btn" onclick="requestNotificationPermission()" data-t="enableNotifications">Enable notifications</button>
+                </div>
+              </header>
+
+              <div class="home-reminders-body">
+                <div class="home-reminders-compose">
+                  <div class="home-reminders-fields">
+                    <div class="field-group home-reminders-field">
+                      <label for="homeEmbedReminderMessage" data-t="hubReminderMessageLabel">Reminder message</label>
+                      <textarea id="homeEmbedReminderMessage" data-t-placeholder="hubReminderMessagePh" rows="2" placeholder="What should we remind you about?"></textarea>
+                    </div>
+                    <div class="field-group home-reminders-field">
+                      <label for="homeEmbedReminderTime" data-t="hubReminderTimeLabel">Remind me at</label>
+                      <input id="homeEmbedReminderTime" type="datetime-local" />
+                    </div>
+                  </div>
+
+                  <div class="home-reminders-submit-wrap">
+                    <button type="button" class="save-button home-reminders-submit" onclick="saveHomeEmbedWebReminder()">
+                      <span class="button-icon">&#x1F514;</span><span data-t="scheduleReminderBtn">Schedule reminder</span>
+                    </button>
+                  </div>
+                </div>
+
+                <aside class="home-reminders-aside" aria-label="Upcoming reminders">
+                  <h4 class="home-reminders-aside-title" data-t="hubUpcomingTitle">Upcoming web reminders</h4>
+                  <div id="homeEmbedWebRemindersList" class="hub-reminders-list home-reminders-list-embedded"></div>
+                </aside>
+              </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="category" class="page hidden">
+        <div class="page-header">
+          <button class="back-button" onclick="goHome()">&#x2190; Home</button>
+          <div>
+            <p class="eyebrow">Category</p>
+            <h2 id="catTitle">Shtepia</h2>
+            <p id="noteCount">0 notes</p>
+          </div>
+          <button id="categoryAddNoteBtn" class="add-button" type="button" onclick="openNoteEditorCreate('category')" data-t="addNote">+ Add note</button>
+          <button id="categoryScanCamBtn" class="add-button hidden" type="button" onclick="openScanCamPage()" data-t="scanCamOpenScanner">Scan document</button>
+        </div>
+
+        <div id="scanCamCategoryBanner" class="scan-cam-category-banner hidden" role="region" aria-label="Scan Cam">
+          <p class="scan-cam-category-banner__text" data-t="scanCamCategoryBanner">Use Scan Cam to capture printed text into notes in this category.</p>
+        </div>
+
+        <div class="notes-list" id="notes"></div>
+
+        <div class="web-reminder-section" id="webReminderSection">
+          <div class="section-divider"></div>
+          <h3 class="reminder-section-title">🔔 Set Web Reminder</h3>
+          <p class="reminder-section-desc">Get browser notifications when it's time</p>
+          
+          <div class="reminder-form">
+            <div class="form-group">
+              <label for="webReminderNote">Select a note:</label>
+              <select id="webReminderNote">
+                <option value="">-- Choose a note --</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label for="webReminderTime">Remind me at:</label>
+              <input id="webReminderTime" type="datetime-local" />
+            </div>
+            
+            <div class="form-group">
+              <label for="webReminderMessage">Message (optional):</label>
+              <textarea id="webReminderMessage" placeholder="Custom reminder message..." rows="2"></textarea>
+            </div>
+            
+            <button class="save-reminder-btn" onclick="saveWebReminder()">💾 Me kujto</button>
+          </div>
+
+          <div id="activeRemindersContainer" class="active-reminders-container" style="display: none;">
+            <h4>Your active reminders:</h4>
+            <div id="activeRemindersList"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="scan-cam" class="page hidden scan-cam-page scan-cam-page--tool" aria-labelledby="scanCamPageTitle">
+        <div class="scan-cam-workspace">
+          <div class="scan-cam-workspace__ambient" aria-hidden="true">
+            <div class="scan-cam-workspace__grid"></div>
+            <div class="scan-cam-workspace__radial"></div>
+            <div class="scan-cam-workspace__float-docs">
+              <span class="scan-cam-fake-doc scan-cam-fake-doc--a"></span>
+              <span class="scan-cam-fake-doc scan-cam-fake-doc--b"></span>
+              <span class="scan-cam-fake-doc scan-cam-fake-doc--c"></span>
+            </div>
+          </div>
+
+          <div class="scan-cam-tool">
+            <header class="scan-cam-tool__header">
+              <button type="button" class="scan-cam-tool__back" onclick="goHome()" aria-label="Home">&#x2190;</button>
+              <h1 id="scanCamPageTitle" class="scan-cam-tool__title" data-t="scanCamPageTitle">Scan Cam</h1>
+              <div class="scan-cam-tool__header-actions">
+                <button type="button" class="scan-cam-tool__icon" onclick="scanCamNewScan()" data-t-title="scanCamNewScanTitle" aria-label="New scan">↻</button>
+                <button type="button" class="scan-cam-tool__icon" onclick="tryOpenScanCamCategory()" data-t-title="scanCamViewNotes" aria-label="Notes">&#x1F4C4;</button>
+              </div>
+            </header>
+
+            <div class="scan-cam-tool__body">
+              <div class="scan-cam-tool__layout-wrap">
+                <div class="scan-cam-tool__layout">
+                  <div class="scan-cam-tool__main">
+                    <p id="scanCamStatus" class="scan-cam-tool__status" aria-live="polite"></p>
+
+                    <div id="scanCamLaunch" class="scan-cam-launch">
+                      <div class="scan-cam-scan-zone">
+                        <p class="scan-cam-scan-zone__hint" data-t="scanCamWorkspaceHint">Scan or upload</p>
+                        <button
+                          type="button"
+                          id="scanCamBigCamera"
+                          class="scan-cam-camera-glow"
+                          onclick="scanCamOpenCamera(); scanCamDismissOnboarding();"
+                          data-t-title="scanCamOpenCamera"
+                          aria-label="Open camera"
+                        >
+                          <svg class="scan-cam-camera-glow__svg" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <rect x="6" y="12" width="36" height="28" rx="5" stroke="currentColor" stroke-width="2" opacity="0.9" />
+                            <circle cx="24" cy="26" r="9" stroke="currentColor" stroke-width="2" />
+                            <circle cx="36" cy="16" r="3" fill="currentColor" opacity="0.85" />
+                          </svg>
+                        </button>
+                        <div id="scanCamOnboardingTooltip" class="scan-cam-onboarding hidden" role="status" aria-live="polite">
+                          <p class="scan-cam-onboarding__text" data-t="scanCamOnboardingText">
+                            Filloni këtu: hapni kamerën ose ngarkoni një skedar.
+                          </p>
+                          <button type="button" class="scan-cam-onboarding__btn" onclick="scanCamDismissOnboarding()" data-t="scanCamOnboardingOk">
+                            E kuptova
+                          </button>
+                        </div>
+                      </div>
+                      <div class="scan-cam-launch__actions">
+                        <button
+                          type="button"
+                          class="scan-cam-chip-btn scan-cam-chip-btn--primary"
+                          onclick="scanCamOpenCamera(); scanCamDismissOnboarding();"
+                          data-t="scanCamBtnOpenCamera"
+                        >
+                          Hap kamerën
+                        </button>
+                        <button type="button" class="scan-cam-chip-btn scan-cam-chip-btn--secondary" onclick="scanCamUploadPhoto(); scanCamDismissOnboarding();" data-t="scanCamUploadPhoto">
+                          Ngarko foto
+                        </button>
+                        <button type="button" class="scan-cam-chip-btn scan-cam-chip-btn--secondary" onclick="scanCamUploadDocument(); scanCamDismissOnboarding();" data-t="scanCamUploadDocument">
+                          Ngarko dokument
+                        </button>
+                      </div>
+                      <input id="scanCamUploadInput" type="file" accept="image/*" class="hidden" onchange="scanCamHandlePhotoUpload(this)" />
+                      <input id="scanCamUploadInputDoc" type="file" accept="image/*,application/pdf,.pdf" class="hidden" onchange="scanCamHandleDocumentUpload(this)" />
+                    </div>
+
+                    <div id="scanCamStageBlock" class="scan-cam-stage-block hidden">
+                      <div class="scan-cam-stage">
+                        <button
+                          type="button"
+                          id="scanCamStageCloseCam"
+                          class="scan-cam-stage__close hidden"
+                          onclick="scanCamCloseCameraUi()"
+                          data-t-title="scanCamCloseCamera"
+                          aria-label="Close camera"
+                        >
+                          ×
+                        </button>
+                        <div id="scanCamPlaceholder" class="scan-cam-placeholder">
+                          <p class="scan-cam-placeholder__text" data-t="scanCamToolPlaceholder">Capture or upload to preview</p>
+                        </div>
+                        <div id="scanCamVideoWrap" class="scan-cam-stage__media scan-cam-stage__media--video hidden">
+                          <video id="scanCamVideo" playsinline muted></video>
+                        </div>
+                        <img id="scanCamPhotoPreview" class="scan-cam-stage__media scan-cam-stage__media--img hidden" alt="" />
+                        <div id="scanCamPdfWrap" class="scan-cam-stage__media scan-cam-stage__media--pdf hidden">
+                          <embed id="scanCamPdfEmbed" class="scan-cam-pdf-embed" type="application/pdf" title="PDF preview" />
+                        </div>
+                        <div id="scanCamScanline" class="scan-cam-scanline hidden" aria-hidden="true"></div>
+                      </div>
+                      <button type="button" id="scanCamShutter" class="scan-cam-shutter hidden" onclick="scanCamCapturePhoto()" data-t="scanCamTakePhoto">Capture</button>
+                    </div>
+
+                    <nav id="scanCamPreviewBar" class="scan-cam-preview-bar hidden" aria-label="Scan actions">
+                      <button type="button" id="scanCamBtnConvert" class="scan-cam-preview-bar__convert" onclick="scanCamRunOcr()" data-t="scanCamConvertToText">Convert</button>
+                      <button type="button" class="scan-cam-preview-bar__ghost" onclick="scanCamRetake()" data-t="scanCamRetake">New scan</button>
+                    </nav>
+                  </div>
+
+                  <aside class="scan-cam-tool__side" aria-labelledby="scanCamFeaturesTitle">
+                    <details class="scan-cam-side-card" open>
+                      <summary class="scan-cam-side-card__summary">
+                        <span class="scan-cam-side-card__summary-label" data-t="scanCamCapabilitiesLabel">Capabilities</span>
+                        <span class="scan-cam-side-card__summary-icon" aria-hidden="true">▾</span>
+                      </summary>
+                      <p class="scan-cam-side-card__eyebrow" data-t="scanCamPageEyebrow">Standard feature</p>
+                      <h2 id="scanCamFeaturesTitle" class="scan-cam-side-card__title" data-t="scanCamFeaturesPanelTitle">What you can do with Scan Cam</h2>
+                      <ul class="scan-cam-features-list">
+                        <li class="scan-cam-features-list__item"><span aria-hidden="true">📸</span><span data-t="scanCamFeature1">Capture notes from printed pages in seconds</span></li>
+                        <li class="scan-cam-features-list__item"><span aria-hidden="true">🗂️</span><span data-t="scanCamFeature2">Upload photos or PDFs from your device</span></li>
+                        <li class="scan-cam-features-list__item"><span aria-hidden="true">🧠</span><span data-t="scanCamFeature3">Convert to editable text, then save to notes</span></li>
+                        <li class="scan-cam-features-list__item"><span aria-hidden="true">🚀</span><span data-t="scanCamFeature4">Export PDF, download the image, or share</span></li>
+                      </ul>
+                    </details>
+                  </aside>
+                </div>
+
+                <div class="scan-cam-info-cards" role="region" aria-label="Scan Cam tips">
+                  <article class="scan-cam-mini-card">
+                    <h3 class="scan-cam-mini-card__title" data-t="scanCamHowItWorksTitle">How it works</h3>
+                    <ol class="scan-cam-mini-card__steps">
+                      <li data-t="scanCamHowStep1">Open the camera or upload a photo / PDF.</li>
+                      <li data-t="scanCamHowStep2">Preview your document, then convert to text.</li>
+                      <li data-t="scanCamHowStep3">Save as a note, export, or share.</li>
+                    </ol>
+                  </article>
+                  <article class="scan-cam-mini-card">
+                    <h3 class="scan-cam-mini-card__title" data-t="scanCamFormatsTitle">Supported formats</h3>
+                    <p class="scan-cam-mini-card__body" data-t="scanCamFormatsBody">
+                      JPG, PNG, WebP images and PDF documents. Use good lighting for clearer text.
+                    </p>
+                  </article>
+                  <article class="scan-cam-mini-card scan-cam-mini-card--accent">
+                    <h3 class="scan-cam-mini-card__title" data-t="scanCamPremiumCardTitle">Standard &amp; Premium</h3>
+                    <p class="scan-cam-mini-card__body" data-t="scanCamPremiumCardBody">
+                      Full Scan Cam (convert, save, export, share) is included on Standard and Premium.
+                    </p>
+                  </article>
+                </div>
+              </div>
+            </div>
+
+            <div id="scanCamResultPanel" class="scan-cam-result hidden" role="dialog" aria-modal="true" aria-labelledby="scanCamResultHeading">
+            <h2 id="scanCamResultHeading" class="visually-hidden" data-t="scanCamResultLabel">Recognized text</h2>
+            <div class="scan-cam-result__sheet">
+              <input
+                type="text"
+                id="scanCamNoteTitle"
+                class="scan-cam-result__title"
+                maxlength="200"
+                autocomplete="off"
+                data-t-placeholder="scanCamNoteTitleLabel"
+                placeholder="Note title (optional)"
+              />
+              <div id="scanCamResultBody" class="scan-cam-result__body"></div>
+            </div>
+            <div class="scan-cam-result__actions">
+              <button type="button" class="scan-cam-result__btn scan-cam-result__btn--primary" onclick="saveScanCamNoteFromOcr()" data-t="scanCamSaveNote">Save as note</button>
+              <button type="button" class="scan-cam-result__btn" onclick="scanCamDownloadPdf()" data-t="scanCamDownloadPdf">Download PDF</button>
+              <button type="button" class="scan-cam-result__btn" onclick="scanCamDownloadImage()" data-t="scanCamDownloadImage">Download Image</button>
+              <button type="button" class="scan-cam-result__btn" onclick="openScanCamShareModal()" data-t="scanCamShare">Share</button>
+            </div>
+            <button type="button" class="scan-cam-result__dismiss" onclick="scanCamCloseResultPanel()" data-t-title="scanCamCloseResultTitle" aria-label="Close">×</button>
+          </div>
+
+          <textarea id="scanCamResultText" class="hidden" spellcheck="true" aria-hidden="true"></textarea>
+        </div>
+        </div>
+      </section>
+
+      <section id="bot" class="page hidden">
+        <div class="page-header bot-page-header">
+          <button type="button" class="back-button" onclick="goHome()">&#x2190; Home</button>
+          <div>
+            <p class="eyebrow" data-t="botWorkspaceEyebrow">Reminders</p>
+            <h2 data-t="botWorkspaceTitle">WhatsApp &amp; AI</h2>
+          </div>
+        </div>
+
+        <p id="botGuestStrip" class="home-copy bot-context-strip hidden" data-t="botPageGuestHint">Log in to sync notes and unlock paid tiers when billing is ready.</p>
+
+        <div id="premiumWhatsAppUpsell" class="premium-marketing hidden">
+          <div class="premium-marketing-inner">
+            <header class="premium-hero pricing-lite-hero">
+              <h1 class="premium-hero-title" data-t="premiumLiteHeroTitle">Unlock full power 🚀</h1>
+              <p class="premium-hero-lead" data-t="premiumLiteHeroLead">Smarter reminders. Faster AI. More control.</p>
+              <div class="pricing-lite-billing-switch" role="group" aria-label="Billing period">
+                <button type="button" class="pricing-lite-billing-btn is-active" data-billing="monthly" onclick="premiumLiteBillingToggle('monthly')" data-t="premiumLiteMonthly">Monthly</button>
+                <button type="button" class="pricing-lite-billing-btn" data-billing="yearly" onclick="premiumLiteBillingToggle('yearly')" data-t="premiumLiteYearlySoon">Yearly (Coming soon -20%)</button>
+              </div>
+            </header>
+
+            <section id="premiumPlansSection" class="premium-plans-section pricing-lite-plans" aria-labelledby="premiumPlansHeading">
+              <div class="pricing-lite-topbar">
+                <h2 id="premiumPlansHeading" class="premium-section-heading" data-t="premiumPlansHeading">Choose your plan</h2>
+                <button type="button" class="pricing-lite-compare-btn" onclick="premiumLiteToggleCompare()" data-t="premiumLiteCompareBtn">Compare plans</button>
+              </div>
+              <div class="pricing-lite-grid">
+                <article class="pricing-lite-card pricing-lite-card--free" data-lite-plan="free" onclick="premiumLiteSelectPlan('free')">
+                  <div class="pricing-lite-card__head">
+                    <h3 data-t="premiumPlanFreeName">Free</h3>
+                    <span class="pricing-lite-badge" data-t="premiumLiteBadgeStarter">🆓 Starter</span>
+                  </div>
+                  <p class="pricing-lite-price">€0 <span>/month</span></p>
+                  <ul class="pricing-lite-benefits">
+                    <li data-t="premiumLiteFree1">Category notes</li>
+                    <li data-t="premiumLiteFree2">Manual reminders</li>
+                    <li data-t="premiumLiteFree3">TXT export</li>
+                    <li data-t="premiumLiteFree4">Daily planner locked</li>
+                  </ul>
+                </article>
+
+                <article class="pricing-lite-card" data-lite-plan="standard" onclick="premiumLiteSelectPlan('standard')">
+                  <div class="pricing-lite-card__head">
+                    <h3 data-t="premiumPlanStandardName">Standard</h3>
+                    <span class="pricing-lite-badge" data-t="premiumLiteBadgeValue">⚖️ Best value</span>
+                  </div>
+                  <p class="pricing-lite-price"><span id="premiumLiteStandardPriceMain">€2.99</span> <span id="premiumLiteStandardPricePeriod">/month</span></p>
+                  <p id="premiumLiteStandardSub" class="pricing-lite-subline hidden"></p>
+                  <ul class="pricing-lite-benefits">
+                    <li data-t="premiumLiteStd1">Unlimited chat 🚀</li>
+                    <li data-t="premiumLiteStd2">Chat reminders</li>
+                    <li data-t="premiumLiteStd3">PDF export</li>
+                    <li data-t="premiumLiteStd4">Scan → text</li>
+                    <li data-t="premiumLiteStd5">Daily planner</li>
+                  </ul>
+                  <button type="button" id="premiumLiteStandardCta" class="save-button pricing-lite-cta" onclick="event.stopPropagation(); premiumPlanCheckoutClick('standard')" data-t="premiumLiteCtaStandard">Start Standard</button>
+                </article>
+
+                <article class="pricing-lite-card pricing-lite-card--premium" data-lite-plan="premium" onclick="premiumLiteSelectPlan('premium')">
+                  <div class="pricing-lite-card__head">
+                    <h3 data-t="premiumPlanPremiumTierName">Premium</h3>
+                    <span class="pricing-lite-badge pricing-lite-badge--highlight" data-t="premiumLiteBadgeChosen">🔥 Most chosen</span>
+                  </div>
+                  <p class="pricing-lite-price"><span id="premiumLitePremiumPriceMain">€4.99</span> <span id="premiumLitePremiumPricePeriod">/month</span></p>
+                  <p id="premiumLitePremiumSub" class="pricing-lite-subline hidden"></p>
+                  <p id="premiumLiteSaveLine" class="pricing-lite-save" data-t="premiumLiteSaveLine">More power for just +€2</p>
+                  <ul class="pricing-lite-benefits">
+                    <li data-t="premiumLitePrem1b">Everything you need + more power</li>
+                    <li data-t="premiumLitePrem2">Smarter AI 🧠</li>
+                    <li data-t="premiumLitePrem3">Higher limits</li>
+                    <li data-t="premiumLitePrem4">(Future) WhatsApp reminders</li>
+                    <li data-t="premiumLitePrem5">Daily planner included</li>
+                  </ul>
+                  <p id="premiumLiteSocialProof" class="pricing-lite-social-proof" data-t="premiumLiteSocialProof">Most users choose Premium</p>
+                  <button type="button" id="premiumLitePremiumCta" class="save-button pricing-lite-cta pricing-lite-cta--premium" onclick="event.stopPropagation(); premiumPlanCheckoutClick('premium')" data-t="premiumLiteCtaPremium2">Unlock Premium 🚀</button>
+                </article>
+              </div>
+
+              <div id="pricingLiteCompare" class="pricing-lite-compare hidden">
+                <div class="pricing-lite-compare__head">
+                  <span data-t="premiumLiteCompareFeature">Feature</span>
+                  <span data-t="premiumPlanFreeName">Free</span>
+                  <span data-t="premiumPlanStandardName">Standard</span>
+                  <span data-t="premiumPlanPremiumTierName">Premium</span>
+                </div>
+                <div class="pricing-lite-compare__row">
+                  <span data-t="premiumLiteCmpChat">Chat limit</span><span>✔️</span><span>✔️</span><span>✔️</span>
+                </div>
+                <div class="pricing-lite-compare__row">
+                  <span data-t="premiumLiteCmpAi">AI advanced</span><span>❌</span><span>❌</span><span>✔️</span>
+                </div>
+                <div class="pricing-lite-compare__row">
+                  <span data-t="premiumLiteCmpPdf">Export PDF</span><span>❌</span><span>✔️</span><span>✔️</span>
+                </div>
+              </div>
+            </section>
+
+            <section class="pricing-lite-why" aria-label="Why premium">
+              <div class="pricing-lite-why__item"><span>⚡</span><p data-t="premiumLiteWhy1">Faster performance</p></div>
+              <div class="pricing-lite-why__item"><span>🧠</span><p data-t="premiumLiteWhy2">Smarter AI</p></div>
+              <div class="pricing-lite-why__item"><span>🔒</span><p data-t="premiumLiteWhy3">Priority access</p></div>
+            </section>
+
+            <footer class="pricing-lite-trust">
+              <p data-t="premiumLiteTrust1">🔒 Secure payments with Stripe</p>
+              <p data-t="premiumLiteTrust2">💳 Cards supported</p>
+              <p data-t="premiumLiteTrust3">❌ No card data stored</p>
+            </footer>
+            <button type="button" id="premiumLiteStickyCta" class="save-button pricing-lite-sticky-cta" onclick="premiumPlanCheckoutClick('premium')" data-t="premiumLiteCtaPremium2">Unlock Premium 🚀</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="webChat" class="page hidden web-chat-page web-chat-page--messenger web-chat-drawer" aria-label="Web chat" onclick="closeWebChatDrawer()">
+        <div class="web-chat-messenger" onclick="event.stopPropagation()">
+          <div class="web-chat-sheet-handle" aria-hidden="true">
+            <span class="web-chat-sheet-handle__bar"></span>
+          </div>
+          <header class="web-chat-messenger__header">
+            <div class="web-chat-messenger__head-main">
+              <h2 class="web-chat-messenger__title"><span class="web-chat-messenger__title-icon" aria-hidden="true">🤖</span><span>Chat</span></h2>
+              <p class="web-chat-messenger__status">
+                <span class="web-chat-messenger__status-dot" aria-hidden="true"></span>
+                <span data-t="webChatOnlineStatus">Online · local replies</span>
+              </p>
+            </div>
+            <button type="button" class="web-chat-messenger__back" onclick="closeWebChatDrawer()" aria-label="Close">✕</button>
+          </header>
+
+          <p id="webChatFreeQuotaHint" class="web-chat-quota web-chat-quota--slim hidden" aria-live="polite"></p>
+
+          <div id="webChatSoftLockHint" class="web-chat-soft-lock web-chat-soft-lock--slim hidden" aria-live="polite">
+            <span class="web-chat-soft-lock__text" data-t="webChatSoftLockBody">Web Chat unlimited use is on Standard &amp; Premium.</span>
+            <button type="button" class="web-chat-soft-lock__cta save-button secondary" onclick="openBot()" data-t="upgradePlan">Upgrade plan</button>
+          </div>
+
+          <div class="web-chat-messenger__body">
+            <div id="webChatMessages" class="web-chat-messages" role="log" aria-live="polite"></div>
+          </div>
+
+          <footer class="web-chat-messenger__footer">
+            <div class="web-chat-mode-pills" role="tablist" aria-labelledby="webChatModelLabelText">
+              <span id="webChatModelLabelText" class="sr-only" data-t="webChatModelLabel">Response mode</span>
+              <button
+                type="button"
+                role="tab"
+                id="webChatPill-chatbot"
+                class="web-chat-mode-pill is-active"
+                data-web-chat-mode="chatbot"
+                aria-selected="true"
+                data-t-title="webChatModeTooltipChatbot"
+                onclick="webChatModelSelectOption(event, 'chatbot')"
+              >
+                <span data-t="webChatModeChatbot">Chat Bot</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id="webChatPill-auto"
+                class="web-chat-mode-pill"
+                data-web-chat-mode="auto"
+                aria-selected="false"
+                data-t-title="webChatModeTooltipAuto"
+                onclick="webChatModelSelectOption(event, 'auto')"
+              >
+                <span data-t="webChatModeAuto">Auto</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id="webChatPill-openai"
+                class="web-chat-mode-pill"
+                data-web-chat-mode="openai"
+                aria-selected="false"
+                data-t-title="webChatModeTooltipOpenAi"
+                onclick="webChatModelSelectOption(event, 'openai')"
+              >
+                <span data-t="webChatModeOpenAi">OpenAI</span>
+              </button>
+            </div>
+            <select id="webChatModelMode" class="visually-hidden" tabindex="-1" aria-hidden="true" onchange="webChatModelModeChanged()">
+              <option value="chatbot">chatbot</option>
+              <option value="auto">auto</option>
+              <option value="openai">openai</option>
+            </select>
+
+            <div id="webChatModelLockBanner" class="web-chat-model-lock-banner web-chat-model-lock-banner--slim hidden" role="status">
+              <span id="webChatModelLockBannerText" class="web-chat-model-lock-banner__text" data-t="webChatModelLockedUpgrade">Upgrade to unlock this feature.</span>
+              <button type="button" class="web-chat-model-lock-banner__cta" onclick="openBot()" data-t="webChatModelUpgradeCta">Upgrade</button>
+              <button
+                type="button"
+                class="web-chat-model-lock-banner__dismiss"
+                onclick="webChatModelDismissLockBanner()"
+                data-t-title="webChatModelLockDismissTip"
+                aria-label="Dismiss"
+              >
+                ×
+              </button>
+            </div>
+
+            <div id="webChatOpenAiUsageWrap" class="web-chat-openai-usage web-chat-openai-usage--slim hidden" aria-live="polite">
+              <div class="web-chat-openai-usage__line">
+                <span id="webChatOpenAiUsageLabel" class="web-chat-openai-usage__label"></span>
+                <span id="webChatOpenAiUsageCounts" class="web-chat-openai-usage__counts"></span>
+              </div>
+              <div
+                class="web-chat-openai-usage__track"
+                role="progressbar"
+                aria-valuemin="0"
+                aria-valuemax="120"
+                aria-valuenow="0"
+                id="webChatOpenAiUsageTrack"
+              >
+                <div id="webChatOpenAiUsageFill" class="web-chat-openai-usage__fill"></div>
+              </div>
+              <p id="webChatOpenAiUsageWarn" class="web-chat-openai-usage__warn hidden" data-t="webChatOpenAiNearLimit">You are close to your monthly OpenAI limit.</p>
+            </div>
+
+            <div class="web-chat-composer-bar">
+              <div class="web-chat-composer">
+                <label class="sr-only" for="webChatInput" data-t="webChatInputLabel">Message</label>
+                <textarea
+                  id="webChatInput"
+                  rows="1"
+                  data-t-placeholder="webChatPlaceholder"
+                  placeholder="Write a message…"
+                  onkeydown="webChatInputKeydown(event)"
+                ></textarea>
+                <button type="button" class="web-chat-send web-chat-send--inline" onclick="sendWebChatMessage()" aria-label="Send message">➤</button>
+              </div>
+            </div>
+
+            <div
+              id="webChatQuickActions"
+              class="web-chat-chip-strip web-chat-quick-actions"
+              role="toolbar"
+              aria-label="Examples"
+              data-t-title="webChatQuickExamplesToolbar"
+            >
+              <button type="button" class="web-chat-chip-strip__chip" onclick="webChatFillReminderExample(1)" data-t="webChatReminderExample1">
+                Remind me tomorrow at 12:00 to buy groceries
+              </button>
+              <button type="button" class="web-chat-chip-strip__chip" onclick="webChatFillReminderExample(2)" data-t="webChatReminderExample2">
+                Remind me on 15 August 2026 for a work meeting
+              </button>
+              <button type="button" class="web-chat-chip-strip__chip" onclick="webChatFillReminderExample(3)" data-t="webChatReminderExample3">
+                Remind me today at 20:00 to call Ben on the phone
+              </button>
+            </div>
+
+            <div id="webChatSmartSuggestions" class="web-chat-recent-wrap web-chat-smart-suggestions" aria-label="Recent">
+              <div id="webChatRecentCommands" class="web-chat-recent-inner hidden" aria-live="polite"></div>
+            </div>
+          </footer>
+        </div>
+      </section>
+      <button
+        id="webChatFab"
+        class="web-chat-fab"
+        type="button"
+        onclick="openWebChat()"
+        aria-label="Open Web Chat"
+        data-float-label="Chat"
+      >
+        <span class="web-chat-fab__icon" aria-hidden="true">🤖</span>
+        <span class="web-chat-fab__active-dot" aria-hidden="true"></span>
+        <span id="webChatFabBadge" class="web-chat-fab__badge hidden" aria-live="polite">0</span>
+      </button>
+      <div id="webChatFabTip" class="web-chat-fab-tip hidden" role="status">
+        <span data-t="webChatFabTip">Më pyet ose krijo kujtesë 🧠</span>
+      </div>
+      <section id="reminder-history" class="page hidden reminder-history-page">
+        <div class="page-shell page-shell--history">
+          <div class="page-header history-page-header">
+            <button type="button" class="back-button" onclick="goHome()">&#x2190; Home</button>
+            <div class="history-page-titles">
+              <p class="eyebrow" data-t="reminderHistoryEyebrow">Reminder history</p>
+              <h2 data-t="reminderHistoryTitle">Active and past reminders</h2>
+              <p class="history-page-sub" data-t="reminderHistorySubtitle">Review, search, and manage scheduled reminders.</p>
+            </div>
+          </div>
+
+          <div class="history-summary" id="historySummaryBar" aria-live="polite">
+            <div class="history-stat history-stat--active">
+              <span class="history-stat-value" id="historyStatActiveCount">0</span>
+              <span class="history-stat-label" data-t="historyStatActiveLabel">Active</span>
+            </div>
+            <div class="history-stat history-stat--past">
+              <span class="history-stat-value" id="historyStatPastCount">0</span>
+              <span class="history-stat-label" data-t="historyStatPastLabel">Past</span>
+            </div>
+          </div>
+
+          <div class="history-toolbar">
+            <div class="history-toolbar-search">
+              <label class="sr-only" for="historySearchInput" data-t="historySearchLabel">Search reminders</label>
+              <span class="history-search-icon" aria-hidden="true">&#x1F50D;</span>
+              <input type="search" id="historySearchInput" class="history-search-input" data-t-placeholder="historySearchPlaceholder" placeholder="Search message or note…" autocomplete="off" oninput="debouncedRenderReminderHistory()" />
+            </div>
+            <div class="history-toolbar-filters">
+              <span class="history-toolbar-label" data-t="historyFilterLabel">Show</span>
+              <div class="history-segment" role="group" aria-label="Filter">
+                <button type="button" class="history-segment-btn is-active" data-history-filter="all" onclick="setHistoryFilter('all')" data-t="historyFilterAll">All</button>
+                <button type="button" class="history-segment-btn" data-history-filter="active" onclick="setHistoryFilter('active')" data-t="historyFilterActive">Active</button>
+                <button type="button" class="history-segment-btn" data-history-filter="past" onclick="setHistoryFilter('past')" data-t="historyFilterPast">Past</button>
+              </div>
+            </div>
+            <div class="history-toolbar-sort">
+              <label for="historySortSelect" data-t="historySortLabel">Sort</label>
+              <select id="historySortSelect" class="history-sort-select" onchange="setHistorySort(this.value)">
+                <option value="due-asc" data-t="historySortDueAsc">Due date (soonest first)</option>
+                <option value="due-desc" data-t="historySortDueDesc">Due date (latest first)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="history-full" id="historyLayout">
+            <div class="history-grid" id="historyGrid">
+              <div class="history-column" id="historyColumnActive">
+                <div class="column-header">
+                  <h3 data-t="activeReminders">Active reminders</h3>
+                  <p data-t="activeRemindersDesc">Scheduled and waiting</p>
+                </div>
+                <div id="activeReminders" class="history-reminder-list"></div>
+              </div>
+              <div class="history-column" id="historyColumnPast">
+                <div class="column-header">
+                  <h3 data-t="pastReminders">Past reminders</h3>
+                  <p data-t="pastRemindersDesc">Completed or expired</p>
+                </div>
+                <div id="pastReminders" class="history-reminder-list"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="settings" class="page hidden settings-page">
+        <div class="page-header settings-page-header">
+          <button class="back-button" type="button" onclick="goHome()">&#x2190; Home</button>
+          <div class="settings-page-heading">
+            <p class="eyebrow" data-t="settings">Settings</p>
+            <h2><span aria-hidden="true">⚙️</span> <span data-t="settingsTitle">Settings</span></h2>
+            <p class="settings-page-lead" data-t="settingsSubtitle">Manage your account and preferences</p>
+          </div>
+        </div>
+
+        <div class="settings-layout settings-layout--dashboard">
+          <aside class="settings-nav-card">
+            <div class="settings-search-wrap">
+              <label class="sr-only" for="settingsSearchInput" data-t="settingsSearchLabel">Search settings</label>
+              <input
+                id="settingsSearchInput"
+                type="search"
+                class="settings-search-input"
+                data-t-placeholder="settingsSearchPlaceholder"
+                placeholder="Search settings..."
+                oninput="settingsSearchInputChanged(this.value)"
+              />
+            </div>
+            <nav class="settings-nav-list" aria-label="Settings sections">
+              <button type="button" class="settings-nav-btn is-active" data-settings-tab="account" onclick="openSettingsSection('account')">
+                <span aria-hidden="true">👤</span>
+                <span data-t="settingsTabAccount">Account</span>
+              </button>
+              <button type="button" class="settings-nav-btn" data-settings-tab="notifications" onclick="openSettingsSection('notifications')">
+                <span aria-hidden="true">🔔</span>
+                <span data-t="settingsTabNotifications">Notifications</span>
+              </button>
+              <button type="button" class="settings-nav-btn" data-settings-tab="premium" onclick="openSettingsSection('premium')">
+                <span aria-hidden="true">💎</span>
+                <span data-t="settingsTabPremium">Premium</span>
+              </button>
+              <button type="button" class="settings-nav-btn" data-settings-tab="appearance" onclick="openSettingsSection('appearance')">
+                <span aria-hidden="true">🎨</span>
+                <span data-t="settingsTabAppearance">Appearance</span>
+              </button>
+              <button type="button" class="settings-nav-btn" data-settings-tab="security" onclick="openSettingsSection('security')">
+                <span aria-hidden="true">🔒</span>
+                <span data-t="settingsTabSecurity">Security</span>
+              </button>
+            </nav>
+          </aside>
+
+          <div class="settings-content-card">
+            <section id="settingsSection-account" class="settings-section settings-section-pane" data-settings-pane="account">
+              <div class="settings-pane-head">
+                <h3 class="section-title" data-t="accountSettings">Account Settings</h3>
+                <button type="button" id="settingsEditProfileBtn" class="save-button secondary settings-edit-profile-btn" onclick="toggleSettingsProfileEdit(true)" data-t="settingsEditProfileBtn">
+                  Edit profile
+                </button>
+              </div>
+              <div id="settingsProfileEditForm" class="settings-profile-edit hidden">
+                <div class="field-group settings-field-compact">
+                  <label for="settingsEditFirstName" data-t="firstName">First Name</label>
+                  <input id="settingsEditFirstName" type="text" maxlength="40" autocomplete="given-name" />
+                </div>
+                <div class="field-group settings-field-compact">
+                  <label for="settingsEditLastName" data-t="lastName">Last Name</label>
+                  <input id="settingsEditLastName" type="text" maxlength="40" autocomplete="family-name" />
+                </div>
+                <div class="settings-profile-edit__actions">
+                  <button type="button" class="save-button secondary settings-edit-cancel-btn" onclick="toggleSettingsProfileEdit(false)" data-t="cancelNote">Cancel</button>
+                  <button type="button" class="save-button settings-edit-save-btn" onclick="saveSettingsProfileEdit()" data-t="saveNote">Save</button>
+                </div>
+              </div>
+              <div class="settings-account-grid">
+                <div class="info-item">
+                  <label data-t="firstName">First Name</label>
+                  <p id="settingsFirstName">-</p>
+                </div>
+                <div class="info-item">
+                  <label data-t="lastName">Last Name</label>
+                  <p id="settingsLastName">-</p>
+                </div>
+                <div class="info-item">
+                  <label data-t="username">Username</label>
+                  <p id="settingsUsername">-</p>
+                </div>
+                <div class="info-item">
+                  <label data-t="email">Email or Phone</label>
+                  <p id="settingsEmail">-</p>
+                </div>
+                <div class="info-item settings-account-span-2">
+                  <label data-t="phone">Phone</label>
+                  <p id="settingsPhone">-</p>
+                </div>
+                <div id="settingsAdminRow" class="info-item settings-account-span-2 hidden">
+                  <label>Administration</label>
+                  <p class="settings-admin-wrap">
+                    <a href="/admin" class="settings-admin-link">Admin dashboard</a>
+                    <span class="settings-admin-hint">Users, messages, and stats</span>
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section id="settingsSection-notifications" class="settings-section settings-section-pane hidden" data-settings-pane="notifications">
+              <h3 class="section-title" data-t="settingsNotificationsTitle">Notifications</h3>
+              <div class="settings-notif-toggle-row">
+                <span data-t="settingsNotificationsSimple">Aktivizo njoftimet</span>
+                <label class="settings-switch" for="settingsNotifToggle">
+                  <input id="settingsNotifToggle" type="checkbox" onchange="settingsNotificationsToggleChanged(this.checked)" />
+                  <span class="settings-switch__track" aria-hidden="true"></span>
+                </label>
+              </div>
+              <p id="settingsNotifPermission" class="settings-notif-status" role="status">—</p>
+              <button type="button" id="settingsNotifEnableBtn" class="save-button settings-notif-btn" onclick="requestNotificationPermission()" data-t="enableNotifications">
+                Enable notifications
+              </button>
+            </section>
+
+            <section
+              id="settingsSection-premium"
+              class="settings-section settings-section-pane settings-premium-card hidden"
+              data-settings-pane="premium"
+            >
+              <div class="settings-premium-top">
+                <div>
+                  <p class="settings-premium-badge">PREMIUM</p>
+                  <h3 class="section-title settings-premium-title" data-t="premiumSectionTitle">Premium</h3>
+                  <p id="settingsPremiumLead" class="preference-desc settings-premium-lead" data-t="settingsPremiumPitch">Compare Free, Standard, and Premium on Upgrade plan. Browser alerts on Home stay free.</p>
+                </div>
+                <span id="settingsPlanBadge" class="settings-plan-badge">Free</span>
+              </div>
+              <div class="settings-billing-panel">
+                <p id="settingsPremiumActiveBadge" class="settings-premium-active-badge hidden">Premium Active ✅</p>
+                <div class="settings-billing-grid">
+                  <div class="info-item">
+                    <label>Plan</label>
+                    <p id="settingsBillingPlan">free</p>
+                  </div>
+                  <div class="info-item">
+                    <label>Status</label>
+                    <p id="settingsBillingStatus">—</p>
+                  </div>
+                  <div class="info-item">
+                    <label>Cancel at period end</label>
+                    <p id="settingsBillingCancelAtPeriodEnd">No</p>
+                  </div>
+                  <div class="info-item">
+                    <label>Current period end</label>
+                    <p id="settingsBillingCurrentPeriodEnd">—</p>
+                  </div>
+                </div>
+              </div>
+              <button type="button" id="settingsPremiumUpgradeBtn" class="save-button settings-upgrade-btn" onclick="openBot()">
+                <span data-t="settingsManageSubscriptionBtn">Manage subscription</span>
+              </button>
+              <button type="button" id="settingsCancelSubscriptionBtn" class="save-button secondary hidden" onclick="cancelSubscriptionFromSettings()">
+                Cancel Subscription
+              </button>
+              <p id="settingsCancelSubscriptionHint" class="preference-desc hidden"></p>
+              <p id="settingsPremiumActiveNote" class="settings-premium-active hidden" data-t="settingsPremiumYourePremium">You have Premium. Use the AI Bot workspace for WhatsApp and SMS.</p>
+            </section>
+
+            <section id="settingsSection-appearance" class="settings-section settings-section-pane hidden" data-settings-pane="appearance">
+              <h3 class="section-title" data-t="preferences">Preferences</h3>
+              <div class="preference-item">
+                <label data-t="language">Language</label>
+                <select id="languageSelect" onchange="changeLanguage(this.value)" class="preference-select">
+                  <option value="en">English</option>
+                  <option value="sq">Shqip (Albanian)</option>
+                  <option value="de">Deutsch</option>
+                  <option value="fr">Français</option>
+                  <option value="it">Italiano</option>
+                  <option value="es">Español</option>
+                  <option value="pt">Português</option>
+                  <option value="pl">Polski</option>
+                  <option value="nl">Nederlands</option>
+                  <option value="sv">Svenska</option>
+                </select>
+                <p class="preference-desc" data-t="languagePreferenceDesc">Select your preferred language for the entire application.</p>
+              </div>
+              <div class="preference-item preference-item--flush">
+                <label data-t="theme">Theme</label>
+                <div class="theme-options theme-options--settings theme-options--visual">
+                  <button type="button" class="theme-button" data-theme="classic" onclick="changeTheme('classic')">
+                    <span class="theme-icon theme-icon--svg" aria-hidden="true">
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="3.5" y="3.5" width="17" height="17" rx="5" stroke="currentColor" stroke-width="1.5" />
+                        <path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                      </svg>
+                    </span>
+                    <span class="theme-name" data-t="themeClassic">Classic</span>
+                    <span class="theme-desc" data-t="themeClassicDesc">Balanced dark workspace with soft accents</span>
+                  </button>
+                  <button type="button" class="theme-button" data-theme="normal" onclick="changeTheme('normal')">
+                    <span class="theme-icon theme-icon--svg" aria-hidden="true">
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="4.5" stroke="currentColor" stroke-width="1.5" />
+                        <path
+                          d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M19.07 4.93l-1.41 1.41M6.34 17.66l-1.41 1.41"
+                          stroke="currentColor"
+                          stroke-width="1.5"
+                          stroke-linecap="round"
+                        />
+                      </svg>
+                    </span>
+                    <span class="theme-name" data-t="themeNormal">Minimal Light</span>
+                    <span class="theme-desc" data-t="themeNormalDesc">Soft gray surfaces, crisp type, gentle shadows</span>
+                  </button>
+                  <button type="button" class="theme-button" data-theme="advanced" onclick="changeTheme('advanced')">
+                    <span class="theme-icon">⚡</span>
+                    <span class="theme-name" data-t="themeAdvanced">Neon / Futuristic</span>
+                    <span class="theme-desc" data-t="themeAdvancedDesc">Neon glows and a strong tech vibe</span>
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <section id="settingsSection-security" class="settings-section settings-section-pane hidden" data-settings-pane="security">
+              <button type="button" class="settings-security-toggle" onclick="toggleSettingsSecurityAccordion()" aria-expanded="false" id="settingsSecurityAccordionBtn">
+                <span>🔒</span>
+                <span data-t="settingsSecurityTitle">Security</span>
+                <span class="settings-security-toggle__chev" aria-hidden="true">▾</span>
+              </button>
+              <div id="settingsSecurityAccordionBody" class="settings-security-accordion hidden">
+                <p class="preference-desc settings-section-lead" data-t="settingsSecurityIntro">Change your password and manage how you are signed in.</p>
+
+                <p id="settingsSecurityLoginHint" class="preference-desc settings-guest-hint hidden" data-t="settingsSecurityLoginHint">Log in to change your password.</p>
+
+                <div id="settingsSecurityForms" class="settings-security-forms">
+                  <div class="settings-password-block">
+                    <p class="settings-subblock-title" data-t="settingsPasswordBlockTitle">Password</p>
+                    <div class="settings-password-grid">
+                      <div class="field-group settings-field-compact">
+                        <label for="settingsCurrentPassword" data-t="settingsCurrentPasswordLabel">Current password</label>
+                        <input id="settingsCurrentPassword" type="password" autocomplete="current-password" data-t-placeholder="settingsCurrentPasswordPh" placeholder="Current password" />
+                      </div>
+                      <div class="field-group settings-field-compact">
+                        <label for="settingsNewPassword" data-t="settingsNewPasswordLabel">New password</label>
+                        <input id="settingsNewPassword" type="password" autocomplete="new-password" data-t-placeholder="settingsNewPasswordPh" placeholder="At least 8 characters" />
+                      </div>
+                      <div class="field-group settings-field-compact">
+                        <label for="settingsConfirmPassword" data-t="settingsConfirmPasswordLabel">Confirm new password</label>
+                        <input id="settingsConfirmPassword" type="password" autocomplete="new-password" data-t-placeholder="settingsConfirmPasswordPh" placeholder="Repeat new password" />
+                      </div>
+                    </div>
+                    <button type="button" class="save-button settings-password-submit" onclick="submitSettingsPasswordChange()" data-t="settingsChangePasswordBtn">Update password</button>
+                  </div>
+
+                  <div class="settings-sessions-block">
+                    <p class="settings-subblock-title" data-t="settingsSessionsTitle">Sessions</p>
+                    <p class="preference-desc" data-t="settingsSessionsBody">You are signed in on this browser. Logging out ends this session.</p>
+                    <div class="settings-session-actions">
+                      <span class="settings-session-pill" data-t="settingsSessionThisDevice">This device</span>
+                      <button type="button" class="logout-button settings-session-logout" onclick="logoutUser()" data-t="logout">Log out</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer class="site-footer" role="contentinfo">
+    <div class="site-footer-inner">
+      <nav class="site-footer-links" aria-label="Legal and information">
+        <a href="privacy.html">privacy policy</a>
+        <span class="site-footer-sep" aria-hidden="true">·</span>
+        <a href="terms.html">terms of service</a>
+        <span class="site-footer-sep" aria-hidden="true">·</span>
+        <a href="contact.html">contact</a>
+        <span class="site-footer-sep" aria-hidden="true">·</span>
+        <a href="about.html">about</a>
+        <span class="site-footer-sep" aria-hidden="true">·</span>
+        <a href="cookies.html">cookies policy</a>
+        <span class="site-footer-sep" aria-hidden="true">·</span>
+        <a href="help.html">help / support</a>
+      </nav>
+      <p class="site-footer-copy">© 2026 Notes AI</p>
+    </div>
+  </footer>
+
+  <div class="modal hidden" id="authModal" onclick="closeAccountModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2 id="modalTitle">Login</h2>
+        <button class="close-button" type="button" onclick="closeAccountModal(); event.stopPropagation();" aria-label="Close modal">✕</button>
+      </div>
+      <div class="modal-tabs">
+        <button class="tab active" id="loginTab" onclick="switchAuthTab('login')">Login</button>
+        <button class="tab" id="signupTab" onclick="switchAuthTab('signup')">Sign Up</button>
+      </div>
+
+      <form id="authForm" onsubmit="event.preventDefault(); submitAuth();">
+        <div id="signupFields" class="hidden">
+          <label>Username</label>
+          <input id="username" type="text" placeholder="Username" />
+          <label>Email</label>
+          <input id="email" type="email" placeholder="Email" />
+        </div>
+        <div id="loginFields">
+          <label>Username</label>
+          <input id="loginIdentifier" type="text" placeholder="Username" />
+        </div>
+        <div class="password-field">
+          <label>Password</label>
+          <div class="password-input-wrapper">
+            <input id="password" type="password" placeholder="Password" />
+            <button type="button" class="password-toggle" id="passwordToggle" onclick="togglePasswordVisibility()" aria-label="Show/Hide password">👁️</button>
+          </div>
+        </div>
+        <div class="remember-row">
+          <label class="remember-label" for="rememberMe">
+            <input id="rememberMe" type="checkbox" />
+            <span>Remember me</span>
+          </label>
+        </div>
+        <button class="primaryBtn" type="submit">Continue</button>
+        <div class="auth-message hidden" id="authMessage"></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="reminderEditModal" role="dialog" aria-modal="true" aria-labelledby="reminderEditTitle" onclick="closeReminderEditModal()">
+    <div class="modal-content note-editor-modal" onclick="event.stopPropagation();">
+      <div class="modal-header">
+        <h2 id="reminderEditTitle" data-t="editReminderModalTitle">Edit reminder</h2>
+        <button class="close-button" type="button" onclick="closeReminderEditModal()" aria-label="Close">✕</button>
+      </div>
+      <form class="note-editor-form" onsubmit="event.preventDefault(); submitReminderEdit();">
+        <input type="hidden" id="reminderEditId" value="" />
+        <div class="field-group">
+          <label for="reminderEditMessage" data-t="hubReminderMessageLabel">Message</label>
+          <textarea id="reminderEditMessage" rows="4" required></textarea>
+        </div>
+        <div class="field-group">
+          <label for="reminderEditTime" data-t="hubReminderTimeLabel">Remind me at</label>
+          <input id="reminderEditTime" type="datetime-local" required />
+        </div>
+        <div class="note-editor-actions">
+          <button type="button" class="secondaryBtn" onclick="closeReminderEditModal()" data-t="cancelNote">Cancel</button>
+          <button type="submit" class="primaryBtn" data-t="saveNote">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="noteEditorModal" role="dialog" aria-modal="true" aria-labelledby="noteEditorModalHeading" onclick="closeNoteEditor()">
+    <div class="modal-content note-editor-modal" onclick="event.stopPropagation();">
+      <div class="modal-header">
+        <h2 id="noteEditorModalHeading">Note</h2>
+        <button class="close-button" type="button" onclick="closeNoteEditor()" aria-label="Close">✕</button>
+      </div>
+      <form class="note-editor-form" onsubmit="event.preventDefault(); submitNoteEditor();">
+        <div id="noteEditorCategoryRow" class="field-group hidden">
+          <label for="noteEditorCategory" data-t="categoryLabel">Category</label>
+          <select id="noteEditorCategory" class="select"></select>
+        </div>
+        <div class="field-group">
+          <label for="noteEditorTitleInput" data-t="noteTitleLabel">Title</label>
+          <input type="text" id="noteEditorTitleInput" maxlength="200" data-t-placeholder="noteTitlePlaceholder" autocomplete="off" />
+        </div>
+        <div class="field-group">
+          <label for="noteEditorText" data-t="noteBodyLabel">Note</label>
+          <textarea id="noteEditorText" data-t-placeholder="noteContentPlaceholder" rows="8" required></textarea>
+        </div>
+        <div class="note-editor-actions">
+          <button type="button" class="secondaryBtn" onclick="closeNoteEditor()" data-t="cancelNote">Cancel</button>
+          <button type="submit" class="primaryBtn" data-t="saveNote">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal hidden note-view-modal" id="noteViewModal" role="dialog" aria-modal="true" aria-labelledby="noteViewTitle" onclick="closeNoteViewModal()">
+    <div class="modal-content note-view-modal-content" onclick="event.stopPropagation();">
+      <div class="modal-header note-view-modal-header">
+        <div class="note-view-head-main">
+          <span id="noteViewCategoryBadge" class="note-category-badge">Category</span>
+          <h2 id="noteViewTitle">Note</h2>
+          <p id="noteViewDate" class="note-card-date"></p>
+        </div>
+        <button type="button" class="close-button" onclick="closeNoteViewModal()" aria-label="Close">✕</button>
+      </div>
+      <div class="note-view-body-wrap">
+        <p id="noteViewText" class="note-view-text"></p>
+      </div>
+      <div id="noteViewActions" class="note-view-actions"></div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="noteExportModal" role="dialog" aria-modal="true" aria-labelledby="noteExportModalTitle" onclick="closeNoteExportModal()">
+    <div class="modal-content note-export-modal" onclick="event.stopPropagation();">
+      <div class="modal-header">
+        <h2 id="noteExportModalTitle" data-t="noteExportTitle">Shkarko</h2>
+        <button type="button" class="close-button" onclick="closeNoteExportModal()" aria-label="Close">✕</button>
+      </div>
+      <p class="note-export-lead" data-t="noteExportChooseFormat">Zgjidh formatin</p>
+      <ul class="note-export-options">
+        <li>
+          <button type="button" id="noteExportBtnPdf" class="note-export-option" onclick="runNoteExportAction('pdf')">
+            <span class="note-export-option__ext">PDF</span>
+            <span class="note-export-option__meta">.pdf</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" id="noteExportBtnJpg" class="note-export-option" onclick="runNoteExportAction('jpg')">
+            <span class="note-export-option__ext">JPG</span>
+            <span class="note-export-option__meta">.jpg</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" id="noteExportBtnTxt" class="note-export-option" onclick="runNoteExportAction('txt')">
+            <span class="note-export-option__ext">Text</span>
+            <span class="note-export-option__meta">.txt</span>
+          </button>
+        </li>
+      </ul>
+      <p id="noteExportPlanHint" class="note-export-plan-hint" data-t="noteExportPlanHint">
+        Free: TXT only. Standard: PDF + TXT. Premium: PDF + JPG + TXT.
+      </p>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="noteShareModal" role="dialog" aria-modal="true" aria-labelledby="noteShareModalTitle" onclick="closeNoteShareModal()">
+    <div class="modal-content note-export-modal note-share-modal" onclick="event.stopPropagation();">
+      <div class="modal-header">
+        <h2 id="noteShareModalTitle" data-t="noteShareTitle">Share</h2>
+        <button type="button" class="close-button" onclick="closeNoteShareModal()" aria-label="Close">✕</button>
+      </div>
+      <p class="note-export-lead" data-t="noteShareLead">Send this note</p>
+      <ul class="note-export-options">
+        <li>
+          <button type="button" class="note-export-option" onclick="shareNoteViaWhatsApp()">
+            <span class="note-export-option__ext" data-t="noteShareWhatsApp">WhatsApp</span>
+            <span class="note-export-option__meta">wa.me</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="note-export-option" onclick="shareNoteViaEmail()">
+            <span class="note-export-option__ext" data-t="noteShareEmail">Email</span>
+            <span class="note-export-option__meta">mailto</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="note-export-option" onclick="shareNoteCopyToClipboard()">
+            <span class="note-export-option__ext" data-t="noteShareCopy">Copy</span>
+            <span class="note-export-option__meta" data-t="noteShareCopyHint">clipboard</span>
+          </button>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="scanCamShareModal" role="dialog" aria-modal="true" aria-labelledby="scanCamShareModalTitle" onclick="closeScanCamShareModal()">
+    <div class="modal-content scan-cam-share-modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2 id="scanCamShareModalTitle" data-t="scanCamShareModalTitle">Share</h2>
+        <button class="close-button" type="button" onclick="closeScanCamShareModal()" aria-label="Close">✕</button>
+      </div>
+      <p class="scan-cam-share-modal__hint" data-t="scanCamShareModalHint">Send extracted text using one of the options below.</p>
+      <div class="scan-cam-share-modal__actions">
+        <button type="button" class="save-button" onclick="scanCamShareWhatsApp()" data-t="scanCamShareWhatsApp">WhatsApp</button>
+        <button type="button" class="save-button secondary" onclick="scanCamShareEmail()" data-t="scanCamShareEmail">Email</button>
+        <button type="button" class="save-button secondary" onclick="scanCamShareCopy()" data-t="scanCamShareCopy">Copy text</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="scanCamUpgradeModal" role="dialog" aria-modal="true" aria-labelledby="scanCamUpgradeModalTitle" onclick="closeScanCamUpgradeModal()">
+    <div class="modal-content scan-cam-upgrade-modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2 id="scanCamUpgradeModalTitle" data-t="scanCamUpgradeModalTitle">Upgrade to unlock</h2>
+        <button class="close-button" type="button" onclick="closeScanCamUpgradeModal()" aria-label="Close">✕</button>
+      </div>
+      <p class="scan-cam-upgrade-modal__lead" data-t="scanCamUpgradeModalLead">
+        Converting to text, PDF export, image download, and sharing are included on Standard and Premium. You can still capture or upload a preview on Free.
+      </p>
+      <div class="scan-cam-upgrade-modal__actions">
+        <button type="button" class="save-button" onclick="closeScanCamUpgradeModal(); openBot();" data-t="scanCamUpgradeCta">See plans</button>
+        <button type="button" class="save-button secondary" onclick="closeScanCamUpgradeModal()" data-t="scanCamUpgradeModalDismiss">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <button
+    id="dailyPlannerFab"
+    class="daily-planner-fab"
+    type="button"
+    onclick="openDailyPlannerModal()"
+    aria-label="Open daily planner"
+    data-t-title="dailyPlannerFabTitle"
+    title="Daily planner"
+    data-float-label="Daily planner"
+  >
+    📅
+  </button>
+
+  <div class="modal hidden" id="dailyPlannerModal" role="dialog" aria-modal="true" aria-labelledby="dailyPlannerTitle" onclick="closeDailyPlannerModal()">
+    <div class="modal-content daily-planner-modal" onclick="event.stopPropagation();">
+      <div class="modal-header daily-planner-modal__header">
+        <h2 id="dailyPlannerTitle" data-t="dailyPlannerTitle">Planifikim ditor</h2>
+        <button class="close-button daily-planner-close" type="button" onclick="closeDailyPlannerModal(); event.stopPropagation();" aria-label="Close modal">✕</button>
+      </div>
+      <div class="daily-planner-modal__composer">
+        <label class="sr-only" for="dailyPlannerTaskInput" data-t="dailyPlannerTaskLabel">Çfarë do bësh sot?</label>
+        <input
+          id="dailyPlannerTaskInput"
+          type="text"
+          maxlength="140"
+          data-t-placeholder="dailyPlannerTaskPlaceholder"
+          placeholder="Çfarë do bësh sot?"
+          autocomplete="off"
+        />
+        <label class="sr-only" for="dailyPlannerTimeInput" data-t="dailyPlannerTimeLabel">Ora (opsionale)</label>
+        <input id="dailyPlannerTimeInput" type="time" aria-label="Time" />
+        <button id="dailyPlannerAddBtn" class="save-button daily-planner-add-btn" type="button" onclick="dailyPlannerAddTask()" data-t="dailyPlannerAddBtn">
+          + shto plan të ri
+        </button>
+      </div>
+      <div id="dailyPlannerProgress" class="daily-planner-progress" aria-live="polite"></div>
+      <div id="dailyPlannerList" class="daily-planner-list" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <div class="toast hidden" id="toast"></div>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="js/config/constants.js"></script>
+  <script src="js/features/premium.js"></script>
+  <script src="js/features/note-export.js"></script>
+  <script src="js/features/web-chat-intents.js"></script>
+  <script src="js/services/socket-client.js"></script>
+  <script src="translations.js"></script>
+  <script src="js/components/toast.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

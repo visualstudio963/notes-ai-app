@@ -1,0 +1,162 @@
+const express = require("express");
+const mongoose = require("mongoose");
+const { hasActivePremium, hasScanCamAccess, hasStandardTierAccess } = require("../features/premium/subscriptionService");
+
+const ALLOWED_NOTE_CATEGORIES = ["shtepia", "puna", "shkolla", "scan_cam"];
+
+/**
+ * @param {object | null | undefined} body
+ * @returns {string}
+ */
+function pickTitleFromBody(body) {
+  if (!body || typeof body !== "object") return "";
+  if (body.title != null) return String(body.title).trim();
+  if (body.Title != null) return String(body.Title).trim();
+  return "";
+}
+
+/**
+ * Stable JSON shape for clients (always includes `title` string).
+ * @param {import("mongoose").Document | Record<string, unknown> | null | undefined} n
+ */
+function serializeNote(n) {
+  const o = n && typeof n.toObject === "function" ? n.toObject() : n;
+  if (!o) return null;
+  const raw = o.title;
+  const title = raw != null && raw !== undefined ? String(raw).trim() : "";
+  return {
+    _id: o._id,
+    userId: o.userId,
+    category: o.category,
+    text: o.text,
+    title,
+    createdAt: o.createdAt
+  };
+}
+
+function createNotesRouter({ User, Note, authMiddleware, sendWhatsAppMessage, getIo }) {
+  const router = express.Router();
+
+  router.get("/notes/:category", authMiddleware, async (req, res) => {
+    try {
+      const category = req.params.category.toLowerCase();
+      const notes = await Note.find({ userId: req.userId, category }).sort({ createdAt: -1 }).lean();
+      res.json({ notes: notes.map((doc) => serializeNote(doc)) });
+    } catch {
+      res.status(500).json({ error: "Failed to load notes" });
+    }
+  });
+
+  router.get("/notes", authMiddleware, async (req, res) => {
+    try {
+      const notes = await Note.find({ userId: req.userId }).sort({ category: 1, createdAt: -1 }).lean();
+      res.json({ notes: notes.map((doc) => serializeNote(doc)) });
+    } catch {
+      res.status(500).json({ error: "Failed to load notes" });
+    }
+  });
+
+  router.post("/notes", authMiddleware, async (req, res) => {
+    try {
+      const { category, text } = req.body || {};
+      const textVal = text != null ? String(text).trim() : "";
+      if (!category || !textVal) {
+        return res.status(400).json({ error: "Category and text are required" });
+      }
+      const catKey = String(category).toLowerCase();
+      if (!ALLOWED_NOTE_CATEGORIES.includes(catKey)) {
+        return res.status(400).json({ error: "Invalid category" });
+      }
+      const user = await User.findById(req.userId)
+        .select("phone isPremium premiumExpires plan subscriptionPlan membershipRole")
+        .lean();
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      if (!hasStandardTierAccess(user)) {
+        const freeNotesCount = await Note.countDocuments({ userId: req.userId }).exec();
+        if (freeNotesCount >= 5) {
+          return res.status(403).json({
+            error: "Free plan allows up to 5 notes. Upgrade to add more.",
+            code: "FREE_NOTES_LIMIT"
+          });
+        }
+      }
+      if (catKey === "scan_cam") {
+        if (!hasScanCamAccess(user)) {
+          return res.status(403).json({
+            error: "Scan Cam requires Standard or Premium.",
+            code: "SCAN_CAM_PLAN"
+          });
+        }
+      }
+      const titleVal = pickTitleFromBody(req.body);
+
+      const note = await Note.create({ userId: req.userId, category: catKey, text: textVal, title: titleVal });
+      const out = serializeNote(note);
+      getIo().to(String(req.userId)).emit("noteCreated", { note: out });
+
+      res.status(201).json({ note: out });
+
+      if (user && user.phone && hasActivePremium(user)) {
+        sendWhatsAppMessage(user.phone, catKey, textVal).catch(() => {});
+      }
+    } catch {
+      res.status(500).json({ error: "Failed to create note" });
+    }
+  });
+
+  router.put("/notes/:id", authMiddleware, async (req, res) => {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: "Invalid note id" });
+    }
+    try {
+      const body = req.body || {};
+      const { text } = body;
+      const textVal = text != null ? String(text).trim() : "";
+      if (!textVal) {
+        return res.status(400).json({ error: "Text is required" });
+      }
+      const update = { text: textVal };
+      if (Object.prototype.hasOwnProperty.call(body, "title") || Object.prototype.hasOwnProperty.call(body, "Title")) {
+        update.title = pickTitleFromBody(body);
+      }
+
+      const note = await Note.findOneAndUpdate(
+        { _id: req.params.id, userId: req.userId },
+        { $set: update },
+        { new: true }
+      );
+
+      if (!note) {
+        return res.status(404).json({ error: "Note not found" });
+      }
+
+      const out = serializeNote(note);
+      getIo().to(String(req.userId)).emit("noteUpdated", { note: out });
+      res.json({ note: out });
+    } catch {
+      res.status(500).json({ error: "Failed to update note" });
+    }
+  });
+
+  router.delete("/notes/:id", authMiddleware, async (req, res) => {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: "Invalid note id" });
+    }
+    try {
+      const note = await Note.findOneAndDelete({ _id: req.params.id, userId: req.userId });
+      if (!note) {
+        return res.status(404).json({ error: "Note not found" });
+      }
+      getIo().to(String(req.userId)).emit("noteDeleted", { noteId: req.params.id });
+      res.json({ success: true });
+    } catch {
+      res.status(500).json({ error: "Failed to delete note" });
+    }
+  });
+
+  return router;
+}
+
+module.exports = { createNotesRouter };

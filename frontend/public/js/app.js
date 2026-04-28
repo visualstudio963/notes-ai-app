@@ -2383,11 +2383,11 @@ function openCategory(cat) {
 
   if (currentUser) {
     loadNotes();
-    updateCategoryViewForWebReminders();
   } else {
     renderNotes(getPublicNotes());
-    document.getElementById("webReminderSection").style.display = "none";
   }
+  const webReminderSection = document.getElementById("webReminderSection");
+  if (webReminderSection) webReminderSection.style.display = "none";
 }
 
 function openBot() {
@@ -4841,27 +4841,8 @@ async function markReminderAsSent(reminderId) {
 // Update category page to load web reminders when opened
 function updateCategoryViewForWebReminders() {
   const section = document.getElementById("webReminderSection");
-  const noteSelect = document.getElementById("webReminderNote");
-  if (!section || !noteSelect) return;
-
-  if (!currentUser) {
-    section.style.display = "none";
-    return;
-  }
-
-  section.style.display = "block";
-
-  noteSelect.innerHTML = '<option value="">-- Choose a note --</option>';
-  
-  currentNotes.forEach(note => {
-    const option = document.createElement("option");
-    option.value = note._id;
-    option.textContent = formatNoteSelectOptionLabel(note);
-    noteSelect.appendChild(option);
-  });
-  
-  // Load active reminders
-  loadWebReminders();
+  if (!section) return;
+  section.style.display = "none";
 }
 
 function getPublicNotes() {

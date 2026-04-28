@@ -4168,8 +4168,19 @@ async function sendWebChatMessage() {
   const resolutionText = webChatMergeReminderFollowUp(text);
   let mode = getWebChatMode();
   if (mode === "openai30") mode = "openai";
+  const requestedMode = mode;
   const canAi = typeof userHasWebChatOpenAiAccess === "function" && userHasWebChatOpenAiAccess(currentUser);
   const limitReached = webChatIsOpenAiLimitReached();
+  if (requestedMode === "openai" && !canAi) {
+    appendWebChatBubble("bot", t("webChatOpenAiStandardOnly"));
+    showToast(t("webChatOpenAiStandardOnly"));
+    return;
+  }
+  if (requestedMode === "openai" && limitReached) {
+    appendWebChatBubble("bot", t("webChatOpenAiLimitReached"));
+    showToast(t("webChatOpenAiLimitReached"));
+    return;
+  }
   if (!canAi) mode = "chatbot";
   else if (limitReached && mode === "openai") mode = "chatbot";
   syncWebChatModePresentation(mode, false);
@@ -4186,17 +4197,15 @@ async function sendWebChatMessage() {
       reply = await resolveWebChatReply(text);
     } else if (mode === "openai") {
       if (canAi && !limitReached) {
-        try {
-          const aiReply = await fetchWebChatAiReply(webChatBuildOpenAiMessage(resolutionText));
-          if (aiReply) {
-            reply = aiReply;
-            aiUsed = true;
-          }
-        } catch {
-          reply = "";
+        const aiReply = await fetchWebChatAiReply(webChatBuildOpenAiMessage(resolutionText));
+        if (aiReply) {
+          reply = aiReply;
+          aiUsed = true;
         }
       }
-      if (!reply) reply = await resolveWebChatReply(text);
+      if (!reply) {
+        throw new Error(t("webChatPlanVerifyFailed"));
+      }
     } else {
       reply = await resolveWebChatReply(text);
       if (canAi && !limitReached && webChatShouldFallbackToAi(text)) {

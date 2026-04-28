@@ -251,8 +251,9 @@ const translations = {
       "Standard: Chat Bot only. Premium: local first; on low-confidence messages, OpenAI may run about 30% of the time (monthly cap).",
     webChatModeChatbotTip: "Local intent-based answers only (Standard & Premium).",
     webChatModeOpenAiTip: "Premium: every message uses OpenAI when under your monthly cap; otherwise falls back to Chat Bot.",
-    webChatOpenAiStandardOnly: "Auto and OpenAI need Premium. Standard uses Chat Bot only.",
-    webChatOpenAiLimitReached: "Monthly OpenAI limit reached — switched to Chat Bot.",
+    webChatOpenAiStandardOnly: "OpenAI mode needs Premium. Upgrade to Premium to use OpenAI replies.",
+    webChatOpenAiLimitReached:
+      "You have reached your monthly OpenAI limit. Wait for next month reset or upgrade plan limits.",
     webChatOpenAiUsageTitle: "OpenAI this month",
     webChatOpenAiUsageCounts: "{used} / {limit} used · {remaining} left",
     webChatOpenAiNearLimit: "Only {n} OpenAI replies left this month.",
@@ -914,8 +915,9 @@ const translations = {
       "Standard: vetëm Chat Bot. Premium: lokal fillimisht; në mesazhe me siguri të ulët, OpenAI mund të përdoret rreth 30% të kohës (kufi mujor).",
     webChatModeChatbotTip: "Vetëm përgjigje lokale me intents (Standard & Premium).",
     webChatModeOpenAiTip: "Premium: çdo mesazh përdor OpenAI nën kufirin mujor; përndryshe bie te Chat Bot.",
-    webChatOpenAiStandardOnly: "Auto dhe OpenAI kërkojnë Premium. Standard përdor vetëm Chat Bot.",
-    webChatOpenAiLimitReached: "U arrit kufiri mujor i OpenAI — kaloi te Chat Bot.",
+    webChatOpenAiStandardOnly: "Modaliteti OpenAI kërkon Premium. Kalo në Premium për përgjigje OpenAI.",
+    webChatOpenAiLimitReached:
+      "Ke arritur kufirin mujor të OpenAI. Prit muajin tjetër kur kuota resetohet, ose rrit planin.",
     webChatOpenAiUsageTitle: "OpenAI këtë muaj",
     webChatOpenAiUsageCounts: "{used} / {limit} të përdorura · {remaining} të mbetura",
     webChatOpenAiNearLimit: "Vetëm {n} përgjigje OpenAI të mbetura këtë muaj.",

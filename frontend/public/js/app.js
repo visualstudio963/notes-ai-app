@@ -1749,7 +1749,10 @@ function syncWebChatModePresentation(modeValue, aiLive) {
   page.classList.add(`web-chat-page--mode-${mode}`);
   if (aiLive) page.classList.add("web-chat-page--ai-live");
 
-  setWebChatTranslatableText(titleEl, "webChatTitle");
+  const titleTextEl = titleEl.querySelector(".web-chat-messenger__title-text") || titleEl;
+  const titleKey =
+    mode === "openai" ? "webChatTitleOpenAi" : mode === "auto" ? "webChatTitleAuto" : "webChatTitleChatbot";
+  setWebChatTranslatableText(titleTextEl, titleKey);
 
   if (mode === "openai") {
     setWebChatTranslatableText(statusEl, aiLive ? "webChatOnlineStatusAiLive" : "webChatOnlineStatusOpenAi");

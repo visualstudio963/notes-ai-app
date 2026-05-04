@@ -1343,42 +1343,37 @@
   <div id="noteRichEditorScreen" class="note-rich-editor-screen hidden" aria-hidden="true">
     <div class="note-rich-editor-gradient" aria-hidden="true"></div>
     <div class="note-rich-editor-layout">
-      <header class="note-rich-editor-header note-rich-editor-glass">
-        <button type="button" id="noteRichEditorBack" class="note-rich-editor-back" aria-label="Back">
-          <span class="note-rich-editor-back-icon" aria-hidden="true">←</span>
-          <span>Back</span>
-        </button>
-        <div class="note-rich-editor-header-center">
-          <label class="sr-only" for="noteRichEditorTitle" data-t="noteTitleLabel">Title</label>
-          <input
-            type="text"
-            id="noteRichEditorTitle"
-            class="note-rich-editor-title-input note-rich-editor-title-input--header"
-            maxlength="200"
-            data-t-placeholder="noteTitlePlaceholder"
-            placeholder="Title"
-            autocomplete="off"
-            aria-required="true"
-          />
-          <p id="noteRichEditorTitleError" class="note-rich-editor-title-error hidden" role="alert"></p>
-        </div>
-        <div class="note-rich-editor-status-wrap">
-          <span id="noteRichEditorStatus" class="note-rich-editor-status" role="status"></span>
-        </div>
-      </header>
-
-      <div id="noteRichEditorToolbar" class="note-rich-editor-toolbar note-rich-editor-toolbar--sticky note-rich-editor-glass" aria-label="Formatting toolbar"></div>
-
-      <div class="note-rich-editor-body">
-        <section class="note-rich-editor-meta-card note-rich-editor-glass" aria-label="Note details">
-          <div id="noteRichEditorCategoryRow" class="note-rich-editor-field note-rich-editor-category-block hidden">
-            <span class="note-rich-editor-field-label" data-t="categoryLabel">Category</span>
-            <div class="note-rich-editor-category-pill">
-              <span id="noteRichEditorCategoryIcon" class="note-rich-editor-category-icon" aria-hidden="true">📁</span>
-              <select id="noteRichEditorCategory" class="note-rich-editor-category-select" aria-label="Category"></select>
-            </div>
+      <div class="note-rich-editor-main-card note-rich-editor-glass note-rich-editor-main-card--enter">
+        <div class="note-rich-editor-main-inner">
+          <div class="note-rich-editor-row note-rich-editor-row--back">
+            <button type="button" id="noteRichEditorBack" class="note-rich-editor-back" aria-label="Back">
+              <span class="note-rich-editor-back-icon" aria-hidden="true">←</span>
+              <span>Back</span>
+            </button>
           </div>
-          <div class="note-rich-editor-field">
+
+          <div class="note-rich-editor-title-block">
+            <label class="sr-only" for="noteRichEditorTitle" data-t="noteTitleLabel">Title</label>
+            <input
+              type="text"
+              id="noteRichEditorTitle"
+              class="note-rich-editor-title-input"
+              maxlength="200"
+              data-t-placeholder="noteTitlePlaceholder"
+              placeholder="Write your title…"
+              autocomplete="off"
+              aria-required="true"
+            />
+            <p id="noteRichEditorTitleError" class="note-rich-editor-title-error hidden" role="alert"></p>
+          </div>
+
+          <div
+            id="noteRichEditorToolbar"
+            class="note-rich-editor-toolbar"
+            aria-label="Formatting toolbar"
+          ></div>
+
+          <div class="note-rich-editor-tags-section" aria-label="Tags">
             <span class="note-rich-editor-field-label" data-t="noteEditorTagsLabel">Tags</span>
             <div class="note-rich-tags-field">
               <div id="noteRichEditorTagsChips" class="note-rich-tags-chips">
@@ -1395,18 +1390,19 @@
               </div>
             </div>
           </div>
-        </section>
 
-        <section class="note-rich-editor-content-shell note-rich-editor-glass">
-          <div
-            id="noteRichEditorMount"
-            class="note-rich-editor-mount"
-            data-placeholder="Fillon të shkruash idetë e tua…"
-          ></div>
-          <footer class="note-rich-editor-content-footer">
-            <span id="noteRichEditorWordCount" class="note-rich-editor-wordcount" aria-live="polite">0</span>
-          </footer>
-        </section>
+          <section class="note-rich-editor-content-shell">
+            <div
+              id="noteRichEditorMount"
+              class="note-rich-editor-mount"
+              data-placeholder="Fillon të shkruash idetë e tua…"
+            ></div>
+            <footer class="note-rich-editor-content-footer">
+              <span id="noteRichEditorWordCount" class="note-rich-editor-wordcount" aria-live="polite">0</span>
+              <span id="noteRichEditorStatus" class="note-rich-editor-status note-rich-editor-status--footer" role="status"></span>
+            </footer>
+          </section>
+        </div>
       </div>
     </div>
   </div>

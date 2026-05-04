@@ -566,7 +566,7 @@ const translations = {
     deleteNoteTitle: "Delete note",
     categoryLabel: "Category",
     noteTitleLabel: "Title (optional)",
-    noteTitlePlaceholder: "e.g. Meeting prep — can be left empty",
+    noteTitlePlaceholder: "Write your title…",
     noteCardUntitled: "No title",
     noteBodyLabel: "Note",
     noteContentPlaceholder: "Write your note…",

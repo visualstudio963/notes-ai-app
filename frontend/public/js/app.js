@@ -5314,8 +5314,8 @@ async function noteRichEditorPersistRequest(payload) {
   if (mode === "create" && !hasId) {
     let category = currentCategory;
     if (origin === "all") {
-      const sel = document.getElementById("noteRichEditorCategory");
-      category = sel && sel.value ? sel.value : "";
+      const keys = Object.keys(categories || {});
+      category = keys.length ? keys[0] : "";
     } else if (origin === "home" && presetCategory) {
       category = presetCategory;
     }

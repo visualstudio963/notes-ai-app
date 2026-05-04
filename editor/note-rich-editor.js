@@ -280,12 +280,11 @@ function getToolbarButtons(editorInstance) {
 
   const rowEl = () => {
     const r = document.createElement("div");
-    r.className = "note-rich-toolbar-row";
+    r.className = "note-rich-toolbar-row note-rich-toolbar-row--single";
     return r;
   };
 
   const row1 = rowEl();
-  const row2 = rowEl();
 
   row1.appendChild(btn("Bold", svg.bold, () => chain().toggleBold().run(), () => is("bold")));
   row1.appendChild(btn("Italic", svg.italic, () => chain().toggleItalic().run(), () => is("italic")));
@@ -303,9 +302,9 @@ function getToolbarButtons(editorInstance) {
   row1.appendChild(btn("Numbered list", svg.number, () => chain().toggleOrderedList().run(), () => is("orderedList")));
   row1.appendChild(btn("Task list", svg.check, () => chain().toggleTaskList().run(), () => is("taskList")));
 
-  row2.appendChild(btn("Quote", svg.quote, () => chain().toggleBlockquote().run(), () => is("blockquote")));
-  row2.appendChild(btn("Code block", svg.code, () => chain().toggleCodeBlock().run(), () => is("codeBlock")));
-  row2.appendChild(
+  row1.appendChild(btn("Quote", svg.quote, () => chain().toggleBlockquote().run(), () => is("blockquote")));
+  row1.appendChild(btn("Code block", svg.code, () => chain().toggleCodeBlock().run(), () => is("codeBlock")));
+  row1.appendChild(
     btn("Link", svg.link, () => {
       const prev = editorInstance.getAttributes("link").href;
       const url = window.prompt("Link URL", prev || "https://");
@@ -317,7 +316,7 @@ function getToolbarButtons(editorInstance) {
       chain().extendMarkRange("link").setLink({ href: url }).run();
     })
   );
-  row2.appendChild(
+  row1.appendChild(
     btn("Image", svg.image, () => {
       const input = document.createElement("input");
       input.type = "file";
@@ -340,7 +339,7 @@ function getToolbarButtons(editorInstance) {
       input.click();
     })
   );
-  row2.appendChild(
+  row1.appendChild(
     btn("Insert emoji", svg.emoji, () => {
       const c = window.prompt("Emoji", "✨");
       if (c == null) return;
@@ -350,9 +349,8 @@ function getToolbarButtons(editorInstance) {
   );
 
   const wrap = document.createElement("div");
-  wrap.className = "note-rich-toolbar-rows";
+  wrap.className = "note-rich-toolbar-inner";
   wrap.appendChild(row1);
-  wrap.appendChild(row2);
   return wrap;
 }
 
@@ -471,8 +469,6 @@ function open(opts = {}) {
 
   const screen = document.getElementById("noteRichEditorScreen");
   const titleEl = document.getElementById("noteRichEditorTitle");
-  const catRow = document.getElementById("noteRichEditorCategoryRow");
-  const catSelect = document.getElementById("noteRichEditorCategory");
 
   if (!screen) return;
 
@@ -485,28 +481,6 @@ function open(opts = {}) {
     setNoteRichEditorTags(note.tags);
   } else {
     clearNoteRichEditorTagChips();
-  }
-
-  if (catRow && catSelect) {
-    catSelect.innerHTML = "";
-    const cats = opts.categories || {};
-    Object.keys(cats).forEach((key) => {
-      const o = document.createElement("option");
-      o.value = key;
-      o.textContent = cats[key];
-      catSelect.appendChild(o);
-    });
-    const showCat =
-      rootMode === "create" &&
-      rootOrigin === "all";
-    catRow.classList.toggle("hidden", !showCat);
-    if (showCat && rootOrigin === "all" && catSelect.options.length) {
-      catSelect.value = catSelect.options[0].value;
-    }
-    if (rootMode === "create" && rootOrigin === "home" && rootPresetCategory) {
-      catSelect.value = rootPresetCategory;
-    }
-    syncCategoryIcon();
   }
 
   const mount = document.getElementById("noteRichEditorMount");
@@ -542,12 +516,6 @@ function open(opts = {}) {
   if (titleEl) {
     titleEl.oninput = () => {
       clearTitleFieldError();
-      schedulePersist();
-    };
-  }
-  if (catSelect) {
-    catSelect.onchange = () => {
-      syncCategoryIcon();
       schedulePersist();
     };
   }

@@ -32,8 +32,9 @@ function createRemindersRouter({ User, Reminder, authMiddleware, aiMemoryService
         return res.status(400).json({ error: "Reminder time must be in the future." });
       }
 
+      const bodyPhone = String((req.body && req.body.phone) || "").trim();
       const user = await User.findById(req.userId).select(
-        "phone isPremium premiumExpires plan subscriptionPlan membershipRole"
+        "isPremium premiumExpires plan subscriptionPlan membershipRole"
       );
       if (!user) {
         return res.status(404).json({ error: "User not found" });
@@ -44,9 +45,9 @@ function createRemindersRouter({ User, Reminder, authMiddleware, aiMemoryService
           code: PREMIUM_CODE
         });
       }
-      if (!user.phone || !String(user.phone).trim()) {
+      if (!bodyPhone) {
         return res.status(400).json({
-          error: "Verify your phone number in account settings before creating WhatsApp reminders."
+          error: "Provide phone (E.164) in the request body for WhatsApp reminders."
         });
       }
 
@@ -58,7 +59,7 @@ function createRemindersRouter({ User, Reminder, authMiddleware, aiMemoryService
         parsedDate: parsedReminder.time,
         message: parsedReminder.message,
         time: parsedReminder.time,
-        phone: user.phone,
+        phone: bodyPhone,
         action: "whatsapp",
         status: "pending"
       });
@@ -91,7 +92,7 @@ function createRemindersRouter({ User, Reminder, authMiddleware, aiMemoryService
       }
 
       const user = await User.findById(req.userId).select(
-        "phone isPremium premiumExpires plan subscriptionPlan membershipRole"
+        "isPremium premiumExpires plan subscriptionPlan membershipRole"
       );
       if (!user) {
         return res.status(404).json({ error: "User not found" });
@@ -99,7 +100,7 @@ function createRemindersRouter({ User, Reminder, authMiddleware, aiMemoryService
 
       const resolvedAction = action || "reminder";
       const notificationType = resolvedAction === "whatsapp" ? "whatsapp" : "web";
-      const resolvedPhone = (phone && String(phone).trim()) || user.phone;
+      const resolvedPhone = phone && String(phone).trim();
 
       if (notificationType === "whatsapp" && !hasActivePremium(user)) {
         return res.status(403).json({

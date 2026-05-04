@@ -31,7 +31,7 @@
         </div>
 
         <form id="authLoginForm" class="auth-shell__panel" autocomplete="on" novalidate>
-          <label class="auth-shell__label" for="authLoginUsername">Username</label>
+          <label class="auth-shell__label" for="authLoginUsername" data-t="loginUsernameOrEmail">Username or email</label>
           <input type="text" id="authLoginUsername" class="auth-shell__input" name="username" autocomplete="username" />
           <label class="auth-shell__label" for="authLoginPassword">Password</label>
           <input type="password" id="authLoginPassword" class="auth-shell__input" name="password" autocomplete="current-password" />
@@ -67,6 +67,38 @@
           </span>
           <span>Continue with Google</span>
         </a>
+      </div>
+    </div>
+  </div>
+
+  <div id="setPasswordScreen" class="auth-shell auth-shell--set-password hidden" role="dialog" aria-modal="true" aria-label="Set password">
+    <div class="auth-shell__inner">
+      <div class="auth-shell__card">
+        <h1 class="auth-shell__title" data-t="setPasswordTitle">Set password</h1>
+        <p class="auth-shell__subtitle" data-t="setPasswordSubtitle">Choose a password so you can sign in with username or email without Google.</p>
+        <form id="setPasswordForm" autocomplete="on" novalidate>
+          <label class="auth-shell__label" for="setPasswordNew" data-t="settingsNewPasswordLabel">New password</label>
+          <input
+            type="password"
+            id="setPasswordNew"
+            class="auth-shell__input"
+            name="newPassword"
+            autocomplete="new-password"
+            minlength="8"
+            placeholder="At least 8 characters"
+          />
+          <label class="auth-shell__label" for="setPasswordConfirm" data-t="settingsConfirmPasswordLabel">Confirm password</label>
+          <input
+            type="password"
+            id="setPasswordConfirm"
+            class="auth-shell__input"
+            name="confirmPassword"
+            autocomplete="new-password"
+            placeholder="Repeat new password"
+          />
+          <p class="auth-shell__error hidden" id="setPasswordError" role="alert"></p>
+          <button type="submit" class="auth-shell__btn-primary" id="setPasswordSubmit" data-t="setPasswordSubmit">Save password</button>
+        </form>
       </div>
     </div>
   </div>
@@ -1081,12 +1113,8 @@
                   <p id="settingsUsername">-</p>
                 </div>
                 <div class="info-item">
-                  <label data-t="email">Email or Phone</label>
+                  <label data-t="email">Email</label>
                   <p id="settingsEmail">-</p>
-                </div>
-                <div class="info-item settings-account-span-2">
-                  <label data-t="phone">Phone</label>
-                  <p id="settingsPhone">-</p>
                 </div>
                 <div id="settingsAdminRow" class="info-item settings-account-span-2 hidden">
                   <label>Administration</label>
@@ -1280,30 +1308,77 @@
   </footer>
 
   <div id="noteRichEditorScreen" class="note-rich-editor-screen hidden" aria-hidden="true">
-    <header class="note-rich-editor-header">
-      <button type="button" id="noteRichEditorBack" class="note-rich-editor-back" aria-label="Back">← Back</button>
-      <div class="note-rich-editor-status-wrap">
-        <span id="noteRichEditorStatus" class="note-rich-editor-status" role="status"></span>
-        <span id="noteRichEditorSaveHint" class="note-rich-editor-save-hint"></span>
-      </div>
-    </header>
-    <div id="noteRichEditorToolbar" class="note-rich-editor-toolbar" aria-label="Formatting toolbar"></div>
-    <div class="note-rich-editor-meta">
-      <label class="sr-only" for="noteRichEditorTitle">Title</label>
-      <input
-        type="text"
-        id="noteRichEditorTitle"
-        class="note-rich-editor-title-input"
-        maxlength="200"
-        placeholder="Title"
-        autocomplete="off"
-      />
-      <div id="noteRichEditorCategoryRow" class="note-rich-editor-category-row hidden">
-        <label for="noteRichEditorCategory">Category</label>
-        <select id="noteRichEditorCategory" class="select note-rich-editor-category-select"></select>
+    <div class="note-rich-editor-gradient" aria-hidden="true"></div>
+    <div class="note-rich-editor-layout">
+      <header class="note-rich-editor-header note-rich-editor-glass">
+        <button type="button" id="noteRichEditorBack" class="note-rich-editor-back" aria-label="Back">
+          <span class="note-rich-editor-back-icon" aria-hidden="true">←</span>
+          <span>Back</span>
+        </button>
+        <div class="note-rich-editor-header-center">
+          <label class="sr-only" for="noteRichEditorTitle" data-t="noteTitleLabel">Title</label>
+          <input
+            type="text"
+            id="noteRichEditorTitle"
+            class="note-rich-editor-title-input note-rich-editor-title-input--header"
+            maxlength="200"
+            data-t-placeholder="noteTitlePlaceholder"
+            placeholder="Title"
+            autocomplete="off"
+          />
+        </div>
+        <div class="note-rich-editor-status-wrap">
+          <span id="noteRichEditorStatus" class="note-rich-editor-status" role="status"></span>
+        </div>
+      </header>
+
+      <div id="noteRichEditorToolbar" class="note-rich-editor-toolbar note-rich-editor-toolbar--sticky note-rich-editor-glass" aria-label="Formatting toolbar"></div>
+
+      <div class="note-rich-editor-body">
+        <section class="note-rich-editor-meta-card note-rich-editor-glass" aria-label="Note details">
+          <div id="noteRichEditorCategoryRow" class="note-rich-editor-field note-rich-editor-category-block hidden">
+            <span class="note-rich-editor-field-label" data-t="categoryLabel">Category</span>
+            <div class="note-rich-editor-category-pill">
+              <span id="noteRichEditorCategoryIcon" class="note-rich-editor-category-icon" aria-hidden="true">📁</span>
+              <select id="noteRichEditorCategory" class="note-rich-editor-category-select" aria-label="Category"></select>
+            </div>
+          </div>
+          <div class="note-rich-editor-field">
+            <span class="note-rich-editor-field-label" data-t="noteEditorTagsLabel">Tags</span>
+            <div class="note-rich-tags-field">
+              <div id="noteRichEditorTagsChips" class="note-rich-tags-chips"></div>
+              <input
+                type="text"
+                id="noteRichEditorTagInput"
+                class="note-rich-tag-input"
+                data-t-placeholder="noteEditorTagPlaceholder"
+                placeholder="Add a tag…"
+                maxlength="48"
+                autocomplete="off"
+                aria-label="Add tag"
+              />
+            </div>
+          </div>
+          <div class="note-rich-editor-field note-rich-editor-field--date">
+            <label class="note-rich-editor-field-label" for="noteRichEditorDate" data-t="noteEditorDateLabel">Date</label>
+            <input type="date" id="noteRichEditorDate" class="note-rich-editor-date-input" />
+          </div>
+        </section>
+
+        <section class="note-rich-editor-content-shell note-rich-editor-glass">
+          <div
+            id="noteRichEditorMount"
+            class="note-rich-editor-mount"
+            data-placeholder="Fillon të shkruash idetë e tua…"
+          ></div>
+          <footer class="note-rich-editor-content-footer">
+            <span id="noteRichEditorWordCount" class="note-rich-editor-wordcount" aria-live="polite">0 words</span>
+            <span class="note-rich-editor-divider" aria-hidden="true"></span>
+            <span class="note-rich-editor-hint-inline" data-t="noteRichEditorSaveHintShort">Auto-save · 2s</span>
+          </footer>
+        </section>
       </div>
     </div>
-    <div id="noteRichEditorMount" class="note-rich-editor-mount"></div>
   </div>
 
   <div class="modal hidden" id="reminderEditModal" role="dialog" aria-modal="true" aria-labelledby="reminderEditTitle" onclick="closeReminderEditModal()">

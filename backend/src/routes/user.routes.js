@@ -20,7 +20,7 @@ function createUserRouter({ User, authMiddleware }) {
   router.get("/profile", authMiddleware, async (req, res) => {
     try {
       const user = await User.findById(req.userId).select(
-        "firstName lastName username email emailOrPhone phone theme language emailVerified"
+        "firstName lastName username email emailOrPhone theme language emailVerified"
       );
       if (!user) {
         return res.status(404).json({ error: "User not found" });
@@ -42,7 +42,7 @@ function createUserRouter({ User, authMiddleware }) {
         req.userId,
         { firstName, lastName },
         { new: true, runValidators: true }
-      ).select("firstName lastName username email emailOrPhone phone theme language emailVerified");
+      ).select("firstName lastName username email emailOrPhone theme language emailVerified");
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }

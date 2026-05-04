@@ -7,6 +7,7 @@ const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const socketIo = require("socket.io");
 const cron = require("node-cron");
+const bcrypt = require("bcrypt");
 
 const config = require("./config");
 const { createAuthMiddleware } = require("./middleware/auth");
@@ -143,6 +144,38 @@ const passwordLogin = createPasswordLoginHandler({
 /** Same handler as POST /api/login. */
 app.post("/auth/login", authLimiter, passwordLogin);
 
+/** First-time password for Google-only accounts (Bearer access token required). */
+app.post("/auth/set-password", authLimiter, authMiddleware, async (req, res) => {
+  try {
+    const pwd = String((req.body && req.body.password) || "");
+    const confirm = String((req.body && req.body.confirmPassword) || "");
+    if (pwd.length < 8) {
+      return res.status(400).json({ error: "Password must be at least 8 characters" });
+    }
+    if (pwd !== confirm) {
+      return res.status(400).json({ error: "Passwords do not match" });
+    }
+    const account = await User.findById(req.userId).select("password");
+    if (!account) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    if (account.password) {
+      return res.status(400).json({ error: "Password already set" });
+    }
+    account.password = await bcrypt.hash(pwd, 10);
+    await account.save();
+    const fresh = await User.findById(req.userId);
+    res.json({
+      success: true,
+      message: "Password set successfully",
+      user: publicUser(fresh)
+    });
+  } catch (err) {
+    console.error("[auth/set-password]", err && err.message);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 /** Base URL of the deployed SPA (Vercel). Uses PUBLIC_APP_URL or the default production origin below. */
 const DEFAULT_FRONTEND_ORIGIN = "https://notes-ai-app-theta.vercel.app";
 
@@ -168,6 +201,14 @@ app.get("/billing", (_req, res) => {
 });
 
 app.get("/choose-username", (_req, res) => {
+  res.sendFile(path.join(FRONTEND_PUBLIC, "index.html"));
+});
+
+app.get("/set-password", (_req, res) => {
+  res.sendFile(path.join(FRONTEND_PUBLIC, "index.html"));
+});
+
+app.get("/dashboard", (_req, res) => {
   res.sendFile(path.join(FRONTEND_PUBLIC, "index.html"));
 });
 
@@ -223,7 +264,10 @@ app.get(
       }
 
       const bundle = encodeURIComponent(JSON.stringify({ accessToken, refreshToken }));
-      const finish = () => res.redirect(302, `${frontendBase}/#google_oauth=${bundle}`);
+      const uPw = await User.findById(user._id).select("password").lean();
+      const needsPassword = !uPw || !uPw.password;
+      const nextSegment = needsPassword ? "/set-password" : "/dashboard";
+      const finish = () => res.redirect(302, `${frontendBase}${nextSegment}#google_oauth=${bundle}`);
 
       if (typeof req.logout === "function") {
         req.logout((err) => {

@@ -16,6 +16,47 @@ function pickTitleFromBody(body) {
 }
 
 /**
+ * @param {object | null | undefined} body
+ * @returns {string[] | undefined} undefined if field omitted
+ */
+function pickTagsFromBody(body) {
+  if (!body || typeof body !== "object" || !Object.prototype.hasOwnProperty.call(body, "tags")) {
+    return undefined;
+  }
+  const raw = body.tags;
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set();
+  const out = [];
+  for (const item of raw) {
+    const t = String(item ?? "")
+      .trim()
+      .slice(0, 48);
+    if (!t) continue;
+    const key = t.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+    if (out.length >= 24) break;
+  }
+  return out;
+}
+
+/**
+ * @param {object | null | undefined} body
+ * @returns {Date | null | undefined} undefined = omit; null = clear
+ */
+function pickNoteDateFromBody(body) {
+  if (!body || typeof body !== "object" || !Object.prototype.hasOwnProperty.call(body, "noteDate")) {
+    return undefined;
+  }
+  const v = body.noteDate;
+  if (v === null || v === "") return null;
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return null;
+  return d;
+}
+
+/**
  * Stable JSON shape for clients (always includes `title` string).
  * @param {import("mongoose").Document | Record<string, unknown> | null | undefined} n
  */
@@ -24,12 +65,24 @@ function serializeNote(n) {
   if (!o) return null;
   const raw = o.title;
   const title = raw != null && raw !== undefined ? String(raw).trim() : "";
+  const tags = Array.isArray(o.tags) ? o.tags : [];
+  let noteDateOut = null;
+  if (o.noteDate) {
+    try {
+      noteDateOut = new Date(o.noteDate).toISOString().slice(0, 10);
+    } catch {
+      noteDateOut = null;
+    }
+  }
+
   return {
     _id: o._id,
     userId: o.userId,
     category: o.category,
     text: o.text,
     title,
+    tags,
+    noteDate: noteDateOut,
     createdAt: o.createdAt
   };
 }
@@ -68,7 +121,7 @@ function createNotesRouter({ User, Note, authMiddleware, sendWhatsAppMessage, ge
         return res.status(400).json({ error: "Invalid category" });
       }
       const user = await User.findById(req.userId)
-        .select("phone isPremium premiumExpires plan subscriptionPlan membershipRole")
+        .select("isPremium premiumExpires plan subscriptionPlan membershipRole")
         .lean();
       if (!user) {
         return res.status(404).json({ error: "User not found" });
@@ -91,16 +144,18 @@ function createNotesRouter({ User, Note, authMiddleware, sendWhatsAppMessage, ge
         }
       }
       const titleVal = pickTitleFromBody(req.body);
+      const tagsVal = pickTagsFromBody(req.body);
+      const noteDateVal = pickNoteDateFromBody(req.body);
 
-      const note = await Note.create({ userId: req.userId, category: catKey, text: textVal, title: titleVal });
+      const createPayload = { userId: req.userId, category: catKey, text: textVal, title: titleVal };
+      if (tagsVal !== undefined) createPayload.tags = tagsVal;
+      if (noteDateVal !== undefined) createPayload.noteDate = noteDateVal;
+
+      const note = await Note.create(createPayload);
       const out = serializeNote(note);
       getIo().to(String(req.userId)).emit("noteCreated", { note: out });
 
       res.status(201).json({ note: out });
-
-      if (user && user.phone && hasActivePremium(user)) {
-        sendWhatsAppMessage(user.phone, catKey, textVal).catch(() => {});
-      }
     } catch {
       res.status(500).json({ error: "Failed to create note" });
     }
@@ -120,6 +175,14 @@ function createNotesRouter({ User, Note, authMiddleware, sendWhatsAppMessage, ge
       const update = { text: textVal };
       if (Object.prototype.hasOwnProperty.call(body, "title") || Object.prototype.hasOwnProperty.call(body, "Title")) {
         update.title = pickTitleFromBody(body);
+      }
+      const tagsUp = pickTagsFromBody(body);
+      if (tagsUp !== undefined) {
+        update.tags = tagsUp;
+      }
+      const noteDateUp = pickNoteDateFromBody(body);
+      if (noteDateUp !== undefined) {
+        update.noteDate = noteDateUp;
       }
 
       const note = await Note.findOneAndUpdate(

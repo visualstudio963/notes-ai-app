@@ -32,7 +32,6 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
       id: user._id,
       username: user.username,
       email: user.email || user.emailOrPhone,
-      phone: user.phone || "",
       isPremium: hasActivePremium(user),
       plan,
       role: user.role || "user",
@@ -134,7 +133,7 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
           .sort({ createdAt: -1 })
           .limit(12)
           .select(
-            "username emailOrPhone phone isPremium premiumExpires plan subscriptionPlan membershipRole createdAt lastActive"
+            "username emailOrPhone isPremium premiumExpires plan subscriptionPlan membershipRole createdAt lastActive"
           )
           .lean()
           .exec();
@@ -199,7 +198,7 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
     try {
       const users = await User.find()
         .select(
-          "username emailOrPhone phone isPremium premiumExpires plan subscriptionPlan role membershipRole createdAt lastActive"
+          "username emailOrPhone isPremium premiumExpires plan subscriptionPlan role membershipRole createdAt lastActive"
         )
         .sort({ createdAt: -1 })
         .lean();
@@ -252,7 +251,7 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
       await applyProductPlan(User, targetId, plan);
       const user = await User.findById(targetId)
         .select(
-          "username emailOrPhone phone isPremium premiumExpires plan subscriptionPlan role membershipRole createdAt lastActive"
+          "username emailOrPhone isPremium premiumExpires plan subscriptionPlan role membershipRole createdAt lastActive"
         )
         .lean();
       if (!user) {
@@ -282,7 +281,7 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
       await applyProductPlan(User, targetId, plan);
       const user = await User.findById(targetId)
         .select(
-          "username emailOrPhone phone isPremium premiumExpires plan subscriptionPlan role membershipRole createdAt lastActive"
+          "username emailOrPhone isPremium premiumExpires plan subscriptionPlan role membershipRole createdAt lastActive"
         )
         .lean();
       if (!user) {
@@ -316,7 +315,7 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
 
       const user = await User.findById(targetId)
         .select(
-          "username emailOrPhone phone isPremium premiumExpires plan subscriptionPlan role membershipRole createdAt lastActive"
+          "username emailOrPhone isPremium premiumExpires plan subscriptionPlan role membershipRole createdAt lastActive"
         )
         .lean();
       if (!user) {
@@ -344,7 +343,7 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
       await applyProductPlan(User, targetId, membershipRole);
       const user = await User.findById(targetId)
         .select(
-          "username emailOrPhone phone isPremium premiumExpires plan subscriptionPlan role membershipRole createdAt lastActive"
+          "username emailOrPhone isPremium premiumExpires plan subscriptionPlan role membershipRole createdAt lastActive"
         )
         .lean();
       if (!user) {

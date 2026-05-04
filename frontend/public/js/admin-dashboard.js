@@ -368,7 +368,6 @@
     };
     setText("adminDetailUsername", user.username || "—");
     setText("adminDetailEmail", user.email || "—");
-    setText("adminDetailPhone", user.phone || "—");
     setText("adminDetailCreated", fmtDate(user.createdAt));
     setText("adminDetailUserId", String(user.id || "—"));
 
@@ -415,9 +414,6 @@
           escapeHtml(u.email || "") +
           "</td>" +
           "<td>" +
-          escapeHtml(u.phone || "—") +
-          "</td>" +
-          "<td>" +
           planBadge +
           "</td>" +
           "<td>" +
@@ -445,7 +441,7 @@
     }
     const filtered = usersCache.filter((u) => {
       const planLabel = effectivePlanFromUser(u);
-      const hay = [u.username, u.email, u.phone, String(u.id || ""), planLabel]
+      const hay = [u.username, u.email, String(u.id || ""), planLabel]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();

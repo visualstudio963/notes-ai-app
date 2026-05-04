@@ -2257,6 +2257,10 @@ function isChooseUsernamePath() {
   return /(^|\/)choose-username\/?$/.test(p);
 }
 
+function isSetPasswordPath() {
+  return /\/set-password\/?$/.test(window.location.pathname || "");
+}
+
 let chooseUsernameInitStarted = false;
 
 /** When true, guest user intentionally opened the login/sign-up overlay (sidebar Account / requireAuth). */
@@ -2265,21 +2269,45 @@ let authLoginModalOpen = false;
 function syncAuthShellVisibility() {
   const landing = document.getElementById("authLanding");
   const choose = document.getElementById("chooseUsernameScreen");
+  const setPwd = document.getElementById("setPasswordScreen");
   const appEl = document.querySelector(".app");
   const footer = document.querySelector(".site-footer");
   const fab = document.getElementById("dailyPlannerFab");
   const loggedIn = Boolean(currentUser && accessToken);
 
+  if (!loggedIn && isSetPasswordPath()) {
+    history.replaceState(null, "", "/" + (window.location.search || ""));
+    setPwd?.classList.add("hidden");
+  }
+
   if (loggedIn) {
     authLoginModalOpen = false;
     landing?.classList.add("hidden");
     choose?.classList.add("hidden");
+
+    if (isSetPasswordPath() && userHasLocalPasswordFlag()) {
+      history.replaceState(null, "", "/" + (window.location.search || ""));
+    }
+
+    if (isSetPasswordPath() && !userHasLocalPasswordFlag()) {
+      setPwd?.classList.remove("hidden");
+      appEl?.classList.add("hidden");
+      footer?.classList.add("hidden");
+      if (fab) fab.classList.add("hidden");
+      document.body.classList.add("auth-shell-locked");
+      window.setTimeout(() => document.getElementById("setPasswordNew")?.focus(), 0);
+      return;
+    }
+
+    setPwd?.classList.add("hidden");
     appEl?.classList.remove("hidden");
     footer?.classList.remove("hidden");
     if (fab) fab.classList.remove("hidden");
     document.body.classList.remove("auth-shell-locked");
     return;
   }
+
+  setPwd?.classList.add("hidden");
 
   if (isChooseUsernamePath()) {
     authLoginModalOpen = false;
@@ -2455,6 +2483,7 @@ function initAuthLandingUi() {
   document.getElementById("authTabSignup")?.addEventListener("click", () => switchAuthTab("signup"));
   document.getElementById("authLoginForm")?.addEventListener("submit", (ev) => void submitAuthLogin(ev));
   document.getElementById("authSignupForm")?.addEventListener("submit", (ev) => void submitAuthSignup(ev));
+  document.getElementById("setPasswordForm")?.addEventListener("submit", (ev) => void submitSetPassword(ev));
   const landing = document.getElementById("authLanding");
   landing?.addEventListener("click", (e) => {
     if (e.target === landing) closeAccountModal();
@@ -2962,14 +2991,28 @@ async function consumeGoogleOAuthFromHash() {
     }
     storeCurrentUser(data.user, parsed.accessToken, parsed.refreshToken, true);
     syncMobileHeaderActionUi();
-    showToast(`Welcome, ${data.user.username}`);
     history.replaceState(null, "", window.location.pathname + window.location.search);
+    const finishGoogleOAuthSuccess = () => {
+      refreshReminderRelatedViews();
+      void mergePremiumFromServer().then(() => {
+        displayAccountInfo();
+        void updateHomeDashboardStats();
+      });
+    };
+
+    if (isSetPasswordPath() && !userHasLocalPasswordFlag()) {
+      showToast(`Welcome, ${data.user.username}`);
+      finishGoogleOAuthSuccess();
+      syncAuthShellVisibility();
+      return;
+    }
+
+    showToast(`Welcome, ${data.user.username}`);
     goHome();
-    refreshReminderRelatedViews();
-    void mergePremiumFromServer().then(() => {
-      displayAccountInfo();
-      void updateHomeDashboardStats();
-    });
+    if (/\/dashboard\/?$/.test(window.location.pathname || "")) {
+      history.replaceState(null, "", "/" + (window.location.search || ""));
+    }
+    finishGoogleOAuthSuccess();
   } catch (e) {
     console.error(e);
     showToast("Google sign-in could not be completed.");
@@ -5317,10 +5360,20 @@ async function noteRichEditorPersistRequest(payload) {
     noteId,
     title,
     storageText,
-    plainText
+    plainText,
+    tags,
+    noteDate
   } = payload || {};
 
   const titleTrim = String(title || "").trim();
+  const tagsPayload = Array.isArray(tags) ? tags.map((t) => String(t || "").trim()).filter(Boolean) : [];
+  const noteDatePayload =
+    noteDate === null || noteDate === ""
+      ? null
+      : noteDate !== undefined
+        ? noteDate
+        : undefined;
+
   const hasId = noteId && String(noteId).length > 0;
 
   if (mode === "create" && !hasId) {
@@ -5350,7 +5403,13 @@ async function noteRichEditorPersistRequest(payload) {
 
     const created = await apiFetch("/api/notes", {
       method: "POST",
-      body: JSON.stringify({ category, text: storageText, title: titleTrim })
+      body: JSON.stringify({
+        category,
+        text: storageText,
+        title: titleTrim,
+        tags: tagsPayload,
+        noteDate: noteDatePayload !== undefined ? noteDatePayload : null
+      })
     });
     if (created && created.note && created.note._id) {
       const id = String(created.note._id);
@@ -5390,7 +5449,12 @@ async function noteRichEditorPersistRequest(payload) {
 
   const updated = await apiFetch(`/api/notes/${noteId}`, {
     method: "PUT",
-    body: JSON.stringify({ text: storageText, title: titleTrim })
+    body: JSON.stringify({
+      text: storageText,
+      title: titleTrim,
+      tags: tagsPayload,
+      noteDate: noteDatePayload !== undefined ? noteDatePayload : null
+    })
   });
   if (updated && updated.note && updated.note._id) {
     const uid = String(updated.note._id);
@@ -6180,7 +6244,6 @@ function displayAccountInfo() {
   const ln = document.getElementById("settingsLastName");
   const un = document.getElementById("settingsUsername");
   const em = document.getElementById("settingsEmail");
-  const ph = document.getElementById("settingsPhone");
   const badge = document.getElementById("settingsPlanBadge");
   const upgradeBtn = document.getElementById("settingsPremiumUpgradeBtn");
   const premiumNote = document.getElementById("settingsPremiumActiveNote");
@@ -6194,14 +6257,13 @@ function displayAccountInfo() {
   const cancelHint = document.getElementById("settingsCancelSubscriptionHint");
   const editFirst = document.getElementById("settingsEditFirstName");
   const editLast = document.getElementById("settingsEditLastName");
-  if (!fn || !ln || !un || !em || !ph) return;
+  if (!fn || !ln || !un || !em) return;
 
   if (!currentUser) {
     fn.textContent = "-";
     ln.textContent = "-";
     un.textContent = "-";
     em.textContent = "-";
-    ph.textContent = "-";
     if (badge) {
       badge.textContent = "—";
       badge.classList.remove("settings-plan-badge--premium", "settings-plan-badge--standard");
@@ -6240,7 +6302,6 @@ function displayAccountInfo() {
     const rawMail = String(currentUser.email || currentUser.emailOrPhone || "").trim();
     em.textContent = /@users\.notesai\.invalid$/i.test(rawMail) ? "—" : rawMail || "-";
   }
-  ph.textContent = currentUser.phone || t("notVerified");
 
   const premium =
     typeof userHasPremiumCapabilities === "function" && userHasPremiumCapabilities(currentUser);
@@ -6475,6 +6536,84 @@ function settingsNotificationsToggleChanged(checked) {
   void updateSettingsNotificationStatus();
 }
 
+async function submitSetPassword(ev) {
+  ev.preventDefault();
+  if (!requireAuth("set your password")) return;
+  const neu = document.getElementById("setPasswordNew");
+  const conf = document.getElementById("setPasswordConfirm");
+  const errEl = document.getElementById("setPasswordError");
+  const submitBtn = document.getElementById("setPasswordSubmit");
+  if (!neu || !conf) return;
+  if (errEl) {
+    errEl.classList.add("hidden");
+    errEl.textContent = "";
+  }
+  const p1 = String(neu.value || "");
+  const p2 = String(conf.value || "");
+  if (!p1 || !p2) {
+    if (errEl) {
+      errEl.textContent = t("fillAllFields");
+      errEl.classList.remove("hidden");
+    } else {
+      showToast(t("fillAllFields"));
+    }
+    return;
+  }
+  if (p1 !== p2) {
+    if (errEl) {
+      errEl.textContent = t("settingsPasswordMismatch");
+      errEl.classList.remove("hidden");
+    } else {
+      showToast(t("settingsPasswordMismatch"));
+    }
+    return;
+  }
+  if (p1.length < 8) {
+    if (errEl) {
+      errEl.textContent = t("settingsPasswordShort");
+      errEl.classList.remove("hidden");
+    } else {
+      showToast(t("settingsPasswordShort"));
+    }
+    return;
+  }
+  if (submitBtn) submitBtn.disabled = true;
+  try {
+    const data = await apiFetch("/auth/set-password", {
+      method: "POST",
+      body: JSON.stringify({ password: p1, confirmPassword: p2 })
+    });
+    if (data && data.user) {
+      Object.assign(currentUser, data.user);
+    } else if (currentUser) {
+      currentUser.hasLocalPassword = true;
+    }
+    persistCurrentUserToStorage();
+    neu.value = "";
+    conf.value = "";
+    history.replaceState(null, "", "/" + (window.location.search || ""));
+    syncAuthShellVisibility();
+    goHome();
+    displayAccountInfo();
+    syncSettingsPasswordFieldVisibility();
+    showToast(data && data.message ? data.message : t("settingsPasswordChanged"));
+    void mergePremiumFromServer().then(() => {
+      displayAccountInfo();
+      void updateHomeDashboardStats();
+    });
+  } catch (err) {
+    const msg = err && err.message ? String(err.message) : t("settingsProfileSaveFailed");
+    if (errEl) {
+      errEl.textContent = msg;
+      errEl.classList.remove("hidden");
+    } else {
+      showToast(msg);
+    }
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
 async function submitSettingsPasswordChange() {
   if (!requireAuth("update your password")) return;
   const cur = document.getElementById("settingsCurrentPassword");
@@ -6679,7 +6818,12 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
 
   if (currentUser && accessToken) {
-    goHome();
+    const blockGoHome = isSetPasswordPath() && !userHasLocalPasswordFlag();
+    if (!blockGoHome) {
+      goHome();
+    } else {
+      syncAuthShellVisibility();
+    }
   }
   initDepthRevealSystem();
   initPremiumTiltSystem();
@@ -6711,6 +6855,11 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
+    const setPasswordEl = document.getElementById("setPasswordScreen");
+    if (setPasswordEl && !setPasswordEl.classList.contains("hidden")) {
+      e.preventDefault();
+      return;
+    }
     const authLandingEl = document.getElementById("authLanding");
     if (authLandingEl && !authLandingEl.classList.contains("hidden")) {
       e.preventDefault();

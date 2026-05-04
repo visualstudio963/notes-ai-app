@@ -5,6 +5,8 @@ const noteSchema = new mongoose.Schema({
   category: { type: String, required: true },
   title: { type: String, default: "" },
   text: { type: String, required: true },
+  tags: { type: [String], default: [] },
+  noteDate: { type: Date, default: null },
   createdAt: { type: Date, default: Date.now }
 });
 

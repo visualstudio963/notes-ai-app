@@ -14,7 +14,6 @@ function publicUser(user) {
     role: user.role || "user",
     plan,
     membershipRole: plan,
-    phone: user.phone,
     theme: user.theme || "classic",
     language: user.language || "en",
     isPremium: premium.isPremium,

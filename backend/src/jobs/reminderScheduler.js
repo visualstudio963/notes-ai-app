@@ -9,10 +9,7 @@ function createReminderChecker({ Reminder, sendWhatsAppMessage, aiMemoryService 
       status: "pending",
       notificationType: "whatsapp",
       time: { $lte: now }
-    }).populate(
-      "userId",
-      "phone firstName lastName isPremium premiumExpires plan subscriptionPlan membershipRole"
-    );
+    }).populate("userId", "firstName lastName isPremium premiumExpires plan subscriptionPlan membershipRole");
 
     for (const reminder of dueReminders) {
       try {
@@ -23,7 +20,7 @@ function createReminderChecker({ Reminder, sendWhatsAppMessage, aiMemoryService 
           continue;
         }
 
-        const phone = reminder.phone || (user && user.phone);
+        const phone = reminder.phone;
 
         if (!phone) {
           reminder.status = "failed";

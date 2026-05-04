@@ -33,7 +33,7 @@ function createPasswordLoginHandler({ User, jwtSecret, jwtRefreshSecret }) {
       }
 
       const user = await User.findOne({
-        $or: [{ username: loginId }, { email: loginId }]
+        $or: [{ username: loginId }, { email: loginId }, { emailOrPhone: loginId }]
       });
 
       if (!user) {
@@ -42,8 +42,7 @@ function createPasswordLoginHandler({ User, jwtSecret, jwtRefreshSecret }) {
 
       if (!user.password) {
         return res.status(400).json({
-          error:
-            "This account uses Google sign-in. Use Continue with Google, or set a password in Settings after signing in."
+          error: "Please log in with Google first, or complete setting a password at /set-password after Google sign-in."
         });
       }
 

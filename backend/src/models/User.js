@@ -14,7 +14,6 @@ const userSchema = new mongoose.Schema(
     /** Profile photo URL from Google OAuth (optional). */
     googlePicture: { type: String, default: "" },
     provider: { type: String, enum: ["local", "google"], default: "local" },
-    phone: { type: String, default: "" },
     deviceId: { type: String, default: "" },
     emailVerified: { type: Boolean, default: false },
     emailVerificationTokenHash: { type: String, default: null },
@@ -76,14 +75,6 @@ userSchema.index(
   {
     unique: true,
     partialFilterExpression: { deviceId: { $type: "string", $gt: "" } }
-  }
-);
-
-userSchema.index(
-  { phone: 1 },
-  {
-    unique: true,
-    partialFilterExpression: { phone: { $type: "string", $gt: "" } }
   }
 );
 

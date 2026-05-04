@@ -1922,7 +1922,6 @@ function syncWebChatSoftPaywallUi() {
   const input = document.getElementById("webChatInput");
   const sendBtn = document.querySelector(".web-chat-send");
   const quick = document.getElementById("webChatQuickActions");
-  const suggest = document.getElementById("webChatSmartSuggestions");
   syncWebChatModelSelectorUi();
   if (!hint) return;
   const paid = Boolean(currentUser) && typeof userHasWebChatAccess === "function" && userHasWebChatAccess(currentUser);
@@ -1932,7 +1931,6 @@ function syncWebChatSoftPaywallUi() {
     if (input) input.disabled = false;
     if (sendBtn) sendBtn.disabled = false;
     if (quick) quick.classList.remove("web-chat-quick-actions--disabled");
-    if (suggest) suggest.classList.remove("web-chat-smart-suggestions--disabled");
     return;
   }
   const exceeded = webChatIsFreeQuotaExceeded();
@@ -1949,7 +1947,6 @@ function syncWebChatSoftPaywallUi() {
   if (input) input.disabled = exceeded;
   if (sendBtn) sendBtn.disabled = exceeded;
   if (quick) quick.classList.toggle("web-chat-quick-actions--disabled", exceeded);
-  if (suggest) suggest.classList.toggle("web-chat-smart-suggestions--disabled", exceeded);
 }
 
 function updatePremiumUi() {
@@ -3638,6 +3635,33 @@ function pad2WebChatMinute(m) {
   return String(Math.min(59, Math.max(0, v))).padStart(2, "0");
 }
 
+/** Relative day keywords stripped from reminder body text (same tokens as schedule parser). */
+function webChatRelativeDayWordStripRe() {
+  return /\b(pasnesër|pasneser|pas\s+nesër|pas\s+neser|day\s+after\s+tomorrow|nesër|neser|tomorrow|sot|today)\b/gi;
+}
+
+/**
+ * Removes scheduling/command fluff from stored reminder text (Albanian + English).
+ * Keeps meaningful content like "te blej buke".
+ */
+function webChatCleanReminderBodyText(raw) {
+  let s = String(raw || "").trim();
+  if (!s) return "";
+  const relRe = webChatRelativeDayWordStripRe();
+  const cmdRe = /\b(?:më\s+kujto|me\s+kujto|kujto)\b/gi;
+  for (let i = 0; i < 8; i += 1) {
+    const prev = s;
+    s = stripWebChatReminderPrefix(s);
+    s = s.replace(cmdRe, " ");
+    s = s.replace(relRe, " ");
+    s = s.replace(/\bne\s+(?=t[eë]\b)/gi, "");
+    s = s.replace(/\bnë\s+(?=t[eë]\b)/gi, "");
+    s = s.replace(/\s+/g, " ").trim();
+    if (s === prev) break;
+  }
+  return s;
+}
+
 /**
  * Parse date/time and remaining text from the reminder line (after command prefix removed).
  * @returns {{ when: Date | null; message: string }}
@@ -3661,45 +3685,39 @@ function parseWebChatReminderLine(rest) {
   }
 
   if (/\b(sot|today)\b/i.test(full)) {
-    const tm = full.match(/(\d{1,2})[:.](\d{2})/);
-    if (!tm) return { when: null, message: full };
+    const ts = webChatExtractTimeSpec(full);
+    if (!ts) return { when: null, message: full };
     const d = new Date();
     const datePart = d.toISOString().slice(0, 10);
-    const h = Number(tm[1]);
-    const m = Number(tm[2]);
-    const when = new Date(`${datePart}T${pad2WebChatHour(h)}:${pad2WebChatMinute(m)}:00`);
+    const when = new Date(`${datePart}T${pad2WebChatHour(ts.h)}:${pad2WebChatMinute(ts.mi)}:00`);
     let message = full.replace(/\b(sot|today)\b/gi, " ");
-    message = message.replace(tm[0], " ");
+    message = message.replace(ts.match, " ");
     message = message.replace(/\s+/g, " ").trim();
     return { when, message };
   }
 
   if (/\b(nesër|neser|tomorrow)\b/i.test(full)) {
-    const tm = full.match(/(\d{1,2})[:.](\d{2})/);
-    if (!tm) return { when: null, message: full };
+    const ts = webChatExtractTimeSpec(full);
+    if (!ts) return { when: null, message: full };
     const d = new Date();
     d.setDate(d.getDate() + 1);
     const datePart = d.toISOString().slice(0, 10);
-    const h = Number(tm[1]);
-    const m = Number(tm[2]);
-    const when = new Date(`${datePart}T${pad2WebChatHour(h)}:${pad2WebChatMinute(m)}:00`);
+    const when = new Date(`${datePart}T${pad2WebChatHour(ts.h)}:${pad2WebChatMinute(ts.mi)}:00`);
     let message = full.replace(/\b(nesër|neser|tomorrow)\b/gi, " ");
-    message = message.replace(tm[0], " ");
+    message = message.replace(ts.match, " ");
     message = message.replace(/\s+/g, " ").trim();
     return { when, message };
   }
 
   if (/\b(pasnesër|pasneser|pas\s+nesër|pas\s+neser|day\s+after\s+tomorrow)\b/i.test(full)) {
-    const tm = full.match(/(\d{1,2})[:.](\d{2})/);
-    if (!tm) return { when: null, message: full };
+    const ts = webChatExtractTimeSpec(full);
+    if (!ts) return { when: null, message: full };
     const d = new Date();
     d.setDate(d.getDate() + 2);
     const datePart = d.toISOString().slice(0, 10);
-    const h = Number(tm[1]);
-    const m = Number(tm[2]);
-    const when = new Date(`${datePart}T${pad2WebChatHour(h)}:${pad2WebChatMinute(m)}:00`);
+    const when = new Date(`${datePart}T${pad2WebChatHour(ts.h)}:${pad2WebChatMinute(ts.mi)}:00`);
     let message = full.replace(/\b(pasnesër|pasneser|pas\s+nesër|pas\s+neser|day\s+after\s+tomorrow)\b/gi, " ");
-    message = message.replace(tm[0], " ");
+    message = message.replace(ts.match, " ");
     message = message.replace(/\s+/g, " ").trim();
     return { when, message };
   }
@@ -3872,11 +3890,23 @@ function webChatExtractTimeSpec(combined) {
       /\b(nesër|neser|tomorrow|sot|today|pasnesër|pasneser|pas\s+nesër|pas\s+neser|day\s+after\s+tomorrow)\b/i
     );
     if (rel) {
-      const tail = c.slice((rel.index || 0) + rel[0].length);
-      const hourM = tail.match(/\b(\d{1,2})\b(?!\s*[:.]\d{2})/);
-      if (hourM) {
-        const h = Number(hourM[1]);
-        if (!Number.isNaN(h) && h >= 0 && h <= 23) return { h, mi: 0, match: hourM[0] };
+      const tailStart = (rel.index || 0) + rel[0].length;
+      const tail = c.slice(tailStart);
+      const mPref = tail.match(/^\s*(?:në|ne|at)\s+(\d{1,2})\b(?!\s*[:.]\d{2})/i);
+      if (mPref) {
+        const h = Number(mPref[1]);
+        if (!Number.isNaN(h) && h >= 0 && h <= 23) {
+          const match = c.slice(tailStart + mPref.index, tailStart + mPref.index + mPref[0].length);
+          return { h, mi: 0, match };
+        }
+      }
+      const mBare = tail.match(/^\s*(\d{1,2})\b(?!\s*[:.]\d{2})/);
+      if (mBare) {
+        const h = Number(mBare[1]);
+        if (!Number.isNaN(h) && h >= 0 && h <= 23) {
+          const match = c.slice(tailStart + mBare.index, tailStart + mBare.index + mBare[0].length);
+          return { h, mi: 0, match };
+        }
       }
     }
   }
@@ -3929,8 +3959,7 @@ function webChatParseNaturalReminderSchedule(body, tailAfterKeyword) {
   const cal = webChatMatchCalendarMonthInBody(combined);
   const slash = webChatMatchSlashDate(combined);
 
-  const relStrip =
-    /\b(pasnesër|pasneser|pas\s+nesër|pas\s+neser|day\s+after\s+tomorrow|nesër|neser|tomorrow|sot|today)\b/gi;
+  const relStrip = webChatRelativeDayWordStripRe();
 
   if (slash) {
     let ts = timeSpec;
@@ -4068,7 +4097,10 @@ async function webChatNaturalReminderHandler(trimmed) {
   if (!when || Number.isNaN(when.getTime())) return `${t("webChatReminderParseFail")}\n\n${t("webChatReminderExample")}`;
   if (!isFutureReminderInput(when)) return t("reminderMustBeFuture");
 
-  const msg = (parsed.message || split.after || body || t("webChatReminderDefaultMessage")).trim();
+  let msg = webChatCleanReminderBodyText(String(parsed.message || "").trim());
+  if (!msg) msg = webChatCleanReminderBodyText(String(split.after || "").trim());
+  if (!msg) msg = webChatCleanReminderBodyText(String(body || "").trim());
+  if (!msg) msg = t("webChatReminderDefaultMessage");
 
   try {
     await apiFetch("/api/web-reminder", {

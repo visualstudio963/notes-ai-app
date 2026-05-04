@@ -4982,6 +4982,55 @@ button.save-button.secondary:hover {
   transform: scale(1.1);
 }
 
+/* Auth modal — Sign in with Google (GIS renders inside #google-login-btn) */
+.auth-google-section {
+  margin-bottom: 8px;
+}
+
+.auth-google-hint {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.auth-google-button-host {
+  display: flex;
+  justify-content: stretch;
+  align-items: center;
+  min-height: 44px;
+  width: 100%;
+}
+
+.auth-google-button-host > div {
+  width: 100% !important;
+}
+
+.auth-or-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0 18px;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.auth-or-divider::before,
+.auth-or-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(148, 163, 184, 0.22);
+}
+
+.auth-or-divider span {
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
@@ -11459,4 +11508,158 @@ body.floating-scrolled .discord-fab:hover {
   .settings-profile-edit {
     grid-template-columns: 1fr;
   }
+}
+
+/* —— Google-only auth shells (Notion / ChatGPT-inspired) —— */
+body.auth-shell-locked .app,
+body.auth-shell-locked .site-footer {
+  visibility: hidden;
+}
+
+.auth-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: radial-gradient(1200px 600px at 50% -10%, rgba(56, 189, 248, 0.09), transparent 55%),
+    radial-gradient(900px 480px at 80% 90%, rgba(167, 139, 250, 0.07), transparent 50%),
+    linear-gradient(160deg, #0b1220 0%, #0f172a 45%, #020617 100%);
+}
+
+.auth-shell.hidden {
+  display: none !important;
+}
+
+.auth-shell__inner {
+  width: 100%;
+  max-width: 400px;
+}
+
+.auth-shell__card {
+  border-radius: 16px;
+  padding: 36px 28px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  box-shadow: 0 24px 48px rgba(2, 6, 23, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  backdrop-filter: blur(12px);
+}
+
+.auth-shell__title {
+  margin: 0 0 8px;
+  font-size: 1.65rem;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  color: #f8fafc;
+  text-align: center;
+}
+
+.auth-shell__subtitle {
+  margin: 0 0 28px;
+  font-size: 0.98rem;
+  color: rgba(226, 232, 240, 0.72);
+  text-align: center;
+  line-height: 1.45;
+}
+
+.auth-shell__btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 20px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: #fff;
+  color: #1e293b;
+  font-size: 0.98rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.auth-shell__btn-google:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(2, 8, 22, 0.28);
+}
+
+.auth-shell__btn-google--disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.auth-shell__g-icon {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.auth-shell__hint {
+  margin: 16px 0 0;
+  font-size: 0.82rem;
+  color: #fb923c;
+  text-align: center;
+}
+
+.auth-shell__email {
+  margin: 0 0 20px;
+  font-size: 0.88rem;
+  color: rgba(226, 232, 240, 0.65);
+  text-align: center;
+}
+
+.auth-shell__label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.95);
+}
+
+.auth-shell__input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(2, 6, 23, 0.35);
+  color: #f1f5f9;
+  font-size: 1rem;
+  margin-bottom: 12px;
+}
+
+.auth-shell__input:focus {
+  outline: none;
+  border-color: rgba(56, 189, 248, 0.55);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+}
+
+.auth-shell__error {
+  margin: 0 0 12px;
+  font-size: 0.86rem;
+  color: #fca5a5;
+}
+
+.auth-shell__btn-primary {
+  width: 100%;
+  margin-top: 8px;
+  padding: 14px 18px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #38bdf8, #22d3ee);
+  color: #0f172a;
+  font-size: 0.98rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.auth-shell__btn-primary:hover {
+  opacity: 0.95;
+  transform: translateY(-1px);
 }

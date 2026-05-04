@@ -13,8 +13,6 @@ let allNotesSortMode = "newest";
 let currentUser = getStoredUser();
 let accessToken = getStoredAccessToken();
 let refreshToken = getStoredRefreshToken();
-let authMode = "login";
-let authModalOpen = false;
 
 /** @type {{ mode: "create" | "edit"; origin: "category" | "all"; editingNote: object | null }} */
 let noteEditorState = { mode: "create", origin: "category", editingNote: null, presetCategory: null };
@@ -76,6 +74,8 @@ let premiumLiteBillingMode = "monthly";
 let discordCommunityUrl = "";
 let discordUpdatesCount = 0;
 let stripePublishableKey = "";
+/** Set from GET /api/public/app-config (GOOGLE_CLIENT_ID). Used by Sign in with Google. */
+let googleOAuthClientId = "";
 const REMINDER_NOTIFY_PREFS_KEY = "webReminderNotificationPrefs";
 const ANDROID_REMINDERS_CHANNEL_ID = "reminders-high";
 
@@ -799,7 +799,6 @@ function refreshPremiumTiltTargets() {
 function releaseModalBackdropIfIdle() {
   const noteModal = document.getElementById("noteEditorModal");
   const reminderModal = document.getElementById("reminderEditModal");
-  const authModal = document.getElementById("authModal");
   const exportModal = document.getElementById("noteExportModal");
   const shareModal = document.getElementById("noteShareModal");
   const noteViewModal = document.getElementById("noteViewModal");
@@ -808,7 +807,6 @@ function releaseModalBackdropIfIdle() {
   const dailyPlannerModal = document.getElementById("dailyPlannerModal");
   const noteOpen = noteModal && !noteModal.classList.contains("hidden");
   const reminderOpen = reminderModal && !reminderModal.classList.contains("hidden");
-  const authOpen = authModal && !authModal.classList.contains("hidden");
   const exportOpen = exportModal && !exportModal.classList.contains("hidden");
   const shareOpen = shareModal && !shareModal.classList.contains("hidden");
   const noteViewOpen = noteViewModal && !noteViewModal.classList.contains("hidden");
@@ -818,7 +816,6 @@ function releaseModalBackdropIfIdle() {
   if (
     !noteOpen &&
     !reminderOpen &&
-    !authOpen &&
     !exportOpen &&
     !shareOpen &&
     !noteViewOpen &&
@@ -2129,17 +2126,11 @@ function clearCurrentUser() {
   currentUser = null;
   accessToken = null;
   refreshToken = null;
-  authModalOpen = false;
   closeNoteEditor();
   closeReminderEditModal();
   currentNotes = [];
   allNotes = [];
   updateAccountUI();
-  const authModal = document.getElementById("authModal");
-  if (authModal) {
-    authModal.classList.add("hidden");
-    document.body.classList.remove("modal-open");
-  }
   if (currentCategory) {
     renderNotes([]);
   }
@@ -2168,6 +2159,7 @@ async function tryRefreshAccessToken() {
   if (!rt) return false;
   const res = await fetch(buildApiUrl("/api/refresh"), {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refreshToken: rt })
   });
@@ -2190,7 +2182,13 @@ async function tryRefreshAccessToken() {
 
 async function apiFetch(path, options = {}, isRetry) {
   const skipAuthRefresh =
-    path === "/api/login" || path === "/api/register" || path === "/api/refresh";
+    path === "/api/login" ||
+    path === "/auth/login" ||
+    path === "/api/register" ||
+    path === "/api/refresh" ||
+    path === "/api/auth/google" ||
+    path === "/api/auth/pending-google" ||
+    path === "/api/auth/complete-google-signup";
 
   try {
     const controller = new AbortController();
@@ -2198,6 +2196,7 @@ async function apiFetch(path, options = {}, isRetry) {
 
     const response = await fetch(buildApiUrl(path), {
       ...options,
+      credentials: "include",
       headers: {
         ...getAuthHeaders(),
         ...(options.headers || {})
@@ -2232,10 +2231,136 @@ async function apiFetch(path, options = {}, isRetry) {
   }
 }
 
+function isChooseUsernamePath() {
+  const p = (window.location.pathname || "").replace(/\/$/, "") || "/";
+  return /(^|\/)choose-username\/?$/.test(p);
+}
+
+let chooseUsernameInitStarted = false;
+
+function syncAuthShellVisibility() {
+  const landing = document.getElementById("authLanding");
+  const choose = document.getElementById("chooseUsernameScreen");
+  const appEl = document.querySelector(".app");
+  const footer = document.querySelector(".site-footer");
+  const fab = document.getElementById("dailyPlannerFab");
+  const loggedIn = Boolean(currentUser && accessToken);
+
+  if (loggedIn) {
+    landing?.classList.add("hidden");
+    choose?.classList.add("hidden");
+    appEl?.classList.remove("hidden");
+    footer?.classList.remove("hidden");
+    if (fab) fab.classList.remove("hidden");
+    document.body.classList.remove("auth-shell-locked");
+    return;
+  }
+
+  document.body.classList.add("auth-shell-locked");
+  appEl?.classList.add("hidden");
+  footer?.classList.add("hidden");
+  if (fab) fab.classList.add("hidden");
+
+  if (isChooseUsernamePath()) {
+    landing?.classList.add("hidden");
+    choose?.classList.remove("hidden");
+    chooseUsernameInitStarted = false;
+    void initChooseUsernameFlow();
+  } else {
+    choose?.classList.add("hidden");
+    landing?.classList.remove("hidden");
+    chooseUsernameInitStarted = false;
+    syncAuthGoogleLinkHref();
+  }
+}
+
+function syncAuthGoogleLinkHref() {
+  const a = document.getElementById("authGoogleLink");
+  const hint = document.getElementById("authGoogleConfigHint");
+  if (!a) return;
+  try {
+    a.href = buildApiUrl("/auth/google");
+  } catch {
+    a.href = "/auth/google";
+  }
+  if (googleOAuthClientId) {
+    a.classList.remove("auth-shell__btn-google--disabled");
+    a.removeAttribute("aria-disabled");
+    if (hint) hint.classList.add("hidden");
+  } else {
+    a.classList.add("auth-shell__btn-google--disabled");
+    a.setAttribute("aria-disabled", "true");
+    if (hint) hint.classList.remove("hidden");
+  }
+}
+
+async function initChooseUsernameFlow() {
+  if (chooseUsernameInitStarted) return;
+  chooseUsernameInitStarted = true;
+  const errEl = document.getElementById("chooseUsernameError");
+  const emailEl = document.getElementById("chooseUsernameEmail");
+  const input = document.getElementById("chooseUsernameInput");
+  if (errEl) {
+    errEl.classList.add("hidden");
+    errEl.textContent = "";
+  }
+  try {
+    const data = await apiFetch("/api/auth/pending-google", { method: "GET" });
+    if (emailEl) emailEl.textContent = data.email ? `Signed in as ${data.email}` : "";
+    if (input) input.value = "";
+  } catch {
+    if (errEl) {
+      errEl.textContent = "Session expired. Please start Google sign-in again.";
+      errEl.classList.remove("hidden");
+    }
+    chooseUsernameInitStarted = false;
+  }
+}
+
+async function submitChooseUsername() {
+  const errEl = document.getElementById("chooseUsernameError");
+  const input = document.getElementById("chooseUsernameInput");
+  const username = (input && input.value.trim().toLowerCase()) || "";
+  if (errEl) errEl.classList.add("hidden");
+  if (username.length < 3) {
+    if (errEl) {
+      errEl.textContent = "Username must be at least 3 characters.";
+      errEl.classList.remove("hidden");
+    }
+    return;
+  }
+  try {
+    const deviceId = typeof getOrCreateDeviceId === "function" ? getOrCreateDeviceId() : "";
+    const data = await apiFetch("/api/auth/complete-google-signup", {
+      method: "POST",
+      body: JSON.stringify({ username, deviceId })
+    });
+    storeCurrentUser(data.user, data.accessToken, data.refreshToken, true);
+    chooseUsernameInitStarted = false;
+    history.replaceState(null, "", "/");
+    syncAuthShellVisibility();
+    showToast(`Welcome, ${data.user.username}`);
+    goHome();
+    refreshReminderRelatedViews();
+    void mergePremiumFromServer().then(() => {
+      displayAccountInfo();
+      void updateHomeDashboardStats();
+    });
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+    startWebNotificationScheduler();
+  } catch (e) {
+    if (errEl) {
+      errEl.textContent = e.message || "Could not save username.";
+      errEl.classList.remove("hidden");
+    }
+  }
+}
+
 function updateAccountUI() {
   const accountButton = document.getElementById("accountButton");
   const logoutButton = document.getElementById("logoutButton");
-  const authModal = document.getElementById("authModal");
 
   if (!accountButton || !logoutButton) {
     return;
@@ -2244,19 +2369,12 @@ function updateAccountUI() {
   if (currentUser) {
     accountButton.classList.add("hidden");
     logoutButton.classList.remove("hidden");
-    if (authModal) {
-      authModal.classList.add("hidden");
-      document.body.classList.remove("modal-open");
-    }
   } else {
-    if (accountButton) {
-      accountButton.classList.remove("hidden");
-      accountButton.innerText = "Login / Sign Up";
-    }
-    if (logoutButton) {
-      logoutButton.classList.add("hidden");
-    }
+    accountButton.classList.remove("hidden");
+    accountButton.innerText = "Sign in";
+    logoutButton.classList.add("hidden");
   }
+  syncAuthShellVisibility();
 }
 
 function openAccountModal() {
@@ -2264,49 +2382,18 @@ function openAccountModal() {
     showToast(`You are already signed in as ${currentUser.username || currentUser.emailOrPhone}`);
     return;
   }
-  authModalOpen = true;
-  const authModal = document.getElementById("authModal");
-  if (authModal) {
-    authModal.classList.remove("hidden");
-    authModal.style.display = "grid";
-  }
-  document.body.classList.add("modal-open");
-  document.body.style.overflow = "hidden";
-  switchAuthTab("login");
+  syncAuthShellVisibility();
+  const link = document.getElementById("authGoogleLink");
+  if (link) link.focus();
 }
 
 function closeAccountModal() {
-  authModalOpen = false;
-  const authModal = document.getElementById("authModal");
-  if (authModal) {
-    authModal.classList.add("hidden");
-    authModal.style.display = "none";
-  }
-  document.body.classList.remove("modal-open");
-  document.body.style.overflow = "";
-  const authForm = document.getElementById("authForm");
-  if (authForm) authForm.reset();
-  const authMessage = document.getElementById("authMessage");
-  if (authMessage) authMessage.classList.add("hidden");
-}
-
-function switchAuthTab(mode) {
-  authMode = mode;
-  document.getElementById("modalTitle").innerText = mode === "login" ? "Login" : "Sign Up";
-  document.getElementById("loginTab").classList.toggle("active", mode === "login");
-  document.getElementById("signupTab").classList.toggle("active", mode === "signup");
-  document.getElementById("signupFields").classList.toggle("hidden", mode === "login");
-  document.getElementById("loginFields").classList.toggle("hidden", mode === "signup");
-  const loginIdentifier = document.getElementById("loginIdentifier");
-  if (loginIdentifier) {
-    loginIdentifier.placeholder = mode === "login" ? "Username" : loginIdentifier.placeholder;
-  }
-  document.getElementById("authMessage").classList.add("hidden");
+  /* Legacy no-op: auth uses full-page shells instead of a modal. */
 }
 
 function requireAuth(actionName) {
   if (!currentUser) {
-    showToast(`Login required to ${actionName}`);
+    showToast(`Sign in with Google to ${actionName}.`);
     openAccountModal();
     return false;
   }
@@ -2629,18 +2716,76 @@ function applyDiscordCommunityUi() {
 
 async function loadDiscordCommunityConfig() {
   try {
-    const res = await fetch(buildApiUrl("/api/public/app-config"), { method: "GET" });
+    const res = await fetch(buildApiUrl("/api/public/app-config"), { method: "GET", credentials: "include" });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || "Failed to load app config");
     discordCommunityUrl = String((data && data.discordInviteUrl) || "").trim();
     discordUpdatesCount = Math.max(0, Number((data && data.discordUpdatesCount) || 0));
     stripePublishableKey = String((data && data.stripePublishableKey) || "").trim();
+    googleOAuthClientId = String((data && data.googleClientId) || "").trim();
   } catch {
     discordCommunityUrl = "";
     discordUpdatesCount = 0;
     stripePublishableKey = "";
+    googleOAuthClientId = "";
   }
   applyDiscordCommunityUi();
+  syncAuthGoogleLinkHref();
+}
+
+/** After OAuth redirect: tokens in #google_oauth=… then GET /api/me to load user (hash kept small). */
+async function consumeGoogleOAuthFromHash() {
+  const params = new URLSearchParams(window.location.search);
+  const qErr = params.get("google_oauth_error");
+  if (qErr) {
+    const raw = decodeURIComponent(qErr);
+    const friendly =
+      raw === "account_exists"
+        ? "An account with this email already exists."
+        : raw === "account_conflict"
+          ? "This email is linked to another sign-in method."
+          : `Google sign-in: ${raw}`;
+    showToast(friendly);
+    params.delete("google_oauth_error");
+    const qs = params.toString();
+    history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : ""));
+    return;
+  }
+  const h = window.location.hash || "";
+  if (!h.includes("google_oauth=")) return;
+  try {
+    const idx = h.indexOf("google_oauth=") + "google_oauth=".length;
+    const parsed = JSON.parse(decodeURIComponent(h.substring(idx)));
+    if (!parsed.accessToken || !parsed.refreshToken) {
+      showToast("Google sign-in could not be completed.");
+      history.replaceState(null, "", window.location.pathname + window.location.search);
+      return;
+    }
+    accessToken = parsed.accessToken;
+    refreshToken = parsed.refreshToken;
+    localStorage.setItem("accessToken", parsed.accessToken);
+    localStorage.setItem("refreshToken", parsed.refreshToken);
+    const data = await apiFetch("/api/me", { method: "GET" });
+    if (!data || !data.user) {
+      showToast("Could not load account after Google sign-in.");
+      history.replaceState(null, "", window.location.pathname + window.location.search);
+      return;
+    }
+    storeCurrentUser(data.user, parsed.accessToken, parsed.refreshToken, true);
+    syncMobileHeaderActionUi();
+    showToast(`Welcome, ${data.user.username}`);
+    history.replaceState(null, "", window.location.pathname + window.location.search);
+    goHome();
+    refreshReminderRelatedViews();
+    void mergePremiumFromServer().then(() => {
+      displayAccountInfo();
+      void updateHomeDashboardStats();
+    });
+  } catch (e) {
+    console.error(e);
+    showToast("Google sign-in could not be completed.");
+    history.replaceState(null, "", window.location.pathname + window.location.search);
+  }
 }
 
 function openDiscordCommunity() {
@@ -3585,6 +3730,7 @@ function webChatModelModeChanged() {
 async function fetchWebChatAiReply(message) {
   const response = await fetch(buildApiUrl("/api/web-chat/ai-reply"), {
     method: "POST",
+    credentials: "include",
     headers: getAuthHeaders(),
     body: JSON.stringify({ message: String(message || "") })
   });
@@ -5707,119 +5853,13 @@ function getOrCreateDeviceId() {
   }
 }
 
-async function submitAuth() {
-  const messageEl = document.getElementById("authMessage");
-  if (messageEl) {
-    messageEl.classList.add("hidden");
-    messageEl.innerText = "";
-  }
-  const rememberEl = document.getElementById("rememberMe");
-  const remember = rememberEl ? rememberEl.checked : false;
-
-  if (authMode === "login") {
-    const identifier = document.getElementById("loginIdentifier").value.trim();
-    const password = document.getElementById("password").value.trim();
-    if (!identifier || !password) {
-      showAuthError("Fill in both fields.");
-      return;
-    }
-
-    try {
-      const data = await apiFetch("/api/login", {
-        method: "POST",
-        body: JSON.stringify({ identifier, password })
-      });
-      storeCurrentUser(data.user, data.accessToken, data.refreshToken, remember);
-      syncMobileHeaderActionUi();
-      closeAccountModal();
-      showToast(`Welcome back, ${data.user.username}`);
-      if (currentCategory) {
-        loadNotes();
-      }
-      if (!document.getElementById("notes-all")?.classList.contains("hidden")) {
-        loadMyNotes();
-      }
-      refreshReminderRelatedViews();
-      void mergePremiumFromServer().then(() => {
-        displayAccountInfo();
-        void updateHomeDashboardStats();
-      });
-    } catch (err) {
-      showAuthError(err.message);
-    }
-    return;
-  }
-
-  const firstName = document.getElementById("firstName").value.trim();
-  const lastName = document.getElementById("lastName").value.trim();
-  const usernameRaw = document.getElementById("username").value.trim();
-  const username = usernameRaw.toLowerCase();
-  const password = document.getElementById("password").value.trim();
-  const confirmPassword = document.getElementById("confirmPassword").value.trim();
-  const deviceId = getOrCreateDeviceId();
-
-  if (!firstName || !lastName || !usernameRaw || !password || !confirmPassword) {
-    showAuthError("Please complete every field.");
-    return;
-  }
-  if (usernameRaw !== username) {
-    showAuthError("Username must be lowercase");
-    return;
-  }
-  if (username.length < 3) {
-    showAuthError("Username must be at least 3 characters");
-    return;
-  }
-  if (password.length < 6) {
-    showAuthError("Password must be at least 6 characters");
-    return;
-  }
-  if (password !== confirmPassword) {
-    showAuthError("Passwords do not match");
-    return;
-  }
-
-  try {
-    const data = await apiFetch("/api/register", {
-      method: "POST",
-      body: JSON.stringify({ firstName, lastName, username, password, confirmPassword, deviceId })
-    });
-    closeAccountModal();
-    showToast(data.message || "Account created successfully.");
-  } catch (err) {
-    showAuthError(err.message);
-  }
-}
-
-function showAuthError(message) {
-  const messageEl = document.getElementById("authMessage");
-  if (!messageEl) return;
-  messageEl.innerText = message;
-  messageEl.classList.remove("hidden");
-  console.error("Auth error:", message);
-}
-
-function togglePasswordVisibility() {
-  const passwordInput = document.getElementById("password");
-  const passwordToggle = document.getElementById("passwordToggle");
-  
-  if (passwordInput.type === "password") {
-    passwordInput.type = "text";
-    passwordToggle.textContent = "🙈";
-    passwordToggle.setAttribute('aria-label', 'Hide password');
-  } else {
-    passwordInput.type = "password";
-    passwordToggle.textContent = "👁️";
-    passwordToggle.setAttribute('aria-label', 'Show password');
-  }
-}
-
 function logoutUser() {
   webChatSessionTurns = [];
   webChatLastReminderUserRaw = null;
   clearCurrentUser();
   displayAccountInfo();
   syncMobileHeaderActionUi();
+  updateAccountUI();
   goHome();
   showToast("Logged out successfully.");
 }
@@ -6048,9 +6088,14 @@ async function saveSettingsProfileEdit() {
 function updateSettingsSecurityGuestState() {
   const forms = document.getElementById("settingsSecurityForms");
   const hint = document.getElementById("settingsSecurityLoginHint");
+  const pwdBlock = document.getElementById("settingsPasswordBlock");
   const authed = !!(currentUser && accessToken);
   if (forms) forms.classList.toggle("hidden", !authed);
   if (hint) hint.classList.toggle("hidden", authed);
+  if (pwdBlock) {
+    const googleOnly = !!(currentUser && currentUser.provider === "google");
+    pwdBlock.classList.toggle("hidden", !authed || googleOnly);
+  }
 }
 
 async function updateSettingsNotificationStatus() {
@@ -6266,12 +6311,13 @@ function updateThemeSelector() {
   });
 }
 
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async () => {
+  await consumeGoogleOAuthFromHash();
   void ensureNativeNotificationChannel();
   // Initialize theme and language
   applyTheme(getCurrentTheme());
   applyTranslations();
-  
+
   updateAccountUI();
 
   // If user is already logged in, load their settings from server
@@ -6285,8 +6331,10 @@ window.addEventListener("DOMContentLoaded", () => {
       Notification.requestPermission();
     }
   }
-  
-  goHome();
+
+  if (currentUser && accessToken) {
+    goHome();
+  }
   initDepthRevealSystem();
   initPremiumTiltSystem();
   cleanupDailyPlannerStorage();
@@ -6393,24 +6441,15 @@ window.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("scroll", syncMobileScrollState, { passive: true });
   syncMobileScrollState();
 
-  const authModal = document.getElementById("authModal");
-  if (authModal) {
-    authModal.classList.add("hidden");
-    document.body.classList.remove("modal-open");
-    authModalOpen = false;
-    authModal.addEventListener("click", closeAccountModal);
-  }
-  
-  const modalContent = authModal?.querySelector(".modal-content");
-  if (modalContent) {
-    modalContent.addEventListener("click", event => event.stopPropagation());
-  }
-  
-  const closeButton = authModal?.querySelector(".close-button");
-  if (closeButton) {
-    closeButton.addEventListener("click", (event) => {
-      event.stopPropagation();
-      closeAccountModal();
+  const chooseBtn = document.getElementById("chooseUsernameContinue");
+  const chooseInput = document.getElementById("chooseUsernameInput");
+  if (chooseBtn) chooseBtn.addEventListener("click", () => void submitChooseUsername());
+  if (chooseInput) {
+    chooseInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        void submitChooseUsername();
+      }
     });
   }
   document.addEventListener("click", (e) => {

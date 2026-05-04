@@ -67,7 +67,8 @@ function createApiRouter(app, deps) {
   api.use(
     createAppConfigRouter({
       AppConfig,
-      stripePublishableKey: stripePublishableKey || ""
+      stripePublishableKey: stripePublishableKey || "",
+      googleClientId: googleClientId || ""
     })
   );
 

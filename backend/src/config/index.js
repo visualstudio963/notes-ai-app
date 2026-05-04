@@ -44,6 +44,23 @@ const emailVerificationBypassUsernames = String(process.env.EMAIL_VERIFICATION_B
   .map((username) => username.trim().toLowerCase())
   .filter(Boolean);
 
+/** OAuth 2.0 Web client ID from Google Cloud Console (GIS / Sign in with Google). Safe to expose to the frontend. */
+const googleClientId = process.env.GOOGLE_CLIENT_ID ? String(process.env.GOOGLE_CLIENT_ID).trim() : "";
+/** Server-side OAuth secret (authorization code flow). Never expose to the frontend. */
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET ? String(process.env.GOOGLE_CLIENT_SECRET).trim() : "";
+/**
+ * OAuth callback URL used by Passport (`passport-google-oauth20`) and Google Cloud Console.
+ * Prefer GOOGLE_CALLBACK_URL; GOOGLE_REDIRECT_URI is a legacy alias.
+ * Example: https://notes-ai-app.vercel.app/auth/google/callback
+ */
+const googleCallbackUrlEnv = process.env.GOOGLE_CALLBACK_URL ? String(process.env.GOOGLE_CALLBACK_URL).trim() : "";
+const googleRedirectUriEnv = process.env.GOOGLE_REDIRECT_URI ? String(process.env.GOOGLE_REDIRECT_URI).trim() : "";
+const googleRedirectUri =
+  googleCallbackUrlEnv || googleRedirectUriEnv || `${publicAppUrl.replace(/\/$/, "")}/auth/google/callback`;
+
+/** Session cookie signing secret (Passport OAuth state). Defaults to JWT_SECRET if unset. */
+const sessionSecret = process.env.SESSION_SECRET ? String(process.env.SESSION_SECRET).trim() : jwtSecret;
+
 const mongooseOptions = {
   maxPoolSize: 10,
   minPoolSize: 2,
@@ -82,6 +99,17 @@ if (
 if (!openAiApiKey) {
   console.warn("[config] OPENAI_API_KEY is missing. AI reply features will be unavailable.");
 }
+if (!googleClientId) {
+  console.warn("[config] GOOGLE_CLIENT_ID is missing. Google sign-in will be disabled.");
+}
+if (googleClientId && !googleClientSecret) {
+  console.warn("[config] GOOGLE_CLIENT_SECRET is missing. Passport Google OAuth (/auth/google) will not work.");
+}
+if (googleClientId && googleClientSecret && !googleCallbackUrlEnv && !googleRedirectUriEnv) {
+  console.warn(
+    "[config] GOOGLE_CALLBACK_URL not set; using PUBLIC_APP_URL + /auth/google/callback. Ensure this matches Google Cloud Console."
+  );
+}
 
 module.exports = {
   port,
@@ -100,5 +128,11 @@ module.exports = {
   publicAppUrl,
   emailVerificationBypassUsernames,
   mongooseOptions,
-  mongoTlsInsecure
+  mongoTlsInsecure,
+  googleClientId,
+  googleClientSecret,
+  googleRedirectUri,
+  /** Same as googleRedirectUri — explicit name for Passport callbackURL */
+  googleCallbackUrl: googleRedirectUri,
+  sessionSecret
 };

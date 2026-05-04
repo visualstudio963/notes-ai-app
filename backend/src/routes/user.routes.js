@@ -122,6 +122,10 @@ function createUserRouter({ User, authMiddleware }) {
         return res.status(404).json({ error: "User not found" });
       }
 
+      if (!user.password) {
+        return res.status(400).json({ error: "This account has no local password. Use Google sign-in or contact support." });
+      }
+
       const valid = await bcrypt.compare(currentPassword, user.password);
       if (!valid) {
         return res.status(401).json({ error: "Current password is incorrect" });

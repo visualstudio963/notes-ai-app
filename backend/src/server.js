@@ -11,10 +11,14 @@ const cron = require("node-cron");
 const config = require("./config");
 const { createAuthMiddleware } = require("./middleware/auth");
 const { createApiRouter } = require("./routes");
+const { createIssueSessionTokens, createAdminPasswordLoginHandler } = require("./routes/auth.routes");
+const { configurePassport, passport } = require("./config/passport");
+const session = require("express-session");
 const { createStripeWebhookHandler } = require("./features/premium/stripeWebhook");
 const { createReminderChecker } = require("./jobs/reminderScheduler");
 
 const User = require("./models/User");
+const { publicUser } = require("./utils/serializers");
 const Note = require("./models/Note");
 const Reminder = require("./models/Reminder");
 const ContactMessage = require("./models/ContactMessage");
@@ -27,6 +31,7 @@ const aiMemoryService = require("./services/aiMemoryService");
 const FRONTEND_PUBLIC = path.join(__dirname, "../../frontend/public");
 
 const app = express();
+app.set("trust proxy", 1);
 const server = http.createServer(app);
 
 server.on("error", (err) => {
@@ -84,7 +89,7 @@ const signupLimiter = rateLimit({
   legacyHeaders: false
 });
 
-app.use(cors({ origin: true }));
+app.use(cors({ origin: true, credentials: true }));
 
 if (config.stripeSecretKey && config.stripeWebhookSecret) {
   app.post(
@@ -101,6 +106,45 @@ if (config.stripeSecretKey && config.stripeWebhookSecret) {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+const sessionCookieSecure = process.env.NODE_ENV === "production";
+app.use(
+  session({
+    secret: config.sessionSecret,
+    resave: false,
+    saveUninitialized: false,
+    name: "notes.sid",
+    cookie: {
+      httpOnly: true,
+      secure: sessionCookieSecure,
+      sameSite: sessionCookieSecure ? "none" : "lax",
+      maxAge: 24 * 60 * 60 * 1000
+    }
+  })
+);
+
+configurePassport({
+  User,
+  googleClientId: config.googleClientId,
+  googleClientSecret: config.googleClientSecret,
+  googleCallbackUrl: config.googleRedirectUri
+});
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+const issueSessionTokens = createIssueSessionTokens(User, config.jwtSecret, config.jwtRefreshSecret);
+
+const adminPasswordLogin = createAdminPasswordLoginHandler({
+  User,
+  jwtSecret: config.jwtSecret,
+  jwtRefreshSecret: config.jwtRefreshSecret
+});
+
+/** Admin-only password login (same handler as POST /api/login). */
+app.post("/auth/login", authLimiter, adminPasswordLogin);
+
+const safePublicUrl = () => String(config.publicAppUrl || "").replace(/\/$/, "") || "http://localhost:3000";
+
 app.get("/admin", (req, res) => {
   res.sendFile(path.join(FRONTEND_PUBLIC, "admin.html"));
 });
@@ -116,6 +160,77 @@ app.get("/pricing", (_req, res) => {
 app.get("/billing", (_req, res) => {
   res.sendFile(path.join(FRONTEND_PUBLIC, "index.html"));
 });
+
+app.get("/choose-username", (_req, res) => {
+  res.sendFile(path.join(FRONTEND_PUBLIC, "index.html"));
+});
+
+/**
+ * Google OAuth (Passport + passport-google-oauth20).
+ * GOOGLE_CALLBACK_URL must match Google Cloud Console "Authorized redirect URI" exactly.
+ */
+app.get("/auth/google", authLimiter, (req, res, next) => {
+  if (!config.googleClientId || !config.googleClientSecret || !config.googleRedirectUri) {
+    return res.status(503).send("Google OAuth is not configured (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL).");
+  }
+  passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
+});
+
+app.get(
+  "/auth/google/callback",
+  authLimiter,
+  passport.authenticate("google", {
+    failureRedirect: `${safePublicUrl()}/?google_oauth_error=${encodeURIComponent("passport_failed")}`
+  }),
+  async (req, res) => {
+    const safePublic = safePublicUrl();
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.redirect(302, `${safePublic}/?google_oauth_error=${encodeURIComponent("user_missing")}`);
+      }
+      if (user.isPending) {
+        return res.redirect(302, `${safePublic}/choose-username`);
+      }
+      if (!user._id) {
+        return res.redirect(302, `${safePublic}/?google_oauth_error=${encodeURIComponent("user_missing")}`);
+      }
+      const { accessToken, refreshToken } = await issueSessionTokens(user._id);
+      const wantsJson = String(req.query.format || "").toLowerCase() === "json";
+
+      if (wantsJson) {
+        const fresh = await User.findById(user._id);
+        if (!fresh) {
+          return res.status(500).json({ error: "User not found after Google sign-in" });
+        }
+        req.logout((logoutErr) => {
+          if (logoutErr) console.error("[auth/google/callback] req.logout:", logoutErr.message);
+          res.json({
+            accessToken,
+            refreshToken,
+            user: publicUser(fresh)
+          });
+        });
+        return;
+      }
+
+      const bundle = encodeURIComponent(JSON.stringify({ accessToken, refreshToken }));
+      const finish = () => res.redirect(302, `${safePublic}/#google_oauth=${bundle}`);
+
+      if (typeof req.logout === "function") {
+        req.logout((err) => {
+          if (err) console.error("[auth/google/callback] req.logout:", err.message);
+          finish();
+        });
+        return;
+      }
+      finish();
+    } catch (err) {
+      console.error("[auth/google/callback]", err && err.message);
+      res.redirect(302, `${safePublic}/?google_oauth_error=${encodeURIComponent("sign_in_failed")}`);
+    }
+  }
+);
 
 app.use(
   express.static(FRONTEND_PUBLIC, {

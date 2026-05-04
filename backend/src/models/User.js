@@ -8,7 +8,12 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     // Legacy field kept for backwards compatibility with existing UI/admin consumers.
     emailOrPhone: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
+    /** Null for Google-only accounts (no local password). */
+    password: { type: String, default: null },
+    googleId: { type: String, default: null },
+    /** Profile photo URL from Google OAuth (optional). */
+    googlePicture: { type: String, default: "" },
+    provider: { type: String, enum: ["local", "google"], default: "local" },
     phone: { type: String, default: "" },
     deviceId: { type: String, default: "" },
     emailVerified: { type: Boolean, default: false },
@@ -79,6 +84,14 @@ userSchema.index(
   {
     unique: true,
     partialFilterExpression: { phone: { $type: "string", $gt: "" } }
+  }
+);
+
+userSchema.index(
+  { googleId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { googleId: { $exists: true, $type: "string", $gt: "" } }
   }
 );
 

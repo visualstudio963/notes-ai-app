@@ -4,6 +4,242 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { publicUser } = require("../utils/serializers");
 
+/** Single allowed local password login (admin bypass for Google-only policy). */
+const ADMIN_LOCAL_USERNAME = "redoncapoku";
+const ADMIN_LOCAL_EMAIL = "redoncapoku@gmail.com";
+
+function isDesignatedAdminAccount(user) {
+  if (!user) return false;
+  const un = String(user.username || "").trim().toLowerCase();
+  const em = String(user.email || "").trim().toLowerCase();
+  return un === ADMIN_LOCAL_USERNAME || em === ADMIN_LOCAL_EMAIL;
+}
+
+/**
+ * POST /api/login and POST /auth/login — password login only for the designated admin user.
+ */
+function createAdminPasswordLoginHandler({ User, jwtSecret, jwtRefreshSecret }) {
+  const issueSessionTokens = createIssueSessionTokens(User, jwtSecret, jwtRefreshSecret);
+
+  return async function adminPasswordLogin(req, res) {
+    try {
+      const { identifier, username, password } = req.body || {};
+      const loginId = String(identifier || username || "")
+        .trim()
+        .toLowerCase();
+      const pwd = String(password || "");
+
+      if (!loginId || !pwd) {
+        return res.status(400).json({ error: "Username (or email) and password are required" });
+      }
+
+      const isAdminPath =
+        loginId === ADMIN_LOCAL_USERNAME || loginId === ADMIN_LOCAL_EMAIL.toLowerCase();
+      if (!isAdminPath) {
+        return res.status(403).json({ error: "Use Continue with Google to sign in." });
+      }
+
+      const user = await User.findOne({
+        $or: [{ username: loginId }, { email: loginId }]
+      });
+
+      if (!user || !user.password) {
+        return res.status(400).json({ error: "Invalid credentials" });
+      }
+
+      if (!isDesignatedAdminAccount(user)) {
+        return res.status(403).json({ error: "Use Continue with Google to sign in." });
+      }
+
+      let valid = false;
+      try {
+        valid = await bcrypt.compare(pwd, user.password);
+      } catch (err) {
+        console.error("[auth/login] bcrypt compare error:", err.message);
+        return res.status(400).json({ error: "Invalid credentials" });
+      }
+      if (!valid) {
+        return res.status(400).json({ error: "Invalid credentials" });
+      }
+
+      if (user.role !== "admin") {
+        user.role = "admin";
+        await user.save();
+      }
+
+      const fresh = await User.findById(user._id);
+      const { accessToken, refreshToken } = await issueSessionTokens(fresh._id);
+      res.json({ accessToken, refreshToken, user: publicUser(fresh) });
+    } catch (err) {
+      console.error("[auth/login]", err.message);
+      const msg = String((err && err.message) || "");
+      if (/ssl|tls|certificate|handshake|MongoNetworkError|ECONNRESET|ETIMEDOUT/i.test(msg)) {
+        return res.status(503).json({
+          error: "Database connection issue during login. Please check MongoDB Atlas network/TLS settings."
+        });
+      }
+      res.status(500).json({ error: "Login failed" });
+    }
+  };
+}
+
+function splitGoogleDisplayName(name) {
+  const n = String(name || "").trim();
+  if (!n) return { firstName: "User", lastName: "" };
+  const parts = n.split(/\s+/);
+  if (parts.length === 1) return { firstName: parts[0], lastName: "" };
+  return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+}
+
+function baseUsernameFromProfile(name, email) {
+  let base = String(name || "")
+    .trim()
+    .split(/\s+/)[0]
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "");
+  if (base.length < 3) {
+    base = String(email || "")
+      .split("@")[0]
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, "") || "user";
+  }
+  if (base.length < 3) base = `user${base}`;
+  return base.slice(0, 28);
+}
+
+async function allocateUsername(User, name, email) {
+  let base = baseUsernameFromProfile(name, email);
+  if (base.length < 3) base = "user";
+  for (let i = 0; i < 80; i += 1) {
+    const candidate = i === 0 ? base : `${base}${Math.floor(100 + Math.random() * 899)}`.slice(0, 30);
+    const exists = await User.findOne({ username: candidate }).select("_id").lean();
+    if (!exists) return candidate;
+  }
+  return `${base}${Date.now()}`.slice(0, 30);
+}
+
+function createIssueSessionTokens(User, jwtSecret, jwtRefreshSecret) {
+  return async function issueSessionTokens(userId) {
+    const accessToken = jwt.sign({ id: userId }, jwtSecret, { expiresIn: "15m" });
+    const refreshToken = jwt.sign({ id: userId }, jwtRefreshSecret, { expiresIn: "7d" });
+    await User.updateOne({ _id: userId }, { $set: { refreshToken } });
+    return { accessToken, refreshToken };
+  };
+}
+
+/**
+ * Create or update user from Google ID token claims (sub, email, name).
+ * @returns {Promise<import("mongoose").Document>}
+ */
+async function upsertGoogleUserFromIdTokenPayload(User, payload, cleanDeviceId) {
+  const sub = String(payload.sub || "").trim();
+  const email = String(payload.email || "")
+    .trim()
+    .toLowerCase();
+  const name = String(payload.name || "").trim();
+
+  if (!sub || !email) {
+    const err = new Error("Google did not return a complete profile");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  let user = await User.findOne({ $or: [{ googleId: sub }, { email }] });
+
+  if (user) {
+    if (user.googleId && user.googleId !== sub) {
+      const err = new Error("This email is linked to another Google account");
+      err.statusCode = 409;
+      throw err;
+    }
+    if (!user.googleId) {
+      user.googleId = sub;
+      user.emailVerified = true;
+    }
+    if (cleanDeviceId) {
+      const other = await User.findOne({ deviceId: cleanDeviceId, _id: { $ne: user._id } })
+        .select("_id")
+        .lean();
+      if (other) {
+        const err = new Error("Only one account allowed per device");
+        err.statusCode = 409;
+        throw err;
+      }
+      if (!user.deviceId) user.deviceId = cleanDeviceId;
+    }
+    await user.save();
+  } else {
+    if (cleanDeviceId) {
+      const taken = await User.findOne({ deviceId: cleanDeviceId }).select("_id").lean();
+      if (taken) {
+        const err = new Error("Only one account allowed per device");
+        err.statusCode = 409;
+        throw err;
+      }
+    }
+    const { firstName, lastName } = splitGoogleDisplayName(name);
+    const username = await allocateUsername(User, name, email);
+    user = await User.create({
+      firstName,
+      lastName,
+      username,
+      email,
+      emailOrPhone: email,
+      googleId: sub,
+      provider: "google",
+      password: null,
+      emailVerified: true,
+      emailVerificationTokenHash: null,
+      emailVerificationExpiresAt: null,
+      deviceId: cleanDeviceId || "",
+      plan: "free",
+      subscriptionPlan: "free",
+      membershipRole: "free",
+      isPremium: false,
+      premiumExpires: null
+    });
+  }
+
+  return User.findById(user._id);
+}
+
+/**
+ * Find existing user by Google id or email and link Google id if needed.
+ * Does not create new users (first-time signups use pending session + complete-google-signup).
+ */
+async function findOrLinkGoogleUser(User, { sub, email, name, picture }) {
+  const emailNorm = String(email || "")
+    .trim()
+    .toLowerCase();
+  const googleId = String(sub || "").trim();
+  if (!emailNorm || !googleId) {
+    return null;
+  }
+
+  let user = await User.findOne({ $or: [{ email: emailNorm }, { googleId }] });
+
+  if (user) {
+    if (user.googleId && user.googleId !== googleId) {
+      const err = new Error("This email is linked to another Google account");
+      err.statusCode = 409;
+      throw err;
+    }
+    if (!user.googleId) {
+      user.googleId = googleId;
+      user.provider = "google";
+      user.emailVerified = true;
+    }
+    const pic = String(picture || "").trim();
+    if (pic && user.googlePicture !== pic) {
+      user.googlePicture = pic;
+    }
+    await user.save();
+    return User.findById(user._id);
+  }
+
+  return null;
+}
+
 function createAuthRouter({
   User,
   jwtSecret,
@@ -20,66 +256,77 @@ function createAuthRouter({
       : []
   );
 
-  async function issueSessionTokens(userId) {
-    const accessToken = jwt.sign({ id: userId }, jwtSecret, { expiresIn: "15m" });
-    const refreshToken = jwt.sign({ id: userId }, jwtRefreshSecret, { expiresIn: "7d" });
-    await User.updateOne({ _id: userId }, { $set: { refreshToken } });
-    return { accessToken, refreshToken };
-  }
+  const issueSessionTokens = createIssueSessionTokens(User, jwtSecret, jwtRefreshSecret);
+  const adminPasswordLogin = createAdminPasswordLoginHandler({ User, jwtSecret, jwtRefreshSecret });
 
-  router.post("/register", signupLimiter, async (req, res) => {
+  router.post("/register", signupLimiter, (_req, res) => {
+    res.status(410).json({ error: "Password registration has been disabled. Use Continue with Google." });
+  });
+
+  router.post("/login", authLimiter, adminPasswordLogin);
+
+  router.get("/auth/pending-google", (req, res) => {
+    const p = req.session && req.session.pendingGoogleOAuth;
+    if (!p) {
+      return res.status(404).json({ error: "No pending Google registration. Start sign-in again." });
+    }
+    res.json({ email: p.email, name: p.name || "" });
+  });
+
+  router.post("/auth/complete-google-signup", authLimiter, async (req, res) => {
+    const p = req.session && req.session.pendingGoogleOAuth;
+    if (!p) {
+      return res.status(400).json({ error: "No pending Google registration. Start sign-in again." });
+    }
+
+    let username = String((req.body && req.body.username) || "")
+      .trim()
+      .toLowerCase();
+    const deviceId = String((req.body && req.body.deviceId) || "").trim();
+
+    if (username.length < 3 || username.length > 30) {
+      return res.status(400).json({ error: "Username must be between 3 and 30 characters" });
+    }
+    if (!/^[a-z0-9_]+$/.test(username)) {
+      return res.status(400).json({
+        error: "Username may only contain lowercase letters, numbers, and underscores"
+      });
+    }
+
     try {
-      const { firstName, lastName, username, password, confirmPassword, deviceId } = req.body || {};
-      const cleanFirstName = String(firstName || "").trim();
-      const cleanLastName = String(lastName || "").trim();
-      const rawUsername = String(username || "").trim();
-      const cleanUsername = rawUsername.toLowerCase();
-      const cleanPassword = String(password || "");
-      const cleanConfirmPassword = String(confirmPassword || "");
-      const cleanDeviceId = String(deviceId || "").trim();
-
-      if (!cleanFirstName || !cleanLastName || !rawUsername || !cleanPassword || !cleanConfirmPassword) {
-        return res.status(400).json({ error: "firstName, lastName, username, password, confirmPassword are required" });
-      }
-      if (rawUsername !== cleanUsername) {
-        return res.status(400).json({ error: "Username must be lowercase" });
-      }
-      if (cleanUsername.length < 3) {
-        return res.status(400).json({ error: "Username must be at least 3 characters" });
-      }
-      if (cleanPassword.length < 6) {
-        return res.status(400).json({ error: "Password must be at least 6 characters" });
-      }
-      if (cleanPassword !== cleanConfirmPassword) {
-        return res.status(400).json({ error: "Passwords do not match" });
-      }
-
-      const existing = await User.findOne({ username: cleanUsername });
-
-      if (existing) {
+      const taken = await User.findOne({ username }).select("_id").lean();
+      if (taken) {
         return res.status(409).json({ error: "Username already taken" });
       }
-
-      if (cleanDeviceId) {
-        const existingDevice = await User.findOne({ deviceId: cleanDeviceId }).select("_id").lean();
-        if (existingDevice) {
+      const emailExists = await User.findOne({ email: p.email }).select("_id").lean();
+      if (emailExists) {
+        return res.status(409).json({ error: "An account with this email already exists" });
+      }
+      const gidTaken = await User.findOne({ googleId: p.googleId }).select("_id").lean();
+      if (gidTaken) {
+        return res.status(409).json({ error: "This Google account is already registered" });
+      }
+      if (deviceId) {
+        const devTaken = await User.findOne({ deviceId }).select("_id").lean();
+        if (devTaken) {
           return res.status(409).json({ error: "Only one account allowed per device" });
         }
       }
 
-      const hashedPassword = await bcrypt.hash(cleanPassword, 10);
-      const syntheticEmail = `${cleanUsername}@local.notesai`;
       const user = await User.create({
-        firstName: cleanFirstName,
-        lastName: cleanLastName,
-        username: cleanUsername,
-        email: syntheticEmail,
-        emailOrPhone: syntheticEmail,
-        deviceId: cleanDeviceId,
-        password: hashedPassword,
+        firstName: p.firstName || "User",
+        lastName: p.lastName || "",
+        username,
+        email: p.email,
+        emailOrPhone: p.email,
+        googleId: p.googleId,
+        provider: "google",
+        password: null,
+        googlePicture: p.picture || "",
         emailVerified: true,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
+        deviceId: deviceId || "",
         plan: "free",
         subscriptionPlan: "free",
         membershipRole: "free",
@@ -87,65 +334,27 @@ function createAuthRouter({
         premiumExpires: null
       });
 
-      res.status(201).json({
-        user: publicUser(user),
-        message: "Account created successfully."
-      });
-    } catch (err) {
-      if (err && err.code === 11000) {
-        if (err && err.keyPattern && err.keyPattern.username) {
-          return res.status(409).json({ error: "Username already taken" });
-        }
-        if (err && err.keyPattern && err.keyPattern.deviceId) {
-          return res.status(409).json({ error: "Only one account allowed per device" });
-        }
-        return res.status(409).json({ error: "Account already exists" });
-      }
-      console.error("[auth/register]", err.message);
-      res.status(500).json({ error: "Registration failed" });
-    }
-  });
-
-  router.post("/login", authLimiter, async (req, res) => {
-    try {
-      const { identifier, username, password } = req.body || {};
-      const loginId = String(identifier || username || "")
-        .trim()
-        .toLowerCase();
-      if (!loginId || !password) {
-        return res.status(400).json({ error: "Username and password are required" });
-      }
-
-      const user = await User.findOne({ username: loginId });
-
-      if (!user) {
-        return res.status(400).json({ error: "Invalid credentials" });
-      }
-
-      let valid = false;
-      try {
-        valid = Boolean(user.password) && (await bcrypt.compare(password, user.password));
-      } catch (err) {
-        console.error("[auth/login] bcrypt compare error:", err.message);
-        return res.status(400).json({ error: "Invalid credentials" });
-      }
-      if (!valid) {
-        return res.status(400).json({ error: "Invalid credentials" });
-      }
+      delete req.session.pendingGoogleOAuth;
 
       const { accessToken, refreshToken } = await issueSessionTokens(user._id);
 
-      res.json({ accessToken, refreshToken, user: publicUser(user) });
+      req.logout((logoutErr) => {
+        if (logoutErr) console.error("[auth/complete-google-signup] logout:", logoutErr.message);
+        res.json({ accessToken, refreshToken, user: publicUser(user) });
+      });
     } catch (err) {
-      console.error("[auth/login]", err.message);
-      const msg = String((err && err.message) || "");
-      if (/ssl|tls|certificate|handshake|MongoNetworkError|ECONNRESET|ETIMEDOUT/i.test(msg)) {
-        return res.status(503).json({
-          error: "Database connection issue during login. Please check MongoDB Atlas network/TLS settings."
-        });
+      if (err && err.code === 11000) {
+        return res.status(409).json({ error: "Username already taken" });
       }
-      res.status(500).json({ error: "Login failed" });
+      console.error("[auth/complete-google-signup]", err.message);
+      res.status(500).json({ error: "Could not complete registration" });
     }
+  });
+
+  router.post("/auth/google", authLimiter, (_req, res) => {
+    res.status(410).json({
+      error: "Use the Continue with Google button (browser redirect). Token-based Google sign-in has been removed."
+    });
   });
 
   router.post("/refresh", async (req, res) => {
@@ -196,4 +405,11 @@ function createAuthRouter({
   return router;
 }
 
-module.exports = { createAuthRouter };
+module.exports = {
+  createAuthRouter,
+  createAdminPasswordLoginHandler,
+  upsertGoogleUserFromIdTokenPayload,
+  createIssueSessionTokens,
+  findOrLinkGoogleUser,
+  splitGoogleDisplayName
+};

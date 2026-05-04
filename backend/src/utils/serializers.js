@@ -21,7 +21,9 @@ function publicUser(user) {
     premiumExpiresAt: premium.premiumExpiresAt,
     tier: premium.tier,
     subscriptionPlan: plan,
-    capabilities: premium.capabilities
+    capabilities: premium.capabilities,
+    googlePicture: user.googlePicture || "",
+    provider: user.provider || "local"
   };
 }
 

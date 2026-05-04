@@ -7,7 +7,7 @@ function sanitizeDiscordUrl(raw) {
   return s;
 }
 
-function createAppConfigRouter({ AppConfig, stripePublishableKey }) {
+function createAppConfigRouter({ AppConfig, stripePublishableKey, googleClientId }) {
   const router = express.Router();
 
   router.get("/public/app-config", async (_req, res) => {
@@ -16,7 +16,8 @@ function createAppConfigRouter({ AppConfig, stripePublishableKey }) {
       return res.json({
         discordInviteUrl: sanitizeDiscordUrl(doc && doc.discordInviteUrl),
         discordUpdatesCount: Math.max(0, Number((doc && doc.discordUpdatesCount) || 0)),
-        stripePublishableKey: stripePublishableKey || ""
+        stripePublishableKey: stripePublishableKey || "",
+        googleClientId: String(googleClientId || "").trim()
       });
     } catch {
       return res.status(500).json({ error: "Failed to load app config" });

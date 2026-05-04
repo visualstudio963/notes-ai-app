@@ -11949,6 +11949,31 @@ body.auth-shell-locked .site-footer {
   }
 }
 
+@keyframes note-rich-editor-screen-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes note-rich-toolbar-active-glow {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.16),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.2),
+      0 0 16px rgba(0, 245, 212, 0.28);
+  }
+  50% {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.18),
+      0 0 26px rgba(0, 198, 255, 0.38);
+  }
+}
+
 body.note-rich-editor-open {
   overflow: hidden;
 }
@@ -11969,6 +11994,10 @@ body.note-rich-editor-open #dailyPlannerFab {
   overflow: hidden;
 }
 
+.note-rich-editor-screen:not(.hidden) {
+  animation: note-rich-editor-screen-fade 0.32s ease-out forwards;
+}
+
 .note-rich-editor-screen.hidden {
   display: none !important;
 }
@@ -11980,11 +12009,12 @@ body.note-rich-editor-open #dailyPlannerFab {
   pointer-events: none;
   background: linear-gradient(
     165deg,
-    #030712 0%,
-    #0c4a6e 28%,
-    #0e7490 52%,
-    #134e4a 78%,
-    #0f172a 100%
+    #020617 0%,
+    #0b1f2e 20%,
+    #134e4a 44%,
+    #155e75 68%,
+    #0e7490 86%,
+    #082f49 100%
   );
   background-size: 200% 200%;
   animation: note-rich-editor-gradient-shift 48s ease-in-out infinite;
@@ -12003,10 +12033,35 @@ body.note-rich-editor-open #dailyPlannerFab {
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 90% 60% at 10% 0%, rgba(0, 245, 212, 0.12), transparent 55%),
-    radial-gradient(ellipse 70% 55% at 95% 90%, rgba(0, 198, 255, 0.14), transparent 50%),
-    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(129, 140, 248, 0.08), transparent 60%);
+  background:
+    radial-gradient(ellipse 95% 65% at 8% 5%, rgba(0, 245, 212, 0.14), transparent 58%),
+    radial-gradient(ellipse 75% 58% at 96% 92%, rgba(0, 198, 255, 0.12), transparent 52%),
+    radial-gradient(ellipse 55% 45% at 48% 48%, rgba(0, 245, 212, 0.06), transparent 62%),
+    radial-gradient(ellipse 40% 50% at 78% 18%, rgba(0, 198, 255, 0.08), transparent 55%);
   pointer-events: none;
+}
+
+/* Water-drop / rain-on-glass depth (soft blurred circles) */
+.note-rich-editor-rain {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  mix-blend-mode: soft-light;
+  background:
+    radial-gradient(ellipse 20px 28px at 9% 14%, rgba(255, 255, 255, 0.13), transparent 72%),
+    radial-gradient(ellipse 24px 16px at 24% 36%, rgba(255, 255, 255, 0.07), transparent 70%),
+    radial-gradient(ellipse 14px 22px at 43% 10%, rgba(255, 255, 255, 0.09), transparent 68%),
+    radial-gradient(ellipse 28px 20px at 71% 24%, rgba(255, 255, 255, 0.08), transparent 70%),
+    radial-gradient(ellipse 18px 26px at 90% 42%, rgba(255, 255, 255, 0.1), transparent 72%),
+    radial-gradient(ellipse 22px 18px at 17% 76%, rgba(255, 255, 255, 0.06), transparent 68%),
+    radial-gradient(ellipse 26px 22px at 39% 90%, rgba(255, 255, 255, 0.08), transparent 70%),
+    radial-gradient(ellipse 12px 20px at 58% 56%, rgba(255, 255, 255, 0.05), transparent 65%),
+    radial-gradient(ellipse 20px 24px at 84% 79%, rgba(255, 255, 255, 0.07), transparent 68%),
+    radial-gradient(ellipse 16px 18px at 66% 34%, rgba(255, 255, 255, 0.06), transparent 65%),
+    radial-gradient(ellipse 32px 24px at 52% 78%, rgba(0, 198, 255, 0.05), transparent 72%);
+  filter: blur(0.6px);
 }
 
 .note-rich-editor-layout {
@@ -12023,14 +12078,16 @@ body.note-rich-editor-open #dailyPlannerFab {
 }
 
 .note-rich-editor-glass {
-  background: rgba(15, 23, 42, 0.42);
+  background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   box-shadow:
-    0 20px 56px rgba(0, 0, 0, 0.35),
-    0 0 0 1px rgba(0, 245, 212, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    0 28px 64px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(0, 245, 212, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(0, 198, 255, 0.05),
+    0 0 48px rgba(0, 245, 212, 0.06);
 }
 
 .note-rich-editor-main-card {
@@ -12099,10 +12156,10 @@ body.note-rich-editor-open #dailyPlannerFab {
 }
 
 .note-rich-editor-back:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(0, 245, 212, 0.35);
-  box-shadow: 0 0 28px rgba(0, 245, 212, 0.2);
-  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.11);
+  border-color: rgba(0, 245, 212, 0.32);
+  box-shadow: 0 0 22px rgba(0, 245, 212, 0.18), 0 0 36px rgba(0, 198, 255, 0.1);
+  transform: scale(1.03);
 }
 
 .note-rich-editor-back-icon {
@@ -12135,30 +12192,33 @@ body.note-rich-editor-open #dailyPlannerFab {
   box-sizing: border-box;
   padding: 8px 4px 14px;
   border: none;
-  border-bottom: 2px solid transparent;
   border-radius: 0;
   background: transparent;
-  color: #f8fafc;
-  font-size: clamp(1.25rem, 4vw, 1.75rem);
-  font-weight: 750;
+  color: rgba(248, 250, 252, 0.96);
+  font-size: clamp(1.25rem, 2.6vw, 1.5rem);
+  font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.25;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.14), 0 10px 36px -18px rgba(0, 245, 212, 0.18);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
 }
 
 .note-rich-editor-title-input::placeholder {
-  color: rgba(148, 163, 184, 0.55);
+  color: rgba(248, 250, 252, 0.45);
 }
 
 .note-rich-editor-title-input:focus {
   outline: none;
-  border-bottom-color: rgba(0, 245, 212, 0.75);
-  box-shadow: 0 10px 40px -14px rgba(0, 245, 212, 0.35), 0 0 32px -10px rgba(0, 198, 255, 0.25);
+  box-shadow:
+    0 1px 0 rgba(0, 245, 212, 0.55),
+    0 12px 40px -14px rgba(0, 245, 212, 0.35),
+    0 0 36px -8px rgba(0, 198, 255, 0.28);
 }
 
 .note-rich-editor-title-input.note-rich-editor-title-input--invalid {
-  border-bottom-color: rgba(248, 113, 113, 0.85);
-  box-shadow: 0 6px 28px -14px rgba(248, 113, 113, 0.45);
+  box-shadow:
+    0 1px 0 rgba(248, 113, 113, 0.85),
+    0 8px 28px -14px rgba(248, 113, 113, 0.45);
 }
 
 .note-rich-editor-toolbar {
@@ -12178,7 +12238,7 @@ body.note-rich-editor-open #dailyPlannerFab {
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 12px;
   max-width: 100%;
 }
 
@@ -12190,20 +12250,29 @@ body.note-rich-editor-open #dailyPlannerFab {
   height: 42px;
   padding: 0;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  color: #cbd5e1;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: rgba(226, 232, 240, 0.92);
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18),
+    0 4px 14px rgba(0, 0, 0, 0.22);
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease,
+    color 0.2s ease;
 }
 
 .note-rich-toolbar-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(0, 245, 212, 0.35);
-  box-shadow: 0 0 22px rgba(0, 198, 255, 0.22);
+  background: rgba(255, 255, 255, 0.11);
+  border-color: rgba(0, 245, 212, 0.38);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.15),
+    0 0 26px rgba(0, 198, 255, 0.28),
+    0 6px 18px rgba(0, 0, 0, 0.28);
   transform: scale(1.05);
 }
 
@@ -12212,10 +12281,10 @@ body.note-rich-editor-open #dailyPlannerFab {
 }
 
 .note-rich-toolbar-btn.is-active {
-  background: rgba(0, 245, 212, 0.15);
-  border-color: rgba(0, 245, 212, 0.45);
+  background: rgba(0, 245, 212, 0.14);
+  border-color: rgba(0, 245, 212, 0.42);
   color: #ecfeff;
-  box-shadow: 0 0 18px rgba(0, 245, 212, 0.25);
+  animation: note-rich-toolbar-active-glow 2.4s ease-in-out infinite;
 }
 
 .note-rich-toolbar-icon {
@@ -12247,19 +12316,24 @@ body.note-rich-editor-open #dailyPlannerFab {
   gap: 10px;
   padding: 12px 18px;
   border-radius: 999px;
-  background: rgba(2, 8, 23, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   min-height: 52px;
-  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.35);
+  box-shadow:
+    inset 0 2px 10px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .note-rich-tags-field:focus-within {
-  border-color: rgba(0, 245, 212, 0.45);
+  border-color: rgba(0, 245, 212, 0.42);
   box-shadow:
-    inset 0 2px 10px rgba(0, 0, 0, 0.4),
-    0 0 0 2px rgba(0, 245, 212, 0.15),
-    0 0 24px rgba(0, 198, 255, 0.12);
+    inset 0 2px 12px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 0 2px rgba(0, 245, 212, 0.12),
+    0 0 28px rgba(0, 198, 255, 0.18);
 }
 
 .note-rich-tags-chips {
@@ -12280,10 +12354,10 @@ body.note-rich-editor-open #dailyPlannerFab {
   font-size: 0.8rem;
   font-weight: 650;
   letter-spacing: 0.02em;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(129, 140, 248, 0.14));
-  border: 1px solid rgba(125, 211, 252, 0.38);
-  color: #f0f9ff;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.35);
+  background: linear-gradient(135deg, rgba(0, 245, 212, 0.14), rgba(0, 198, 255, 0.1));
+  border: 1px solid rgba(0, 245, 212, 0.28);
+  color: rgba(240, 253, 250, 0.95);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
 }
 
 .note-rich-tag-remove {
@@ -12335,15 +12409,23 @@ body.note-rich-editor-open #dailyPlannerFab {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: rgba(2, 6, 23, 0.22);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.06) 0%,
+    rgba(255, 255, 255, 0.02) 42%,
+    rgba(0, 198, 255, 0.04) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 2px 36px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .note-rich-editor-mount {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: clamp(18px, 3vw, 28px);
+  padding: clamp(22px, 4vw, 36px);
   box-sizing: border-box;
 }
 
@@ -12360,8 +12442,8 @@ body.note-rich-editor-open #dailyPlannerFab {
   justify-content: flex-start;
   gap: 12px;
   flex-wrap: wrap;
-  padding: 12px clamp(18px, 3vw, 28px) 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 14px clamp(22px, 4vw, 36px) 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .note-rich-editor-wordcount {
@@ -12378,10 +12460,12 @@ body.note-rich-editor-open #dailyPlannerFab {
   min-height: min(40vh, 380px);
   font-size: 1.1rem;
   line-height: 1.78;
-  color: #e2e8f0;
-  background: transparent;
+  color: rgba(241, 245, 249, 0.96);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.015) 52%, transparent 100%);
   border-radius: 12px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  box-shadow:
+    inset 0 2px 44px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
 .note-rich-editor-mount .ProseMirror p.is-editor-empty:first-child::before {
@@ -12422,10 +12506,10 @@ body.note-rich-editor-open #dailyPlannerFab {
 }
 
 .note-rich-editor-mount .ProseMirror blockquote {
-  border-left: 3px solid rgba(56, 189, 248, 0.45);
+  border-left: 3px solid rgba(0, 245, 212, 0.45);
   margin: 0.75em 0;
   padding-left: 1rem;
-  color: #cbd5e1;
+  color: rgba(203, 213, 225, 0.95);
 }
 
 .note-rich-editor-mount .ProseMirror pre {

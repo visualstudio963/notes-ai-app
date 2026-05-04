@@ -7751,9 +7751,9 @@
     markParentsDirty() {
       let level = 1;
       for (let node = this.parent; node; node = node.parent, level++) {
-        let dirty = level == 1 ? CONTENT_DIRTY : CHILD_DIRTY;
-        if (node.dirty < dirty)
-          node.dirty = dirty;
+        let dirty2 = level == 1 ? CONTENT_DIRTY : CHILD_DIRTY;
+        if (node.dirty < dirty2)
+          node.dirty = dirty2;
       }
     }
     get domAtom() {
@@ -23363,71 +23363,30 @@ ${prefix}
   function escapeHtml(s) {
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
-  function debounce(fn, ms) {
-    let id;
-    return function(...args) {
-      clearTimeout(id);
-      id = setTimeout(() => fn.apply(this, args), ms);
-    };
-  }
   var editor = null;
   var rootPersistNoteId = null;
   var rootMode = "create";
   var rootOrigin = "category";
   var rootPresetCategory = null;
-  var saveTimer = null;
-  var lastSnapshot = "";
+  var baselineSnapshot = "";
+  var dirty = false;
   var openOptions = {};
-  var CATEGORY_ICONS = {
-    shtepia: "\u{1F3E0}",
-    puna: "\u{1F4BC}",
-    shkolla: "\u{1F393}",
-    scan_cam: "\u{1F4F7}"
-  };
-  function getNoteRichEditorTags() {
-    const root = document.getElementById("noteRichEditorTagsChips");
-    if (!root) return [];
-    return Array.from(root.querySelectorAll(".note-rich-tag-chip[data-tag]")).map((c) => String(c.getAttribute("data-tag") || "").trim()).filter(Boolean);
+  function tKey(key, fallback) {
+    return typeof window.t === "function" ? window.t(key) : fallback;
   }
-  function clearNoteRichEditorTagChips() {
-    const root = document.getElementById("noteRichEditorTagsChips");
-    if (!root) return;
-    root.querySelectorAll(".note-rich-tag-chip").forEach((n) => n.remove());
+  function setSaveBusy(busy) {
+    const btn = document.getElementById("noteRichEditorSave");
+    if (!btn) return;
+    btn.disabled = !!busy;
+    btn.classList.toggle("is-busy", !!busy);
+    btn.setAttribute("aria-busy", busy ? "true" : "false");
   }
-  function addNoteRichEditorTagChip(text) {
-    const raw = String(text || "").trim();
-    if (!raw) return;
-    const root = document.getElementById("noteRichEditorTagsChips");
-    const input = document.getElementById("noteRichEditorTagInput");
-    if (!root || !input) return;
-    const exists = Array.from(root.querySelectorAll(".note-rich-tag-chip[data-tag]")).some(
-      (c) => String(c.getAttribute("data-tag") || "").toLowerCase() === raw.toLowerCase()
-    );
-    if (exists) return;
-    const chip = document.createElement("span");
-    chip.className = "note-rich-tag-chip";
-    chip.setAttribute("data-tag", raw);
-    chip.innerHTML = `<span class="note-rich-tag-text">${escapeHtml(raw)}</span><button type="button" class="note-rich-tag-remove" aria-label="Remove tag">\xD7</button>`;
-    root.insertBefore(chip, input);
-    const rm2 = chip.querySelector(".note-rich-tag-remove");
-    if (rm2) {
-      rm2.addEventListener("click", () => {
-        chip.remove();
-        schedulePersist();
-      });
+  function syncDirty() {
+    if (!editor) {
+      dirty = false;
+      return;
     }
-  }
-  function setNoteRichEditorTags(tags) {
-    clearNoteRichEditorTagChips();
-    const list = Array.isArray(tags) ? tags : [];
-    list.forEach((t) => addNoteRichEditorTagChip(String(t)));
-  }
-  function syncCategoryIcon() {
-    const sel = document.getElementById("noteRichEditorCategory");
-    const icon = document.getElementById("noteRichEditorCategoryIcon");
-    if (!sel || !icon) return;
-    const key = String(sel.value || "");
-    icon.textContent = CATEGORY_ICONS[key] || "\u{1F4C1}";
+    dirty = buildPersistSnapshot() !== baselineSnapshot;
   }
   function updateWordCount(ed) {
     const el = document.getElementById("noteRichEditorWordCount");
@@ -23461,25 +23420,7 @@ ${prefix}
     const storageText = encodeDocForStorage(editor.getJSON());
     const titleEl = document.getElementById("noteRichEditorTitle");
     const title = titleEl ? String(titleEl.value || "").trim() : "";
-    const tags = getNoteRichEditorTags().slice().sort((a, b) => a.localeCompare(b));
-    return JSON.stringify({ storageText, title, tags });
-  }
-  function setStatus(kind, message) {
-    const el = document.getElementById("noteRichEditorStatus");
-    if (!el) return;
-    el.classList.remove("note-rich-editor-status--ok", "note-rich-editor-status--err", "note-rich-editor-status--saving");
-    if (kind === "saving") {
-      el.classList.add("note-rich-editor-status--saving");
-      el.textContent = message || "Saving\u2026";
-    } else if (kind === "ok") {
-      el.classList.add("note-rich-editor-status--ok");
-      el.textContent = message || "Saved \u2713";
-    } else if (kind === "err") {
-      el.classList.add("note-rich-editor-status--err");
-      el.textContent = message || "Save failed";
-    } else {
-      el.textContent = "";
-    }
+    return JSON.stringify({ storageText, title });
   }
   function getToolbarButtons(editorInstance) {
     const chain = () => editorInstance.chain().focus();
@@ -23592,34 +23533,41 @@ ${prefix}
     wrap2.appendChild(row1);
     return wrap2;
   }
-  async function runPersist() {
+  async function runPersist(opts = {}) {
+    const force = !!opts.force;
     if (!editor) return;
     const persistFn = typeof window.noteRichEditorPersist === "function" ? window.noteRichEditorPersist : null;
     if (!persistFn) return;
     const snapshot = buildPersistSnapshot();
-    if (snapshot === lastSnapshot && rootMode === "edit") {
+    if (force && snapshot === baselineSnapshot) {
+      if (typeof window.showToast === "function") {
+        window.showToast(tKey("noteRichEditorNoChanges", "No changes to save"));
+      }
       return;
     }
     const plainText = editor.getText().trim();
     const titleEl = document.getElementById("noteRichEditorTitle");
     const title = titleEl ? String(titleEl.value || "").trim() : "";
-    const tags = getNoteRichEditorTags();
     if (!title) {
-      setTitleFieldError("Title is required");
-      setStatus("", "");
+      setTitleFieldError(tKey("noteRichEditorTitleRequired", "Title is required"));
       return;
     }
     clearTitleFieldError();
     if (!plainText && rootMode === "create" && !rootPersistNoteId) {
+      if (typeof window.showToast === "function") {
+        window.showToast(tKey("noteTextRequired", "Please enter note text."));
+      }
       return;
     }
     if (!plainText && rootMode === "edit") {
-      setStatus("err", "Note body cannot be empty");
+      if (typeof window.showToast === "function") {
+        window.showToast(tKey("noteTextRequired", "Please enter note text."));
+      }
       return;
     }
     const doc3 = editor.getJSON();
     const storageText = encodeDocForStorage(doc3);
-    setStatus("saving", "Saving\u2026");
+    setSaveBusy(true);
     try {
       const result = await persistFn({
         mode: rootMode,
@@ -23628,27 +23576,28 @@ ${prefix}
         noteId: rootPersistNoteId,
         title,
         storageText,
-        plainText,
-        tags
+        plainText
       });
-      lastSnapshot = buildPersistSnapshot();
+      baselineSnapshot = buildPersistSnapshot();
+      dirty = false;
       if (result && result.note && result.note._id) {
         rootPersistNoteId = String(result.note._id);
         rootMode = "edit";
       }
-      setStatus("ok", "Saved \u2713");
+      if (typeof window.showToast === "function") {
+        window.showToast(tKey("noteRichEditorSaved", "Saved"));
+      }
     } catch (err) {
-      const msg = err && err.message || "Save failed";
-      setStatus("err", msg);
+      const msg = err && err.message || tKey("saveFailed", "Save failed");
+      if (typeof window.showToast === "function") window.showToast(msg);
+    } finally {
+      setSaveBusy(false);
     }
   }
-  var schedulePersist = debounce(() => {
-    void runPersist();
-  }, 2e3);
   function wireEditorHooks(ed) {
     ed.on("update", () => {
       updateWordCount(ed);
-      schedulePersist();
+      syncDirty();
     });
   }
   function destroyEditor() {
@@ -23658,9 +23607,9 @@ ${prefix}
     }
     const tb = document.getElementById("noteRichEditorToolbar");
     if (tb) tb.innerHTML = "";
-    saveTimer = null;
-    lastSnapshot = "";
-    clearNoteRichEditorTagChips();
+    baselineSnapshot = "";
+    dirty = false;
+    setSaveBusy(false);
     clearTitleFieldError();
     updateWordCount(null);
   }
@@ -23676,7 +23625,6 @@ ${prefix}
     rootPersistNoteId = null;
     rootMode = "create";
     openOptions = {};
-    setStatus("", "");
     if (cb) {
       try {
         cb();
@@ -23699,11 +23647,6 @@ ${prefix}
       titleEl.value = note ? String(note.title || "").trim() : "";
       clearTitleFieldError();
     }
-    if (note && Array.isArray(note.tags)) {
-      setNoteRichEditorTags(note.tags);
-    } else {
-      clearNoteRichEditorTagChips();
-    }
     const mount = document.getElementById("noteRichEditorMount");
     if (!mount) return;
     const placeholderFromDom = mount.getAttribute("data-placeholder") || "Fillon t\xEB shkruash idet\xEB e tua\u2026";
@@ -23718,7 +23661,8 @@ ${prefix}
         }
       }
     });
-    lastSnapshot = note ? buildPersistSnapshot() : "";
+    baselineSnapshot = buildPersistSnapshot();
+    dirty = false;
     const tbHost = document.getElementById("noteRichEditorToolbar");
     if (tbHost) {
       tbHost.innerHTML = "";
@@ -23729,38 +23673,36 @@ ${prefix}
     if (titleEl) {
       titleEl.oninput = () => {
         clearTitleFieldError();
-        schedulePersist();
-      };
-    }
-    const tagInput = document.getElementById("noteRichEditorTagInput");
-    if (tagInput) {
-      tagInput.onkeydown = (e) => {
-        if (e.key !== "Enter") return;
-        e.preventDefault();
-        const v = String(tagInput.value || "").trim();
-        if (!v) return;
-        addNoteRichEditorTagChip(v);
-        tagInput.value = "";
-        schedulePersist();
-      };
-      tagInput.oninput = () => {
+        syncDirty();
       };
     }
     screen.classList.remove("hidden");
     screen.setAttribute("aria-hidden", "false");
     document.body.classList.add("note-rich-editor-open");
-    setStatus("", "");
     window.setTimeout(() => editor.commands.focus("end"), 50);
   }
+  function requestClose() {
+    if (dirty) {
+      const ok = window.confirm(tKey("noteRichEditorUnsavedConfirm", "You have unsaved changes. Leave without saving?"));
+      if (!ok) return;
+    }
+    close2();
+  }
   function initNoteRichEditorBridge() {
-    document.getElementById("noteRichEditorBack")?.addEventListener("click", () => {
-      void runPersist().finally(() => close2());
+    document.getElementById("noteRichEditorBack")?.addEventListener("click", () => requestClose());
+    document.getElementById("noteRichEditorSave")?.addEventListener("click", () => void runPersist({ force: true }));
+    window.addEventListener("beforeunload", (e) => {
+      const screen = document.getElementById("noteRichEditorScreen");
+      if (!screen || screen.classList.contains("hidden")) return;
+      if (!dirty) return;
+      e.preventDefault();
+      e.returnValue = "";
     });
     document.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
       const screen = document.getElementById("noteRichEditorScreen");
       if (!screen || screen.classList.contains("hidden")) return;
-      void runPersist().finally(() => close2());
+      requestClose();
     });
   }
   window.NoteRichEditor = {

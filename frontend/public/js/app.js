@@ -1749,6 +1749,12 @@ function syncWebChatModePresentation(modeValue, aiLive) {
   page.classList.add(`web-chat-page--mode-${mode}`);
   if (aiLive) page.classList.add("web-chat-page--ai-live");
 
+  const messenger = page.querySelector(".web-chat-messenger.chat-container");
+  if (messenger) {
+    messenger.classList.remove("chat-bot-mode", "auto-mode", "openai-mode");
+    messenger.classList.add(mode === "openai" ? "openai-mode" : mode === "auto" ? "auto-mode" : "chat-bot-mode");
+  }
+
   const titleTextEl = titleEl.querySelector(".web-chat-messenger__title-text") || titleEl;
   const titleKey =
     mode === "openai" ? "webChatTitleOpenAi" : mode === "auto" ? "webChatTitleAuto" : "webChatTitleChatbot";
@@ -5307,10 +5313,9 @@ function populateNoteEditorCategorySelect() {
 }
 
 async function noteRichEditorPersistRequest(payload) {
-  const { mode, origin, presetCategory, noteId, title, storageText, plainText, tags } = payload || {};
+  const { mode, origin, presetCategory, noteId, title, storageText, plainText } = payload || {};
 
   const titleTrim = String(title || "").trim();
-  const tagsPayload = Array.isArray(tags) ? tags.map((t) => String(t || "").trim()).filter(Boolean) : [];
 
   const hasId = noteId && String(noteId).length > 0;
 
@@ -5344,8 +5349,7 @@ async function noteRichEditorPersistRequest(payload) {
       body: JSON.stringify({
         category,
         text: storageText,
-        title: titleTrim,
-        tags: tagsPayload
+        title: titleTrim
       })
     });
     if (created && created.note && created.note._id) {
@@ -5388,8 +5392,7 @@ async function noteRichEditorPersistRequest(payload) {
     method: "PUT",
     body: JSON.stringify({
       text: storageText,
-      title: titleTrim,
-      tags: tagsPayload
+      title: titleTrim
     })
   });
   if (updated && updated.note && updated.note._id) {

@@ -124,6 +124,11 @@ html.depth-motion-ready .depth-reveal.depth-reveal--in {
     transform: none !important;
   }
 
+  #webChat .web-chat-messenger.chat-container.openai-mode::before {
+    animation: none !important;
+    opacity: 0.55 !important;
+  }
+
   .web-chat-bubble:hover {
     transform: none;
   }
@@ -3036,10 +3041,61 @@ body.modal-open {
     0 0 44px rgba(0, 198, 255, 0.06);
   overflow: hidden;
   position: relative;
-  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+  transition:
+    background 0.35s ease,
+    border-color 0.35s ease,
+    box-shadow 0.35s ease,
+    filter 0.35s ease;
 }
 
-/* Slow ambient light mesh — all modes (OpenAI nebula uses ::before) */
+/* —— Mode skins (instant UX clarity): .chat-container + .chat-bot-mode | .auto-mode | .openai-mode —— */
+
+#webChat .web-chat-messenger.chat-container.chat-bot-mode {
+  background:
+    radial-gradient(circle at 30% 28%, rgba(15, 74, 62, 0.65), transparent 52%),
+    radial-gradient(circle at 78% 82%, rgba(7, 38, 36, 0.85), transparent 45%),
+    linear-gradient(165deg, rgba(15, 58, 58, 0.55) 0%, rgba(7, 28, 28, 0.72) 50%, rgba(4, 18, 22, 0.88) 100%);
+  border-color: rgba(52, 211, 153, 0.28);
+  box-shadow:
+    0 26px 60px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(52, 211, 153, 0.12),
+    inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2),
+    0 0 36px rgba(16, 185, 129, 0.12);
+}
+
+#webChat .web-chat-messenger.chat-container.auto-mode {
+  background:
+    radial-gradient(circle at 28% 24%, rgba(18, 63, 74, 0.75), transparent 48%),
+    radial-gradient(circle at 82% 78%, rgba(10, 34, 48, 0.9), transparent 42%),
+    radial-gradient(circle at 50% 50%, rgba(14, 165, 233, 0.08), transparent 55%),
+    linear-gradient(155deg, rgba(18, 63, 74, 0.5) 0%, rgba(10, 34, 48, 0.75) 55%, rgba(6, 22, 36, 0.9) 100%);
+  border-color: rgba(34, 211, 238, 0.38);
+  box-shadow:
+    0 26px 58px rgba(0, 0, 0, 0.46),
+    0 0 0 1px rgba(34, 211, 238, 0.14),
+    inset 0 1px 1px rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18),
+    0 0 48px rgba(14, 165, 233, 0.22),
+    0 0 72px rgba(34, 211, 238, 0.08);
+}
+
+#webChat .web-chat-messenger.chat-container.openai-mode {
+  background:
+    radial-gradient(circle at 25% 22%, rgba(91, 82, 204, 0.35), transparent 48%),
+    radial-gradient(circle at 88% 88%, rgba(26, 42, 79, 0.75), transparent 46%),
+    linear-gradient(165deg, rgba(35, 48, 92, 0.55) 0%, rgba(15, 23, 58, 0.82) 45%, rgba(10, 15, 37, 0.94) 100%);
+  border-color: rgba(167, 139, 250, 0.42);
+  box-shadow:
+    0 28px 64px rgba(0, 0, 0, 0.52),
+    0 0 0 1px rgba(139, 92, 246, 0.18),
+    inset 0 1px 1px rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.25),
+    0 0 56px rgba(139, 92, 246, 0.28),
+    0 0 90px rgba(59, 130, 246, 0.12);
+}
+
+/* Ambient mesh — base; mode skins override animation speed + colors below */
 .web-chat-messenger::after {
   content: "";
   position: absolute;
@@ -3050,20 +3106,73 @@ body.modal-open {
     radial-gradient(ellipse 70% 45% at 15% 12%, rgba(0, 245, 212, 0.11), transparent 52%),
     radial-gradient(ellipse 55% 50% at 92% 88%, rgba(0, 198, 255, 0.1), transparent 48%),
     radial-gradient(ellipse 40% 35% at 48% 45%, rgba(255, 255, 255, 0.04), transparent 55%);
-  opacity: 0.75;
-  animation: webChatMessengerAmbient 36s ease-in-out infinite;
+  opacity: 0.72;
+  transition: opacity 0.35s ease;
+  animation: webChatAmbientChatBot 52s ease-in-out infinite;
 }
 
-@keyframes webChatMessengerAmbient {
+/* Calm / slow — Chat Bot */
+@keyframes webChatAmbientChatBot {
   0%,
   100% {
     transform: translate3d(0, 0, 0) scale(1);
-    opacity: 0.65;
+    opacity: 0.58;
   }
   50% {
-    transform: translate3d(1.5%, -1%, 0) scale(1.03);
-    opacity: 0.85;
+    transform: translate3d(0.8%, -0.6%, 0) scale(1.015);
+    opacity: 0.72;
   }
+}
+
+/* Medium energy — Auto */
+@keyframes webChatAmbientAuto {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.62;
+  }
+  50% {
+    transform: translate3d(1.6%, -1.1%, 0) scale(1.04);
+    opacity: 0.84;
+  }
+}
+
+/* Dynamic — OpenAI */
+@keyframes webChatAmbientOpenAiSheen {
+  0%,
+  100% {
+    transform: translate3d(-1%, 1%, 0) scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translate3d(2.5%, -1.5%, 0) scale(1.06);
+    opacity: 0.88;
+  }
+}
+
+#webChat .web-chat-messenger.chat-container.chat-bot-mode::after {
+  background:
+    radial-gradient(ellipse 72% 48% at 18% 14%, rgba(52, 211, 153, 0.14), transparent 54%),
+    radial-gradient(ellipse 58% 52% at 90% 86%, rgba(16, 185, 129, 0.1), transparent 50%),
+    radial-gradient(ellipse 42% 38% at 48% 48%, rgba(255, 255, 255, 0.035), transparent 56%);
+  animation: webChatAmbientChatBot 52s ease-in-out infinite;
+}
+
+#webChat .web-chat-messenger.chat-container.auto-mode::after {
+  background:
+    radial-gradient(ellipse 68% 46% at 14% 12%, rgba(34, 211, 238, 0.16), transparent 52%),
+    radial-gradient(ellipse 62% 48% at 88% 84%, rgba(14, 165, 233, 0.14), transparent 48%),
+    radial-gradient(ellipse 45% 36% at 52% 44%, rgba(56, 189, 248, 0.08), transparent 54%);
+  animation: webChatAmbientAuto 30s ease-in-out infinite;
+}
+
+#webChat .web-chat-messenger.chat-container.openai-mode::after {
+  background:
+    radial-gradient(ellipse 70% 50% at 20% 18%, rgba(139, 92, 246, 0.18), transparent 52%),
+    radial-gradient(ellipse 58% 46% at 85% 82%, rgba(59, 130, 246, 0.14), transparent 48%),
+    radial-gradient(ellipse 44% 38% at 45% 42%, rgba(167, 139, 250, 0.06), transparent 55%);
+  opacity: 0.62;
+  animation: webChatAmbientOpenAiSheen 19s ease-in-out infinite;
 }
 
 #webChat .web-chat-messenger > * {
@@ -3071,43 +3180,21 @@ body.modal-open {
   z-index: 1;
 }
 
-#webChat.web-chat-page--mode-openai .web-chat-messenger::before {
+/* Futuristic nebula — OpenAI only */
+#webChat .web-chat-messenger.chat-container.openai-mode::before {
   content: "";
   position: absolute;
   inset: -32%;
   z-index: 0;
   background:
-    radial-gradient(circle at 18% 22%, rgba(34, 211, 238, 0.34), transparent 42%),
-    radial-gradient(circle at 82% 30%, rgba(59, 130, 246, 0.28), transparent 44%),
-    radial-gradient(circle at 50% 78%, rgba(16, 185, 129, 0.2), transparent 40%);
-  filter: blur(16px);
-  opacity: 0.95;
-  animation: webChatOpenAiNebula 8s ease-in-out infinite alternate;
+    radial-gradient(circle at 18% 22%, rgba(167, 139, 250, 0.38), transparent 42%),
+    radial-gradient(circle at 82% 28%, rgba(59, 130, 246, 0.32), transparent 44%),
+    radial-gradient(circle at 48% 78%, rgba(139, 92, 246, 0.22), transparent 40%);
+  filter: blur(18px);
+  opacity: 0.92;
+  transition: opacity 0.35s ease;
+  animation: webChatOpenAiNebula 7s ease-in-out infinite alternate;
   pointer-events: none;
-}
-
-#webChat.web-chat-page--mode-chatbot .web-chat-messenger {
-  border-color: rgba(255, 255, 255, 0.14);
-}
-
-#webChat.web-chat-page--mode-auto .web-chat-messenger {
-  border-color: rgba(0, 198, 255, 0.28);
-  box-shadow:
-    0 24px 56px rgba(2, 6, 23, 0.48),
-    0 0 40px rgba(0, 198, 255, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
-
-#webChat.web-chat-page--mode-openai .web-chat-messenger {
-  border-color: rgba(0, 245, 212, 0.35);
-  box-shadow:
-    0 28px 64px rgba(2, 6, 23, 0.52),
-    0 0 48px rgba(0, 245, 212, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
-}
-
-#webChat.web-chat-page--mode-openai .web-chat-messenger::after {
-  opacity: 0.42;
 }
 
 .web-chat-messenger__header {
@@ -3216,18 +3303,13 @@ body.modal-open {
   animation: webChatPulse 2s ease-in-out infinite;
 }
 
-#webChat.web-chat-page--mode-openai .web-chat-messenger__status-dot {
-  background: #22d3ee;
-  box-shadow: 0 0 12px rgba(34, 211, 238, 0.75);
-}
-
-#webChat.web-chat-page--ai-live .web-chat-messenger__status-dot {
-  background: #34d399;
-  box-shadow: 0 0 16px rgba(52, 211, 153, 0.9);
+#webChat.web-chat-page--ai-live .web-chat-messenger.chat-container .web-chat-messenger__status-dot {
+  background: #34d399 !important;
+  box-shadow: 0 0 16px rgba(52, 211, 153, 0.9), 0 0 28px rgba(16, 185, 129, 0.35) !important;
   animation-duration: 0.9s;
 }
 
-#webChat.web-chat-page--ai-live .web-chat-messenger::before {
+#webChat.web-chat-page--ai-live .web-chat-messenger.chat-container.openai-mode::before {
   animation-duration: 2.4s;
   opacity: 1;
 }
@@ -9579,11 +9661,6 @@ body {
   box-shadow: 0 0 14px rgba(0, 245, 212, 0.28);
 }
 
-#webChat.web-chat-page--mode-openai .web-chat-messenger::before {
-  opacity: 0.42;
-  filter: blur(22px);
-}
-
 #webChat .web-chat-messenger__header {
   display: flex;
   justify-content: space-between;
@@ -9631,6 +9708,22 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  transition: color 0.35s ease, text-shadow 0.35s ease;
+}
+
+#webChat .web-chat-messenger.chat-container.chat-bot-mode .web-chat-messenger__title {
+  color: #ecfdf5;
+  text-shadow: 0 0 26px rgba(52, 211, 153, 0.38);
+}
+
+#webChat .web-chat-messenger.chat-container.auto-mode .web-chat-messenger__title {
+  color: #ecfeff;
+  text-shadow: 0 0 28px rgba(34, 211, 238, 0.42);
+}
+
+#webChat .web-chat-messenger.chat-container.openai-mode .web-chat-messenger__title {
+  color: #f5f3ff;
+  text-shadow: 0 0 34px rgba(167, 139, 250, 0.48);
 }
 
 #webChat .web-chat-messenger__title-icon {
@@ -9641,11 +9734,30 @@ body {
   justify-content: flex-start;
   font-size: 0.72rem;
   color: rgba(226, 232, 240, 0.85);
+  transition: color 0.35s ease;
 }
 
-#webChat .web-chat-messenger__status-dot {
-  background: #22c55e;
-  box-shadow: 0 0 12px rgba(34, 197, 94, 0.7);
+#webChat .web-chat-messenger.chat-container.auto-mode .web-chat-messenger__status {
+  color: rgba(207, 250, 254, 0.88);
+}
+
+#webChat .web-chat-messenger.chat-container.openai-mode .web-chat-messenger__status {
+  color: rgba(221, 214, 254, 0.88);
+}
+
+#webChat .web-chat-messenger.chat-container.chat-bot-mode .web-chat-messenger__status-dot {
+  background: #34d399;
+  box-shadow: 0 0 12px rgba(52, 211, 153, 0.85), 0 0 22px rgba(16, 185, 129, 0.35);
+}
+
+#webChat .web-chat-messenger.chat-container.auto-mode .web-chat-messenger__status-dot {
+  background: #22d3ee;
+  box-shadow: 0 0 14px rgba(34, 211, 238, 0.85), 0 0 26px rgba(6, 182, 212, 0.38);
+}
+
+#webChat .web-chat-messenger.chat-container.openai-mode .web-chat-messenger__status-dot {
+  background: #c084fc;
+  box-shadow: 0 0 14px rgba(192, 132, 252, 0.95), 0 0 28px rgba(139, 92, 246, 0.42);
 }
 
 #webChat .web-chat-messenger__body {
@@ -9658,10 +9770,81 @@ body {
   gap: 12px;
   padding: 14px 12px 16px;
   background: transparent;
+  transition: background 0.35s ease;
+}
+
+#webChat .web-chat-messenger.chat-container.chat-bot-mode .web-chat-messages {
+  background: linear-gradient(180deg, rgba(6, 42, 36, 0.5) 0%, rgba(2, 12, 28, 0.12) 45%, transparent 78%);
+}
+
+#webChat .web-chat-messenger.chat-container.auto-mode .web-chat-messages {
+  background: linear-gradient(180deg, rgba(8, 50, 62, 0.45) 0%, rgba(14, 165, 233, 0.08) 40%, transparent 75%);
+}
+
+#webChat .web-chat-messenger.chat-container.openai-mode .web-chat-messages {
+  background: linear-gradient(180deg, rgba(30, 27, 75, 0.4) 0%, rgba(59, 130, 246, 0.1) 42%, transparent 76%);
 }
 
 #webChat .web-chat-bubble {
   border-radius: 16px;
+  transition: box-shadow 0.3s ease, border-color 0.3s ease, background 0.3s ease;
+}
+
+#webChat .web-chat-messenger.chat-container.chat-bot-mode .web-chat-bubble--user {
+  background: linear-gradient(145deg, rgba(52, 211, 153, 0.32), rgba(16, 185, 129, 0.18));
+  border: 1px solid rgba(52, 211, 153, 0.52);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.26),
+    0 0 36px rgba(52, 211, 153, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+}
+
+#webChat .web-chat-messenger.chat-container.chat-bot-mode .web-chat-bubble--bot {
+  background: rgba(52, 211, 153, 0.09);
+  border: 1px solid rgba(52, 211, 153, 0.22);
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 0 20px rgba(52, 211, 153, 0.08);
+}
+
+#webChat .web-chat-messenger.chat-container.auto-mode .web-chat-bubble--user {
+  background: linear-gradient(145deg, rgba(34, 211, 238, 0.28), rgba(14, 165, 233, 0.16));
+  border: 1px solid rgba(34, 211, 238, 0.52);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.26),
+    0 0 38px rgba(34, 211, 238, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+}
+
+#webChat .web-chat-messenger.chat-container.auto-mode .web-chat-bubble--bot {
+  background: rgba(34, 211, 238, 0.08);
+  border: 1px solid rgba(34, 211, 238, 0.22);
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 0 24px rgba(34, 211, 238, 0.12);
+}
+
+#webChat .web-chat-messenger.chat-container.openai-mode .web-chat-bubble--user {
+  background: linear-gradient(145deg, rgba(167, 139, 250, 0.32), rgba(99, 102, 241, 0.18));
+  border: 1px solid rgba(167, 139, 250, 0.52);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.28),
+    0 0 42px rgba(139, 92, 246, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.14);
+}
+
+#webChat .web-chat-messenger.chat-container.openai-mode .web-chat-bubble--bot {
+  background: rgba(167, 139, 250, 0.09);
+  border: 1px solid rgba(167, 139, 250, 0.26);
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 28px rgba(139, 92, 246, 0.14);
 }
 
 #webChat .web-chat-bubble--bot.web-chat-bubble--welcome {
@@ -9726,12 +9909,41 @@ body {
 
 #webChat .web-chat-mode-pill.is-active {
   color: #ecfeff;
-  background: rgba(0, 245, 212, 0.18);
-  border-color: rgba(0, 245, 212, 0.35);
+  z-index: 1;
+  transform: scale(1.05);
+  transition:
+    background 0.3s ease,
+    color 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease,
+    transform 0.3s ease;
+}
+
+#webChat .web-chat-messenger.chat-container.chat-bot-mode .web-chat-mode-pill.is-active {
+  background: linear-gradient(145deg, rgba(52, 211, 153, 0.35), rgba(16, 185, 129, 0.22));
+  border-color: rgba(52, 211, 153, 0.55);
   box-shadow:
-    0 0 24px rgba(0, 198, 255, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  transform: scale(1.02);
+    0 0 28px rgba(52, 211, 153, 0.45),
+    0 0 44px rgba(16, 185, 129, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+#webChat .web-chat-messenger.chat-container.auto-mode .web-chat-mode-pill.is-active {
+  background: linear-gradient(145deg, rgba(34, 211, 238, 0.32), rgba(14, 165, 233, 0.2));
+  border-color: rgba(34, 211, 238, 0.55);
+  box-shadow:
+    0 0 32px rgba(34, 211, 238, 0.42),
+    0 0 52px rgba(14, 165, 233, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+#webChat .web-chat-messenger.chat-container.openai-mode .web-chat-mode-pill.is-active {
+  background: linear-gradient(145deg, rgba(167, 139, 250, 0.38), rgba(99, 102, 241, 0.22));
+  border-color: rgba(167, 139, 250, 0.58);
+  box-shadow:
+    0 0 34px rgba(167, 139, 250, 0.48),
+    0 0 56px rgba(139, 92, 246, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 
 #webChat .web-chat-mode-pill--locked {
@@ -9817,17 +10029,37 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.2);
   overflow: hidden;
-  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-#webChat .web-chat-composer:focus-within {
-  border-color: rgba(0, 245, 212, 0.52);
+#webChat .web-chat-messenger.chat-container.chat-bot-mode .web-chat-composer:focus-within {
+  border-color: rgba(52, 211, 153, 0.58);
   box-shadow:
-    0 0 0 2px rgba(0, 245, 212, 0.14),
-    0 0 36px rgba(0, 245, 212, 0.28),
-    0 0 52px rgba(0, 198, 255, 0.14),
+    0 0 0 2px rgba(52, 211, 153, 0.18),
+    0 0 36px rgba(52, 211, 153, 0.32),
+    0 0 56px rgba(16, 185, 129, 0.14),
     inset 0 2px 12px rgba(0, 0, 0, 0.26),
-    inset 0 1px 0 rgba(255, 255, 255, 0.09);
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+#webChat .web-chat-messenger.chat-container.auto-mode .web-chat-composer:focus-within {
+  border-color: rgba(34, 211, 238, 0.58);
+  box-shadow:
+    0 0 0 2px rgba(34, 211, 238, 0.18),
+    0 0 38px rgba(34, 211, 238, 0.34),
+    0 0 58px rgba(14, 165, 233, 0.18),
+    inset 0 2px 12px rgba(0, 0, 0, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+#webChat .web-chat-messenger.chat-container.openai-mode .web-chat-composer:focus-within {
+  border-color: rgba(167, 139, 250, 0.58);
+  box-shadow:
+    0 0 0 2px rgba(167, 139, 250, 0.2),
+    0 0 42px rgba(139, 92, 246, 0.38),
+    0 0 64px rgba(99, 102, 241, 0.15),
+    inset 0 2px 12px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 #webChat .web-chat-composer textarea,
@@ -12188,8 +12420,13 @@ body.note-rich-editor-open #dailyPlannerFab {
   box-sizing: border-box;
 }
 
-.note-rich-editor-row--back {
+.note-rich-editor-row--header {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
 }
 
 .note-rich-editor-title-block {
@@ -12239,29 +12476,45 @@ body.note-rich-editor-open #dailyPlannerFab {
   transform: scale(1.03);
 }
 
+.note-rich-editor-save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 245, 212, 0.42);
+  background: linear-gradient(135deg, rgba(0, 245, 212, 0.42), rgba(0, 198, 255, 0.32));
+  color: #042f2e;
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+}
+
+.note-rich-editor-save:hover:not(:disabled) {
+  filter: brightness(1.07);
+  border-color: rgba(0, 245, 212, 0.55);
+  box-shadow:
+    0 0 32px rgba(0, 245, 212, 0.42),
+    0 12px 32px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transform: scale(1.03);
+}
+
+.note-rich-editor-save:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .note-rich-editor-back-icon {
   font-size: 1.1rem;
   opacity: 0.9;
-}
-
-.note-rich-editor-status--footer {
-  margin-left: auto;
-  text-align: right;
-  font-size: 0.72rem;
-  max-width: 55%;
-}
-
-.note-rich-editor-status--saving {
-  color: #7dd3fc;
-}
-
-.note-rich-editor-status--ok {
-  color: #86efac;
-  letter-spacing: 0.03em;
-}
-
-.note-rich-editor-status--err {
-  color: #fca5a5;
 }
 
 .note-rich-editor-title-input {

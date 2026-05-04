@@ -826,7 +826,7 @@
       </section>
 
       <section id="webChat" class="page hidden web-chat-page web-chat-page--messenger web-chat-drawer" aria-label="Web chat" onclick="closeWebChatDrawer()">
-        <div class="web-chat-messenger" onclick="event.stopPropagation()">
+        <div class="web-chat-messenger chat-container chat-bot-mode" onclick="event.stopPropagation()">
           <div class="web-chat-sheet-handle" aria-hidden="true">
             <span class="web-chat-sheet-handle__bar"></span>
           </div>
@@ -1349,10 +1349,13 @@
     <div class="note-rich-editor-layout">
       <div class="note-rich-editor-main-card note-rich-editor-glass note-rich-editor-main-card--enter">
         <div class="note-rich-editor-main-inner">
-          <div class="note-rich-editor-row note-rich-editor-row--back">
+          <div class="note-rich-editor-row note-rich-editor-row--header">
             <button type="button" id="noteRichEditorBack" class="note-rich-editor-back" aria-label="Back">
               <span class="note-rich-editor-back-icon" aria-hidden="true">←</span>
-              <span>Back</span>
+              <span data-t="noteRichEditorBack">Back</span>
+            </button>
+            <button type="button" id="noteRichEditorSave" class="note-rich-editor-save" data-t="noteRichEditorSave">
+              Save
             </button>
           </div>
 
@@ -1377,24 +1380,6 @@
             aria-label="Formatting toolbar"
           ></div>
 
-          <div class="note-rich-editor-tags-section" aria-label="Tags">
-            <span class="note-rich-editor-field-label" data-t="noteEditorTagsLabel">Tags</span>
-            <div class="note-rich-tags-field">
-              <div id="noteRichEditorTagsChips" class="note-rich-tags-chips">
-                <input
-                  type="text"
-                  id="noteRichEditorTagInput"
-                  class="note-rich-tag-input"
-                  data-t-placeholder="noteEditorTagPlaceholder"
-                  placeholder="Add a tag…"
-                  maxlength="48"
-                  autocomplete="off"
-                  aria-label="Add tag"
-                />
-              </div>
-            </div>
-          </div>
-
           <section class="note-rich-editor-content-shell">
             <div
               id="noteRichEditorMount"
@@ -1403,7 +1388,6 @@
             ></div>
             <footer class="note-rich-editor-content-footer">
               <span id="noteRichEditorWordCount" class="note-rich-editor-wordcount" aria-live="polite">0</span>
-              <span id="noteRichEditorStatus" class="note-rich-editor-status note-rich-editor-status--footer" role="status"></span>
             </footer>
           </section>
         </div>

@@ -143,7 +143,13 @@ const passwordLogin = createPasswordLoginHandler({
 /** Same handler as POST /api/login. */
 app.post("/auth/login", authLimiter, passwordLogin);
 
-const safePublicUrl = () => String(config.publicAppUrl || "").replace(/\/$/, "") || "http://localhost:3000";
+/** Base URL of the deployed SPA (Vercel). Uses PUBLIC_APP_URL or the default production origin below. */
+const DEFAULT_FRONTEND_ORIGIN = "https://notes-ai-app-theta.vercel.app";
+
+function getFrontendBaseUrl() {
+  const raw = String(process.env.PUBLIC_APP_URL || "").trim().replace(/\/$/, "");
+  return raw || DEFAULT_FRONTEND_ORIGIN;
+}
 
 app.get("/admin", (req, res) => {
   res.sendFile(path.join(FRONTEND_PUBLIC, "admin.html"));
@@ -180,20 +186,22 @@ app.get(
   "/auth/google/callback",
   authLimiter,
   passport.authenticate("google", {
-    failureRedirect: `${safePublicUrl()}/?google_oauth_error=${encodeURIComponent("passport_failed")}`
+    failureRedirect: `${getFrontendBaseUrl()}/?google_oauth_error=${encodeURIComponent("passport_failed")}`
   }),
   async (req, res) => {
-    const safePublic = safePublicUrl();
+    const frontendBase = getFrontendBaseUrl();
+    console.log("Redirecting to:", process.env.PUBLIC_APP_URL);
+    console.log("[auth/google/callback] Resolved frontend base:", frontendBase);
     try {
       const user = req.user;
       if (!user) {
-        return res.redirect(302, `${safePublic}/?google_oauth_error=${encodeURIComponent("user_missing")}`);
+        return res.redirect(302, `${frontendBase}/?google_oauth_error=${encodeURIComponent("user_missing")}`);
       }
       if (user.isPending) {
-        return res.redirect(302, `${safePublic}/choose-username`);
+        return res.redirect(302, `${frontendBase}/choose-username`);
       }
       if (!user._id) {
-        return res.redirect(302, `${safePublic}/?google_oauth_error=${encodeURIComponent("user_missing")}`);
+        return res.redirect(302, `${frontendBase}/?google_oauth_error=${encodeURIComponent("user_missing")}`);
       }
       const { accessToken, refreshToken } = await issueSessionTokens(user._id);
       const wantsJson = String(req.query.format || "").toLowerCase() === "json";
@@ -215,7 +223,7 @@ app.get(
       }
 
       const bundle = encodeURIComponent(JSON.stringify({ accessToken, refreshToken }));
-      const finish = () => res.redirect(302, `${safePublic}/#google_oauth=${bundle}`);
+      const finish = () => res.redirect(302, `${frontendBase}/#google_oauth=${bundle}`);
 
       if (typeof req.logout === "function") {
         req.logout((err) => {
@@ -227,7 +235,7 @@ app.get(
       finish();
     } catch (err) {
       console.error("[auth/google/callback]", err && err.message);
-      res.redirect(302, `${safePublic}/?google_oauth_error=${encodeURIComponent("sign_in_failed")}`);
+      res.redirect(302, `${frontendBase}/?google_oauth_error=${encodeURIComponent("sign_in_failed")}`);
     }
   }
 );
@@ -298,7 +306,7 @@ mongoose
   .connect(config.mongoUri, config.mongooseOptions)
   .then(() => {
     server.listen(config.port, () => {
-      console.log(`Server http://localhost:${config.port}`);
+      console.log(`Server listening on port ${config.port}`);
     });
   })
   .catch((err) => {

@@ -2338,30 +2338,34 @@ function syncAuthShellVisibility() {
 }
 
 function syncAuthGoogleLinkHref() {
-  const a = document.getElementById("authGoogleLink");
-  if (!a) return;
+  const links = document.querySelectorAll("a.auth-google-link");
+  if (!links || !links.length) return;
+  let href;
   try {
-    a.href = buildApiUrl("/auth/google");
+    href = buildApiUrl("/auth/google");
   } catch {
     const base =
       typeof API_BASE_URL !== "undefined" && API_BASE_URL ? String(API_BASE_URL).replace(/\/+$/, "") : "";
-    a.href = base ? `${base}/auth/google` : "/auth/google";
+    href = base ? `${base}/auth/google` : "/auth/google";
   }
-  a.classList.remove("auth-shell__btn-google--disabled", "auth-shell__btn-google--unavailable");
-  a.removeAttribute("aria-disabled");
+  links.forEach((a) => {
+    a.href = href;
+    a.classList.remove("auth-shell__btn-google--disabled", "auth-shell__btn-google--unavailable");
+    a.removeAttribute("aria-disabled");
+  });
 }
 
 function switchAuthTab(mode) {
-  const loginForm = document.getElementById("authLoginForm");
-  const signupForm = document.getElementById("authSignupForm");
+  const loginPanel = document.getElementById("authLoginPanel");
+  const signupPanel = document.getElementById("authSignupPanel");
   const tabLogin = document.getElementById("authTabLogin");
   const tabSignup = document.getElementById("authTabSignup");
   const errL = document.getElementById("authLoginError");
   const errS = document.getElementById("authSignupError");
-  if (!loginForm || !signupForm || !tabLogin || !tabSignup) return;
+  if (!loginPanel || !signupPanel || !tabLogin || !tabSignup) return;
   const isLogin = mode !== "signup";
-  loginForm.classList.toggle("hidden", !isLogin);
-  signupForm.classList.toggle("hidden", isLogin);
+  loginPanel.classList.toggle("hidden", !isLogin);
+  signupPanel.classList.toggle("hidden", isLogin);
   tabLogin.classList.toggle("is-active", isLogin);
   tabSignup.classList.toggle("is-active", !isLogin);
   tabLogin.setAttribute("aria-selected", isLogin ? "true" : "false");
@@ -2373,6 +2377,9 @@ function switchAuthTab(mode) {
   if (errS) {
     errS.classList.add("hidden");
     errS.textContent = "";
+  }
+  if (isLogin) {
+    window.setTimeout(() => document.getElementById("authLoginUsername")?.focus(), 0);
   }
 }
 
@@ -2425,151 +2432,17 @@ async function submitAuthLogin(ev) {
   }
 }
 
-let signupEmailCheckTimer = null;
-
-function wireSignupEmailLiveCheck() {
-  const input = document.getElementById("authSignupEmail");
-  const hint = document.getElementById("authSignupEmailHint");
-  if (!input || !hint) return;
-
-  const runCheck = () => {
-    const v = String(input.value || "").trim().toLowerCase();
-    if (!v) {
-      hint.classList.add("hidden");
-      hint.textContent = "";
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
-      hint.classList.add("hidden");
-      hint.textContent = "";
-      return;
-    }
-    const url = buildApiUrl(`/auth/check-email?email=${encodeURIComponent(v)}`);
-    void fetch(url, { method: "GET", credentials: "include" })
-      .then((r) => r.json().catch(() => ({})))
-      .then((data) => {
-        if (data && data.available === false) {
-          hint.textContent = typeof t === "function" ? t("emailAlreadyInUse") : "Email already in use";
-          hint.classList.remove("hidden");
-        } else {
-          hint.classList.add("hidden");
-          hint.textContent = "";
-        }
-      })
-      .catch(() => {});
-  };
-
-  input.addEventListener("input", () => {
-    clearTimeout(signupEmailCheckTimer);
-    hint.classList.add("hidden");
-    hint.textContent = "";
-    const v = String(input.value || "").trim().toLowerCase();
-    if (!v) return;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return;
-    signupEmailCheckTimer = window.setTimeout(runCheck, 450);
-  });
-
-  input.addEventListener("blur", () => {
-    const v = String(input.value || "").trim().toLowerCase();
-    if (v && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
-      runCheck();
-    }
-  });
-}
-
-async function submitAuthSignup(ev) {
-  ev.preventDefault();
-  const errEl = document.getElementById("authSignupError");
-  const firstName = (document.getElementById("authSignupFirstName")?.value || "").trim();
-  const lastName = (document.getElementById("authSignupLastName")?.value || "").trim();
-  const emailRaw = (document.getElementById("authSignupEmail")?.value || "").trim().toLowerCase();
-  const username = (document.getElementById("authSignupUsername")?.value || "").trim().toLowerCase();
-  const password = document.getElementById("authSignupPassword")?.value || "";
-  const confirmPassword = document.getElementById("authSignupConfirm")?.value || "";
-  if (errEl) {
-    errEl.classList.add("hidden");
-    errEl.textContent = "";
-  }
-  if (!firstName || !lastName || !emailRaw || !username || !password || !confirmPassword) {
-    if (errEl) {
-      errEl.textContent = "Fill in all fields.";
-      errEl.classList.remove("hidden");
-    }
-    return;
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw)) {
-    if (errEl) {
-      errEl.textContent = typeof t === "function" ? t("signupEmailInvalid") : "Enter a valid email address.";
-      errEl.classList.remove("hidden");
-    }
-    return;
-  }
-  if (password !== confirmPassword) {
-    if (errEl) {
-      errEl.textContent = "Passwords do not match.";
-      errEl.classList.remove("hidden");
-    }
-    return;
-  }
-  if (password.length < 8) {
-    if (errEl) {
-      errEl.textContent = "Password must be at least 8 characters.";
-      errEl.classList.remove("hidden");
-    }
-    return;
-  }
-  try {
-    const data = await apiFetch("/api/register", {
-      method: "POST",
-      body: JSON.stringify({
-        firstName,
-        lastName,
-        email: emailRaw,
-        username,
-        password,
-        confirmPassword
-      })
-    });
-    authPostLoginShellSuccess(data);
-  } catch (e) {
-    const raw = String((e && e.message) || "");
-    const duplicate = /exists|already in use|already taken|User already|email or username already/i.test(raw);
-    if (duplicate) {
-      const msg = typeof t === "function" ? t("accountAlreadyExistsToast") : "This account already exists. Please log in.";
-      showToast(msg);
-      switchAuthTab("login");
-      if (errEl) {
-        errEl.classList.add("hidden");
-        errEl.textContent = "";
-      }
-      const loginUser = document.getElementById("authLoginUsername");
-      if (loginUser) window.setTimeout(() => loginUser.focus(), 0);
-      return;
-    }
-    if (errEl) {
-      errEl.textContent = raw || "Sign up failed.";
-      errEl.classList.remove("hidden");
-    }
-  }
-}
-
 function initAuthLandingUi() {
   document.getElementById("authTabLogin")?.addEventListener("click", () => switchAuthTab("login"));
   document.getElementById("authTabSignup")?.addEventListener("click", () => switchAuthTab("signup"));
   document.getElementById("authLoginForm")?.addEventListener("submit", (ev) => void submitAuthLogin(ev));
-  document.getElementById("authSignupForm")?.addEventListener("submit", (ev) => void submitAuthSignup(ev));
   document.getElementById("setPasswordForm")?.addEventListener("submit", (ev) => void submitSetPassword(ev));
-  wireSignupEmailLiveCheck();
   const landing = document.getElementById("authLanding");
   landing?.addEventListener("click", (e) => {
     if (e.target === landing) closeAccountModal();
   });
-  const g = document.getElementById("authGoogleLink");
-  if (g) {
+  document.querySelectorAll("a.auth-google-link").forEach((g) => {
     g.addEventListener("click", () => {
-      /** Never call preventDefault here: blocking relied on public `googleClientId` from app-config.
-       * If that fetch fails or returns empty, users still must reach the backend `/auth/google`
-       * (server decides OAuth; misconfiguration shows 503 from API instead of a “dead” button). */
       if (googleOAuthConfigLoaded && !googleOAuthClientId) {
         console.warn(
           "[Google sign-in] Public client id missing from app-config — still navigating to backend OAuth. " +
@@ -2577,7 +2450,7 @@ function initAuthLandingUi() {
         );
       }
     });
-  }
+  });
 }
 
 async function initChooseUsernameFlow() {
@@ -3035,7 +2908,9 @@ async function consumeGoogleOAuthFromHash() {
     const raw = decodeURIComponent(qErr);
     const friendly =
       raw === "account_exists"
-        ? "An account with this email already exists."
+        ? typeof t === "function"
+          ? t("accountAlreadyExistsToast")
+          : "Account already exists. Please log in."
         : raw === "account_conflict"
           ? "This email is linked to another sign-in method."
           : `Google sign-in: ${raw}`;
@@ -4810,7 +4685,7 @@ function settingsSearchInputChanged(value) {
     { key: "appearance", words: ["appearance", "theme", "language", "look", "dukje", "gjuha", "tema"] },
     { key: "notifications", words: ["notifications", "notification", "alerts", "njoftime", "sinjalizime"] },
     { key: "premium", words: ["premium", "plan", "subscription", "abonim"] },
-    { key: "account", words: ["account", "profile", "email", "phone", "llogari", "profil"] }
+    { key: "account", words: ["account", "profile", "email", "username", "llogari", "profil"] }
   ];
   const hit = map.find((item) => item.words.some((word) => word.includes(q) || q.includes(word)));
   openSettingsSection(hit ? hit.key : "account");
@@ -6349,6 +6224,12 @@ function displayAccountInfo() {
     if (editLast) editLast.value = "";
     const adminRowGuest = document.getElementById("settingsAdminRow");
     if (adminRowGuest) adminRowGuest.classList.add("hidden");
+    const uBanner = document.getElementById("settingsUsernameBanner");
+    const uWrap = document.getElementById("settingsUsernameEditWrap");
+    const uInput = document.getElementById("settingsEditUsername");
+    if (uBanner) uBanner.classList.add("hidden");
+    if (uWrap) uWrap.classList.add("hidden");
+    if (uInput) uInput.value = "";
     updateSettingsSecurityGuestState();
     return;
   }
@@ -6388,6 +6269,13 @@ function displayAccountInfo() {
   }
   if (editFirst) editFirst.value = currentUser.firstName || "";
   if (editLast) editLast.value = currentUser.lastName || "";
+
+  const uBanner = document.getElementById("settingsUsernameBanner");
+  const uWrap = document.getElementById("settingsUsernameEditWrap");
+  const uInput = document.getElementById("settingsEditUsername");
+  if (uWrap) uWrap.classList.remove("hidden");
+  if (uInput) uInput.value = String(currentUser.username || "").trim();
+  if (uBanner) uBanner.classList.toggle("hidden", !currentUser.needsUsername);
 
   const planText = String(currentUser.plan || currentUser.subscriptionPlan || "free").toLowerCase();
   const statusText = String(currentUser.subscriptionStatus || (premium ? "active" : "inactive"));
@@ -6513,6 +6401,40 @@ async function saveSettingsProfileEdit() {
       return;
     }
     showToast(rawMsg || t("settingsProfileSaveFailed"));
+  }
+}
+
+async function saveSettingsUsername() {
+  if (!requireAuth("update your username")) return;
+  const input = document.getElementById("settingsEditUsername");
+  if (!input || !currentUser) return;
+  const username = String(input.value || "").trim().toLowerCase();
+  if (username.length < 3 || username.length > 30) {
+    showToast("Username must be between 3 and 30 characters.");
+    return;
+  }
+  if (!/^[a-z0-9_]+$/.test(username)) {
+    showToast("Username may only contain lowercase letters, numbers, and underscores.");
+    return;
+  }
+  try {
+    const data = await apiFetch("/api/user/username", {
+      method: "PUT",
+      body: JSON.stringify({ username })
+    });
+    if (data && data.user) {
+      Object.assign(currentUser, data.user);
+      persistCurrentUserToStorage();
+    } else {
+      currentUser.username = username;
+      currentUser.needsUsername = false;
+      persistCurrentUserToStorage();
+    }
+    displayAccountInfo();
+    updateAccountUI();
+    showToast("Username saved.");
+  } catch (err) {
+    showToast((err && err.message) || "Could not update username.");
   }
 }
 

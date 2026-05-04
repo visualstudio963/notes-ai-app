@@ -83,6 +83,35 @@
   grid-column: 1 / -1;
 }
 
+.settings-username-banner {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: #e0f2fe;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.settings-username-edit-wrap {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.settings-username-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.settings-username-row input {
+  flex: 1;
+  min-width: 160px;
+}
+
 .settings-admin-wrap {
   display: flex;
   flex-direction: column;

@@ -55,6 +55,49 @@ function createUserRouter({ User, authMiddleware }) {
   router.put("/user/profile", authMiddleware, updateProfileHandler);
   router.put("/profile", authMiddleware, updateProfileHandler);
 
+  router.put("/user/username", authMiddleware, async (req, res) => {
+    try {
+      const raw = String((req.body && req.body.username) || "")
+        .trim()
+        .toLowerCase();
+      if (raw.length < 3 || raw.length > 30) {
+        return res.status(400).json({ error: "Username must be between 3 and 30 characters" });
+      }
+      if (!/^[a-z0-9_]+$/.test(raw)) {
+        return res.status(400).json({
+          error: "Username may only contain lowercase letters, numbers, and underscores"
+        });
+      }
+
+      const user = await User.findById(req.userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      if (user.username === raw) {
+        user.needsUsername = false;
+        await user.save();
+        return res.json({ success: true, user: publicUser(user) });
+      }
+
+      const taken = await User.findOne({ username: raw, _id: { $ne: req.userId } })
+        .select("_id")
+        .lean();
+      if (taken) {
+        return res.status(409).json({ error: "Username already taken" });
+      }
+
+      user.username = raw;
+      user.needsUsername = false;
+      await user.save();
+      res.json({ success: true, user: publicUser(user) });
+    } catch (err) {
+      if (err && err.code === 11000) {
+        return res.status(409).json({ error: "Username already taken" });
+      }
+      res.status(500).json({ error: "Failed to update username" });
+    }
+  });
+
   router.get("/user/settings", authMiddleware, async (req, res) => {
     try {
       const user = await User.findById(req.userId).select("theme language");

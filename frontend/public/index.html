@@ -20,63 +20,75 @@
 
   <div id="authLanding" class="auth-shell auth-shell--landing hidden" role="dialog" aria-modal="true" aria-label="Sign in">
     <div class="auth-shell__inner">
-      <div class="auth-shell__card">
+      <div class="auth-shell__card auth-shell__card--3d">
         <button type="button" class="close-button" onclick="closeAccountModal(); event.stopPropagation();" aria-label="Close">✕</button>
         <h1 class="auth-shell__title">Notes AI</h1>
         <p class="auth-shell__subtitle">Your smart notes assistant</p>
 
         <div class="auth-shell__tabs" role="tablist" aria-label="Sign in or sign up">
-          <button type="button" id="authTabLogin" class="auth-shell__tab is-active" role="tab" aria-selected="true" aria-controls="authLoginForm">Login</button>
-          <button type="button" id="authTabSignup" class="auth-shell__tab" role="tab" aria-selected="false" aria-controls="authSignupForm">Sign Up</button>
+          <button type="button" id="authTabLogin" class="auth-shell__tab is-active" role="tab" aria-selected="true" aria-controls="authLoginPanel">Login</button>
+          <button type="button" id="authTabSignup" class="auth-shell__tab" role="tab" aria-selected="false" aria-controls="authSignupPanel">Sign Up</button>
         </div>
 
-        <form id="authLoginForm" class="auth-shell__panel" autocomplete="on" novalidate>
-          <label class="auth-shell__label" for="authLoginUsername" data-t="loginUsernameOrEmail">Username or email</label>
-          <input type="text" id="authLoginUsername" class="auth-shell__input" name="username" autocomplete="username" />
-          <label class="auth-shell__label" for="authLoginPassword">Password</label>
-          <input type="password" id="authLoginPassword" class="auth-shell__input" name="password" autocomplete="current-password" />
-          <p class="auth-shell__error hidden" id="authLoginError" role="alert"></p>
-          <button type="submit" class="auth-shell__btn-primary" id="authLoginSubmit">Continue</button>
-        </form>
+        <div id="authLoginPanel" class="auth-shell__tab-panel" role="tabpanel" aria-labelledby="authTabLogin">
+          <form id="authLoginForm" class="auth-shell__panel" autocomplete="on" novalidate>
+            <label class="auth-shell__label" for="authLoginUsername" data-t="loginUsernameOrEmail">Username or email</label>
+            <input
+              type="text"
+              id="authLoginUsername"
+              class="auth-shell__input"
+              name="username"
+              autocomplete="username"
+              placeholder="username or you@email.com"
+            />
+            <label class="auth-shell__label" for="authLoginPassword">Password</label>
+            <input
+              type="password"
+              id="authLoginPassword"
+              class="auth-shell__input"
+              name="password"
+              autocomplete="current-password"
+              placeholder="••••••••"
+            />
+            <p class="auth-shell__error hidden" id="authLoginError" role="alert"></p>
+            <button type="submit" class="auth-shell__btn-primary" id="authLoginSubmit">Continue</button>
+          </form>
+          <div class="auth-shell__divider" aria-hidden="true"><span>or</span></div>
+          <a id="authGoogleLinkLogin" class="auth-shell__btn-google auth-google-link" href="/auth/google">
+            <span class="auth-shell__g-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
+            </span>
+            <span>Continue with Google</span>
+          </a>
+        </div>
 
-        <form id="authSignupForm" class="auth-shell__panel hidden" autocomplete="on" novalidate>
-          <label class="auth-shell__label" for="authSignupFirstName">First name</label>
-          <input type="text" id="authSignupFirstName" class="auth-shell__input" name="firstName" autocomplete="given-name" />
-          <label class="auth-shell__label" for="authSignupLastName">Last name</label>
-          <input type="text" id="authSignupLastName" class="auth-shell__input" name="lastName" autocomplete="family-name" />
-          <label class="auth-shell__label" for="authSignupEmail" data-t="signupEmailLabel">Email</label>
-          <input type="email" id="authSignupEmail" class="auth-shell__input" name="email" autocomplete="email" />
-          <p id="authSignupEmailHint" class="auth-shell__field-hint hidden" role="status"></p>
-          <label class="auth-shell__label" for="authSignupUsername">Username</label>
-          <input type="text" id="authSignupUsername" class="auth-shell__input" name="signupUsername" autocomplete="username" maxlength="30" spellcheck="false" />
-          <label class="auth-shell__label" for="authSignupPassword">Password</label>
-          <input type="password" id="authSignupPassword" class="auth-shell__input" name="newPassword" autocomplete="new-password" />
-          <label class="auth-shell__label" for="authSignupConfirm">Confirm password</label>
-          <input type="password" id="authSignupConfirm" class="auth-shell__input" name="confirmPassword" autocomplete="new-password" />
+        <div id="authSignupPanel" class="auth-shell__tab-panel hidden" role="tabpanel" aria-labelledby="authTabSignup">
+          <p class="auth-shell__signup-lead">Create your account with Google in one step.</p>
+          <a id="authGoogleLinkSignup" class="auth-shell__btn-google auth-google-link" href="/auth/google">
+            <span class="auth-shell__g-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
+            </span>
+            <span>Continue with Google</span>
+          </a>
           <p class="auth-shell__error hidden" id="authSignupError" role="alert"></p>
-          <button type="submit" class="auth-shell__btn-primary" id="authSignupSubmit">Continue</button>
-        </form>
-
-        <div class="auth-shell__divider" aria-hidden="true"><span>or</span></div>
-
-        <a id="authGoogleLink" class="auth-shell__btn-google" href="/auth/google">
-          <span class="auth-shell__g-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-            </svg>
-          </span>
-          <span>Continue with Google</span>
-        </a>
+        </div>
       </div>
     </div>
   </div>
 
   <div id="setPasswordScreen" class="auth-shell auth-shell--set-password hidden" role="dialog" aria-modal="true" aria-label="Set password">
     <div class="auth-shell__inner">
-      <div class="auth-shell__card">
+      <div class="auth-shell__card auth-shell__card--3d">
         <h1 class="auth-shell__title" data-t="setPasswordTitle">Set password</h1>
         <p class="auth-shell__subtitle" data-t="setPasswordSubtitle">Choose a password so you can sign in with username or email without Google.</p>
         <form id="setPasswordForm" autocomplete="on" novalidate>
@@ -100,7 +112,7 @@
             placeholder="Repeat new password"
           />
           <p class="auth-shell__error hidden" id="setPasswordError" role="alert"></p>
-          <button type="submit" class="auth-shell__btn-primary" id="setPasswordSubmit" data-t="setPasswordSubmit">Save password</button>
+          <button type="submit" class="auth-shell__btn-primary" id="setPasswordSubmit" data-t="setPasswordSubmit">Set password</button>
         </form>
       </div>
     </div>
@@ -108,7 +120,7 @@
 
   <div id="chooseUsernameScreen" class="auth-shell auth-shell--username hidden" role="region" aria-label="Choose username">
     <div class="auth-shell__inner">
-      <div class="auth-shell__card">
+      <div class="auth-shell__card auth-shell__card--3d">
         <h1 class="auth-shell__title">Choose your username</h1>
         <p class="auth-shell__email" id="chooseUsernameEmail"></p>
         <label class="auth-shell__label" for="chooseUsernameInput">Username</label>
@@ -1102,6 +1114,9 @@
                   <button type="button" class="save-button settings-edit-save-btn" onclick="saveSettingsProfileEdit()" data-t="saveNote">Save</button>
                 </div>
               </div>
+              <p id="settingsUsernameBanner" class="settings-username-banner hidden" role="status">
+                Choose a public username to finish your profile.
+              </p>
               <div class="settings-account-grid">
                 <div class="info-item">
                   <label data-t="firstName">First Name</label>
@@ -1125,6 +1140,21 @@
                     <a href="admin.html" class="settings-admin-link">Admin dashboard</a>
                     <span class="settings-admin-hint">Users, messages, and stats</span>
                   </p>
+                </div>
+              </div>
+              <div id="settingsUsernameEditWrap" class="settings-username-edit-wrap hidden">
+                <div class="field-group settings-field-compact">
+                  <label for="settingsEditUsername" data-t="username">Username</label>
+                  <div class="settings-username-row">
+                    <input
+                      id="settingsEditUsername"
+                      type="text"
+                      maxlength="30"
+                      spellcheck="false"
+                      autocomplete="username"
+                    />
+                    <button type="button" class="save-button" onclick="saveSettingsUsername()" data-t="saveNote">Save</button>
+                  </div>
                 </div>
               </div>
             </section>

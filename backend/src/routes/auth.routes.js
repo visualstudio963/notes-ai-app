@@ -191,7 +191,8 @@ async function upsertGoogleUserFromIdTokenPayload(User, payload, cleanDeviceId) 
       subscriptionPlan: "free",
       membershipRole: "free",
       isPremium: false,
-      premiumExpires: null
+      premiumExpires: null,
+      needsUsername: true
     });
   }
 
@@ -277,88 +278,12 @@ function createAuthRouter({
     }
   });
 
-  router.post("/register", signupLimiter, async (req, res) => {
-    try {
-      const firstName = String((req.body && req.body.firstName) || "").trim();
-      const lastName = String((req.body && req.body.lastName) || "").trim();
-      const username = String((req.body && req.body.username) || "")
-        .trim()
-        .toLowerCase();
-      const email = String((req.body && req.body.email) || "")
-        .trim()
-        .toLowerCase();
-      const password = String((req.body && req.body.password) || "");
-      const confirmPassword = String((req.body && req.body.confirmPassword) || "");
-
-      if (!firstName || !lastName) {
-        return res.status(400).json({ error: "First name and last name are required" });
-      }
-      if (!email) {
-        return res.status(400).json({ error: "Email is required" });
-      }
-      if (!isValidEmailShape(email)) {
-        return res.status(400).json({ error: "Please enter a valid email address" });
-      }
-      if (username.length < 3 || username.length > 30) {
-        return res.status(400).json({ error: "Username must be between 3 and 30 characters" });
-      }
-      if (!/^[a-z0-9_]+$/.test(username)) {
-        return res.status(400).json({
-          error: "Username may only contain lowercase letters, numbers, and underscores"
-        });
-      }
-      if (password.length < 8) {
-        return res.status(400).json({ error: "Password must be at least 8 characters" });
-      }
-      if (password !== confirmPassword) {
-        return res.status(400).json({ error: "Passwords do not match" });
-      }
-
-      const emailOrPhone = email;
-
-      const existingUser = await User.findOne({
-        $or: [{ email }, { username }, { emailOrPhone: email }]
-      })
-        .select("_id")
-        .lean();
-      if (existingUser) {
-        return res.status(400).json({
-          message: "User already exists",
-          error: "User already exists"
-        });
-      }
-
-      const passwordHash = await bcrypt.hash(password, 10);
-      const user = await User.create({
-        firstName,
-        lastName,
-        username,
-        email,
-        emailOrPhone,
-        password: passwordHash,
-        provider: "local",
-        emailVerified: true,
-        emailVerificationTokenHash: null,
-        emailVerificationExpiresAt: null,
-        plan: "free",
-        subscriptionPlan: "free",
-        membershipRole: "free",
-        isPremium: false,
-        premiumExpires: null
-      });
-
-      const { accessToken, refreshToken } = await issueSessionTokens(user._id);
-      res.json({ accessToken, refreshToken, user: publicUser(user) });
-    } catch (err) {
-      if (err && err.code === 11000) {
-        return res.status(400).json({
-          message: "Email or username already exists",
-          error: "Email or username already exists"
-        });
-      }
-      console.error("[auth/register]", err.message);
-      res.status(500).json({ message: "Server error", error: "Registration failed" });
-    }
+  router.post("/register", signupLimiter, async (_req, res) => {
+    return res.status(400).json({
+      message: "Account registration with email is not available. Use Continue with Google or log in.",
+      error:
+        "Account registration with email is not available. Use Continue with Google or log in."
+    });
   });
 
   router.post("/login", authLimiter, passwordLogin);
@@ -429,7 +354,8 @@ function createAuthRouter({
         subscriptionPlan: "free",
         membershipRole: "free",
         isPremium: false,
-        premiumExpires: null
+        premiumExpires: null,
+        needsUsername: false
       });
 
       delete req.session.pendingGoogleOAuth;

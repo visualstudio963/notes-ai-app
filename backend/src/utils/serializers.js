@@ -23,7 +23,8 @@ function publicUser(user) {
     capabilities: premium.capabilities,
     googlePicture: user.googlePicture || "",
     provider: user.provider || "local",
-    hasLocalPassword: Boolean(user.password)
+    hasLocalPassword: Boolean(user.password),
+    needsUsername: Boolean(user.needsUsername)
   };
 }
 

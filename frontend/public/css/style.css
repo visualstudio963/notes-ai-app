@@ -11510,7 +11510,40 @@ body.floating-scrolled .discord-fab:hover {
   }
 }
 
-/* —— Google-only auth shells (Notion / ChatGPT-inspired) —— */
+/* —— Auth: glass + neumorphic 3D —— */
+@keyframes authShellBlobDrift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translate(14px, -22px) scale(1.05);
+    opacity: 0.8;
+  }
+}
+
+@keyframes authInnerFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes authCardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 body.auth-shell-locked .app,
 body.auth-shell-locked .site-footer {
   visibility: hidden;
@@ -11524,9 +11557,40 @@ body.auth-shell-locked .site-footer {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: radial-gradient(1200px 600px at 50% -10%, rgba(56, 189, 248, 0.09), transparent 55%),
-    radial-gradient(900px 480px at 80% 90%, rgba(167, 139, 250, 0.07), transparent 50%),
-    linear-gradient(160deg, #0b1220 0%, #0f172a 45%, #020617 100%);
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 900px 520px at 18% 8%, rgba(99, 102, 241, 0.28), transparent 58%),
+    radial-gradient(ellipse 780px 460px at 88% 78%, rgba(56, 189, 248, 0.2), transparent 52%),
+    radial-gradient(ellipse 640px 400px at 50% 105%, rgba(167, 139, 250, 0.18), transparent 48%),
+    linear-gradient(168deg, #050814 0%, #0f172a 40%, #1e1b4b 100%);
+}
+
+.auth-shell::before,
+.auth-shell::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(72px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.auth-shell::before {
+  width: min(440px, 58vw);
+  height: min(440px, 58vw);
+  left: -10%;
+  top: 8%;
+  background: rgba(56, 189, 248, 0.22);
+  animation: authShellBlobDrift 19s ease-in-out infinite;
+}
+
+.auth-shell::after {
+  width: min(400px, 52vw);
+  height: min(400px, 52vw);
+  right: -8%;
+  bottom: 6%;
+  background: rgba(167, 139, 250, 0.24);
+  animation: authShellBlobDrift 24s ease-in-out infinite reverse;
 }
 
 .auth-shell.hidden {
@@ -11536,15 +11600,37 @@ body.auth-shell-locked .site-footer {
 .auth-shell__inner {
   width: 100%;
   max-width: 440px;
+  position: relative;
+  z-index: 1;
+}
+
+.auth-shell:not(.hidden) .auth-shell__inner {
+  animation: authInnerFloat 6.5s ease-in-out 0.5s infinite;
 }
 
 .auth-shell__card {
-  border-radius: 16px;
-  padding: 36px 28px;
-  background: rgba(15, 23, 42, 0.72);
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  box-shadow: 0 24px 48px rgba(2, 6, 23, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
-  backdrop-filter: blur(12px);
+  position: relative;
+  border-radius: 26px;
+  padding: 38px 30px;
+  background: rgba(15, 23, 42, 0.52);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  box-shadow:
+    0 32px 64px rgba(2, 6, 23, 0.58),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+    0 0 48px rgba(56, 189, 248, 0.1);
+  backdrop-filter: blur(20px) saturate(145%);
+  -webkit-backdrop-filter: blur(20px) saturate(145%);
+}
+
+.auth-shell:not(.hidden) .auth-shell__card--3d {
+  animation: authCardEnter 0.42s ease forwards;
+}
+
+.auth-shell__card .close-button {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
 }
 
 .auth-shell__title {
@@ -11584,7 +11670,7 @@ body.auth-shell-locked .site-footer {
   font-size: 0.92rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .auth-shell__tab:hover {
@@ -11595,6 +11681,18 @@ body.auth-shell-locked .site-footer {
   background: rgba(56, 189, 248, 0.14);
   color: #e0f2fe;
   box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.22);
+}
+
+.auth-shell__tab-panel {
+  margin-top: 2px;
+}
+
+.auth-shell__signup-lead {
+  margin: 0 0 18px;
+  text-align: center;
+  font-size: 0.95rem;
+  color: rgba(226, 232, 240, 0.78);
+  line-height: 1.5;
 }
 
 .auth-shell__panel {
@@ -11630,21 +11728,21 @@ body.auth-shell-locked .site-footer {
   justify-content: center;
   gap: 12px;
   width: 100%;
-  padding: 14px 20px;
+  padding: 14px 22px;
   border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
   color: #1e293b;
   font-size: 0.98rem;
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .auth-shell__btn-google:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 12px 28px rgba(2, 8, 22, 0.28);
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px rgba(2, 8, 22, 0.32);
 }
 
 .auth-shell__g-icon {
@@ -11679,19 +11777,30 @@ body.auth-shell-locked .site-footer {
 .auth-shell__input {
   width: 100%;
   box-sizing: border-box;
-  padding: 12px 14px;
-  border-radius: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  background: rgba(2, 6, 23, 0.35);
+  padding: 13px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(30, 41, 59, 0.85);
+  background: rgba(2, 6, 23, 0.55);
   color: #f1f5f9;
   font-size: 1rem;
   margin-bottom: 12px;
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.45),
+    inset 0 -1px 0 rgba(148, 163, 184, 0.06);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.auth-shell__input::placeholder {
+  color: rgba(148, 163, 184, 0.45);
 }
 
 .auth-shell__input:focus {
   outline: none;
-  border-color: rgba(56, 189, 248, 0.55);
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+  border-color: rgba(56, 189, 248, 0.65);
+  box-shadow:
+    inset 0 2px 8px rgba(0, 0, 0, 0.5),
+    0 0 0 3px rgba(56, 189, 248, 0.22),
+    0 0 24px rgba(34, 211, 238, 0.15);
 }
 
 .auth-shell__field-hint {
@@ -11709,20 +11818,35 @@ body.auth-shell-locked .site-footer {
 .auth-shell__btn-primary {
   width: 100%;
   margin-top: 8px;
-  padding: 14px 18px;
+  padding: 14px 22px;
   border: none;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #38bdf8, #22d3ee);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #38bdf8 0%, #22d3ee 55%, #06b6d4 100%);
   color: #0f172a;
   font-size: 0.98rem;
   font-weight: 650;
   cursor: pointer;
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  box-shadow:
+    0 4px 0 rgba(14, 116, 144, 0.35),
+    0 12px 28px rgba(8, 145, 178, 0.35),
+    0 0 28px rgba(56, 189, 248, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
 .auth-shell__btn-primary:hover {
-  opacity: 0.95;
-  transform: translateY(-1px);
+  filter: brightness(1.06);
+  transform: translateY(-2px) scale(1.01);
+  box-shadow:
+    0 6px 0 rgba(14, 116, 144, 0.3),
+    0 16px 36px rgba(8, 145, 178, 0.45),
+    0 0 36px rgba(56, 189, 248, 0.45);
+}
+
+.auth-shell__btn-primary:active {
+  transform: translateY(1px) scale(0.99);
+  box-shadow:
+    0 2px 0 rgba(14, 116, 144, 0.4),
+    0 8px 20px rgba(8, 145, 178, 0.3);
 }
 
 /* —— TipTap full-screen note editor (premium glass layout) —— */

@@ -48,7 +48,12 @@ const userSchema = new mongoose.Schema(
     lastActive: { type: Date, default: null },
     /** UTC year-month (YYYY-MM) for monthly OpenAI Web Chat usage counter */
     webChatOpenAiPeriod: { type: String, default: "" },
-    webChatOpenAiUsed: { type: Number, default: 0 }
+    webChatOpenAiUsed: { type: Number, default: 0 },
+    /**
+     * True for new Google sign-ups until the user picks a public username in Settings
+     * (a provisional unique username is still stored for schema/legacy reasons).
+     */
+    needsUsername: { type: Boolean, default: false }
   },
   { timestamps: true }
 );

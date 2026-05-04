@@ -11719,7 +11719,7 @@ body.auth-shell-locked .site-footer {
   transform: translateY(-1px);
 }
 
-/* —— TipTap full-screen note editor —— */
+/* —— TipTap full-screen note editor (premium glass layout) —— */
 body.note-rich-editor-open {
   overflow: hidden;
 }
@@ -11730,46 +11730,97 @@ body.note-rich-editor-open {
   z-index: 10040;
   display: flex;
   flex-direction: column;
-  background: #0a0f1a;
   color: #e2e8f0;
+  overflow: hidden;
 }
 
 .note-rich-editor-screen.hidden {
   display: none !important;
 }
 
+.note-rich-editor-gradient {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 42%, #0c4a6e 72%, #0ea5e9 120%);
+  pointer-events: none;
+}
+
+.note-rich-editor-gradient::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 20% 0%, rgba(56, 189, 248, 0.18), transparent 55%),
+    radial-gradient(ellipse 60% 50% at 90% 80%, rgba(139, 92, 246, 0.15), transparent 50%);
+  pointer-events: none;
+}
+
+.note-rich-editor-layout {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.note-rich-editor-glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(56, 189, 248, 0.06);
+}
+
 .note-rich-editor-header {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 16px 10px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
-  background: rgba(15, 23, 42, 0.88);
-  backdrop-filter: blur(8px);
+  gap: 14px;
+  padding: 14px 18px;
+  margin: 12px 16px 0;
+  border-radius: 16px;
+}
+
+.note-rich-editor-header-center {
+  flex: 1;
+  min-width: 0;
 }
 
 .note-rich-editor-back {
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  background: rgba(30, 41, 59, 0.6);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.45);
   color: #e2e8f0;
-  padding: 8px 14px;
-  border-radius: 10px;
-  font-size: 0.9rem;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 0.88rem;
+  font-weight: 600;
   cursor: pointer;
   flex-shrink: 0;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
 }
 
 .note-rich-editor-back:hover {
-  background: rgba(51, 65, 85, 0.75);
+  background: rgba(30, 41, 59, 0.65);
+  border-color: rgba(56, 189, 248, 0.35);
+  box-shadow: 0 0 24px rgba(56, 189, 248, 0.15);
+  transform: translateY(-1px);
+}
+
+.note-rich-editor-back-icon {
+  font-size: 1.1rem;
+  opacity: 0.9;
 }
 
 .note-rich-editor-status-wrap {
-  flex: 1;
-  min-width: 0;
+  flex-shrink: 0;
+  max-width: 160px;
   text-align: right;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   color: #94a3b8;
 }
 
@@ -11785,20 +11836,44 @@ body.note-rich-editor-open {
   color: #fca5a5;
 }
 
-.note-rich-editor-save-hint {
-  display: block;
-  font-size: 0.75rem;
-  color: #64748b;
-  margin-top: 2px;
+.note-rich-editor-title-input--header {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 4px 12px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: #f8fafc;
+  font-size: clamp(1.35rem, 3.5vw, 1.65rem);
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.note-rich-editor-title-input--header::placeholder {
+  color: rgba(148, 163, 184, 0.65);
+}
+
+.note-rich-editor-title-input--header:focus {
+  outline: none;
+  border-bottom-color: rgba(56, 189, 248, 0.65);
+  box-shadow: 0 8px 32px -12px rgba(56, 189, 248, 0.45);
 }
 
 .note-rich-editor-toolbar {
   flex-shrink: 0;
-  padding: 8px 12px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
-  background: #0f172a;
+  padding: 10px 14px;
+  margin: 10px 16px 0;
+  border-radius: 14px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+.note-rich-editor-toolbar--sticky {
+  position: sticky;
+  top: 0;
+  z-index: 5;
 }
 
 .note-rich-editor-toolbar::-webkit-scrollbar {
@@ -11806,7 +11881,7 @@ body.note-rich-editor-open {
 }
 
 .note-rich-editor-toolbar::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.5);
+  background: rgba(100, 116, 139, 0.45);
   border-radius: 3px;
 }
 
@@ -11814,34 +11889,49 @@ body.note-rich-editor-open {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   min-width: min-content;
+}
+
+.note-rich-toolbar-sep {
+  width: 1px;
+  height: 26px;
+  margin: 0 6px;
+  background: rgba(148, 163, 184, 0.25);
+  flex-shrink: 0;
 }
 
 .note-rich-toolbar-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   padding: 0;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  background: rgba(30, 41, 59, 0.65);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 23, 42, 0.35);
   color: #cbd5e1;
   cursor: pointer;
   flex-shrink: 0;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
 }
 
 .note-rich-toolbar-btn:hover {
-  background: rgba(51, 65, 85, 0.9);
-  border-color: rgba(148, 163, 184, 0.2);
+  background: rgba(51, 65, 85, 0.55);
+  border-color: rgba(56, 189, 248, 0.25);
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.12);
+}
+
+.note-rich-toolbar-btn:active {
+  transform: scale(0.97);
 }
 
 .note-rich-toolbar-btn.is-active {
-  background: rgba(56, 189, 248, 0.18);
-  border-color: rgba(56, 189, 248, 0.35);
+  background: rgba(56, 189, 248, 0.22);
+  border-color: rgba(56, 189, 248, 0.45);
   color: #e0f2fe;
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.2);
 }
 
 .note-rich-toolbar-icon {
@@ -11851,71 +11941,234 @@ body.note-rich-editor-open {
   opacity: 0.95;
 }
 
-.note-rich-editor-meta {
-  flex-shrink: 0;
-  padding: 14px 18px 10px;
-  max-width: 920px;
+.note-rich-editor-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 14px 16px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 760px;
   width: 100%;
   margin: 0 auto;
   box-sizing: border-box;
 }
 
-.note-rich-editor-title-input {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 14px 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(15, 23, 42, 0.85);
+.note-rich-editor-meta-card {
+  padding: 18px 20px;
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.note-rich-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.note-rich-editor-field--date {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.note-rich-editor-field-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.95);
+}
+
+.note-rich-editor-category-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  max-width: 100%;
+}
+
+.note-rich-editor-category-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.note-rich-editor-category-select {
+  flex: 1;
+  min-width: 0;
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: #f1f5f9;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 28px 4px 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='%2394a3b8'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 4px center;
+}
+
+.note-rich-editor-category-select:focus {
+  outline: none;
+}
+
+.note-rich-tags-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(2, 6, 23, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  min-height: 48px;
+}
+
+.note-rich-tags-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.note-rich-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #e0f2fe;
+}
+
+.note-rich-tag-remove {
+  border: none;
+  background: transparent;
+  color: rgba(226, 232, 240, 0.85);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 2px;
+  border-radius: 4px;
+}
+
+.note-rich-tag-remove:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.note-rich-tag-input {
+  flex: 1;
+  min-width: 120px;
+  border: none;
+  background: transparent;
   color: #f8fafc;
-  font-size: 1.35rem;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-  margin-bottom: 12px;
+  font-size: 0.9rem;
+  padding: 6px 4px;
 }
 
-.note-rich-editor-title-input::placeholder {
-  color: #475569;
+.note-rich-tag-input:focus {
+  outline: none;
 }
 
-.note-rich-editor-title-input:focus {
+.note-rich-tag-input::placeholder {
+  color: rgba(148, 163, 184, 0.65);
+}
+
+.note-rich-editor-date-input {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(15, 23, 42, 0.5);
+  color: #e2e8f0;
+  font-size: 0.9rem;
+}
+
+.note-rich-editor-date-input:focus {
   outline: none;
   border-color: rgba(56, 189, 248, 0.45);
   box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
 }
 
-.note-rich-editor-category-row {
+.note-rich-editor-content-shell {
+  flex: 1;
+  min-height: 280px;
+  border-radius: 20px;
+  padding: 0;
   display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.note-rich-editor-category-row label {
-  font-size: 0.78rem;
-  color: #94a3b8;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .note-rich-editor-mount {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 12px 18px 48px;
-  max-width: 920px;
-  width: 100%;
-  margin: 0 auto;
+  padding: 22px 22px 16px;
   box-sizing: border-box;
 }
 
 .note-rich-editor-mount .note-rich-editor-content {
-  min-height: 55vh;
+  min-height: 42vh;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.note-rich-editor-content-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 20px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+.note-rich-editor-wordcount {
+  font-variant-numeric: tabular-nums;
+  color: #cbd5e1;
+}
+
+.note-rich-editor-divider {
+  width: 1px;
+  height: 14px;
+  background: rgba(148, 163, 184, 0.35);
+}
+
+.note-rich-editor-hint-inline {
+  opacity: 0.85;
 }
 
 .note-rich-editor-mount .ProseMirror {
   outline: none;
-  min-height: 50vh;
-  font-size: 1.05rem;
-  line-height: 1.65;
+  min-height: 38vh;
+  font-size: 1.08rem;
+  line-height: 1.75;
   color: #e2e8f0;
+}
+
+.note-rich-editor-mount .ProseMirror p.is-editor-empty:first-child::before {
+  color: rgba(148, 163, 184, 0.55);
+}
+
+.note-rich-editor-mount .ProseMirror:focus {
+  outline: none;
 }
 
 .note-rich-editor-mount .ProseMirror p {

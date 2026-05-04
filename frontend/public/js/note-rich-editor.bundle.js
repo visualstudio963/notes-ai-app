@@ -23440,15 +23440,29 @@ ${prefix}
     const n = text.length ? text.split(/\s+/).filter(Boolean).length : 0;
     el.textContent = n === 1 ? "1 word" : `${n} words`;
   }
+  function setTitleFieldError(message) {
+    const titleEl = document.getElementById("noteRichEditorTitle");
+    const errEl = document.getElementById("noteRichEditorTitleError");
+    const msg = message ? String(message) : "";
+    if (titleEl) {
+      titleEl.classList.toggle("note-rich-editor-title-input--invalid", !!msg);
+      titleEl.setAttribute("aria-invalid", msg ? "true" : "false");
+    }
+    if (errEl) {
+      errEl.textContent = msg;
+      errEl.classList.toggle("hidden", !msg);
+    }
+  }
+  function clearTitleFieldError() {
+    setTitleFieldError("");
+  }
   function buildPersistSnapshot() {
     if (!editor) return "";
     const storageText = encodeDocForStorage(editor.getJSON());
     const titleEl = document.getElementById("noteRichEditorTitle");
     const title = titleEl ? String(titleEl.value || "").trim() : "";
     const tags = getNoteRichEditorTags().slice().sort((a, b) => a.localeCompare(b));
-    const dateEl = document.getElementById("noteRichEditorDate");
-    const noteDate = dateEl && dateEl.value ? dateEl.value : "";
-    return JSON.stringify({ storageText, title, tags, noteDate });
+    return JSON.stringify({ storageText, title, tags });
   }
   function setStatus(kind, message) {
     const el = document.getElementById("noteRichEditorStatus");
@@ -23459,7 +23473,7 @@ ${prefix}
       el.textContent = message || "Saving\u2026";
     } else if (kind === "ok") {
       el.classList.add("note-rich-editor-status--ok");
-      el.textContent = message || "Saved";
+      el.textContent = message || "Saved \u2713";
     } else if (kind === "err") {
       el.classList.add("note-rich-editor-status--err");
       el.textContent = message || "Save failed";
@@ -23507,28 +23521,31 @@ ${prefix}
       check: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>`,
       emoji: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>`
     };
-    const wrap2 = document.createElement("div");
-    wrap2.className = "note-rich-toolbar-inner";
-    wrap2.appendChild(
-      btn("Bold", svg.bold, () => chain().toggleBold().run(), () => is("bold"))
+    const rowEl = () => {
+      const r = document.createElement("div");
+      r.className = "note-rich-toolbar-row";
+      return r;
+    };
+    const row1 = rowEl();
+    const row2 = rowEl();
+    row1.appendChild(btn("Bold", svg.bold, () => chain().toggleBold().run(), () => is("bold")));
+    row1.appendChild(btn("Italic", svg.italic, () => chain().toggleItalic().run(), () => is("italic")));
+    row1.appendChild(btn("Underline", svg.underline, () => chain().toggleUnderline().run(), () => is("underline")));
+    row1.appendChild(
+      btn("Heading 1", svg.h1, () => chain().toggleHeading({ level: 1 }).run(), () => is("heading", { level: 1 }))
     );
-    wrap2.appendChild(
-      btn("Italic", svg.italic, () => chain().toggleItalic().run(), () => is("italic"))
+    row1.appendChild(
+      btn("Heading 2", svg.h2, () => chain().toggleHeading({ level: 2 }).run(), () => is("heading", { level: 2 }))
     );
-    wrap2.appendChild(
-      btn("Underline", svg.underline, () => chain().toggleUnderline().run(), () => is("underline"))
+    row1.appendChild(
+      btn("Heading 3", svg.h3, () => chain().toggleHeading({ level: 3 }).run(), () => is("heading", { level: 3 }))
     );
-    wrap2.appendChild(btn("Heading 1", svg.h1, () => chain().toggleHeading({ level: 1 }).run(), () => is("heading", { level: 1 })));
-    wrap2.appendChild(btn("Heading 2", svg.h2, () => chain().toggleHeading({ level: 2 }).run(), () => is("heading", { level: 2 })));
-    wrap2.appendChild(btn("Heading 3", svg.h3, () => chain().toggleHeading({ level: 3 }).run(), () => is("heading", { level: 3 })));
-    wrap2.appendChild(btn("Bullet list", svg.bullet, () => chain().toggleBulletList().run(), () => is("bulletList")));
-    wrap2.appendChild(btn("Numbered list", svg.number, () => chain().toggleOrderedList().run(), () => is("orderedList")));
-    wrap2.appendChild(
-      btn("Task list", svg.check, () => chain().toggleTaskList().run(), () => is("taskList"))
-    );
-    wrap2.appendChild(btn("Quote", svg.quote, () => chain().toggleBlockquote().run(), () => is("blockquote")));
-    wrap2.appendChild(btn("Code block", svg.code, () => chain().toggleCodeBlock().run(), () => is("codeBlock")));
-    wrap2.appendChild(
+    row1.appendChild(btn("Bullet list", svg.bullet, () => chain().toggleBulletList().run(), () => is("bulletList")));
+    row1.appendChild(btn("Numbered list", svg.number, () => chain().toggleOrderedList().run(), () => is("orderedList")));
+    row1.appendChild(btn("Task list", svg.check, () => chain().toggleTaskList().run(), () => is("taskList")));
+    row2.appendChild(btn("Quote", svg.quote, () => chain().toggleBlockquote().run(), () => is("blockquote")));
+    row2.appendChild(btn("Code block", svg.code, () => chain().toggleCodeBlock().run(), () => is("codeBlock")));
+    row2.appendChild(
       btn("Link", svg.link, () => {
         const prev = editorInstance.getAttributes("link").href;
         const url = window.prompt("Link URL", prev || "https://");
@@ -23540,7 +23557,7 @@ ${prefix}
         chain().extendMarkRange("link").setLink({ href: url }).run();
       })
     );
-    wrap2.appendChild(
+    row2.appendChild(
       btn("Image", svg.image, () => {
         const input = document.createElement("input");
         input.type = "file";
@@ -23563,11 +23580,7 @@ ${prefix}
         input.click();
       })
     );
-    const sep = document.createElement("span");
-    sep.className = "note-rich-toolbar-sep";
-    sep.setAttribute("aria-hidden", "true");
-    wrap2.appendChild(sep);
-    wrap2.appendChild(
+    row2.appendChild(
       btn("Insert emoji", svg.emoji, () => {
         const c = window.prompt("Emoji", "\u2728");
         if (c == null) return;
@@ -23575,6 +23588,10 @@ ${prefix}
         if (t) chain().insertContent(t).run();
       })
     );
+    const wrap2 = document.createElement("div");
+    wrap2.className = "note-rich-toolbar-rows";
+    wrap2.appendChild(row1);
+    wrap2.appendChild(row2);
     return wrap2;
   }
   async function runPersist() {
@@ -23589,8 +23606,12 @@ ${prefix}
     const titleEl = document.getElementById("noteRichEditorTitle");
     const title = titleEl ? String(titleEl.value || "").trim() : "";
     const tags = getNoteRichEditorTags();
-    const dateEl = document.getElementById("noteRichEditorDate");
-    const noteDate = dateEl && dateEl.value ? dateEl.value : null;
+    if (!title) {
+      setTitleFieldError("Title is required");
+      setStatus("", "");
+      return;
+    }
+    clearTitleFieldError();
     if (!plainText && rootMode === "create" && !rootPersistNoteId) {
       return;
     }
@@ -23610,16 +23631,14 @@ ${prefix}
         title,
         storageText,
         plainText,
-        tags,
-        noteDate
+        tags
       });
       lastSnapshot = buildPersistSnapshot();
       if (result && result.note && result.note._id) {
         rootPersistNoteId = String(result.note._id);
         rootMode = "edit";
       }
-      const now = (/* @__PURE__ */ new Date()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      setStatus("ok", `Saved ${now}`);
+      setStatus("ok", "Saved \u2713");
     } catch (err) {
       const msg = err && err.message || "Save failed";
       setStatus("err", msg);
@@ -23644,8 +23663,7 @@ ${prefix}
     saveTimer = null;
     lastSnapshot = "";
     clearNoteRichEditorTagChips();
-    const dateEl = document.getElementById("noteRichEditorDate");
-    if (dateEl) dateEl.value = "";
+    clearTitleFieldError();
     updateWordCount(null);
   }
   function close2() {
@@ -23681,15 +23699,9 @@ ${prefix}
     const catRow = document.getElementById("noteRichEditorCategoryRow");
     const catSelect = document.getElementById("noteRichEditorCategory");
     if (!screen) return;
-    if (titleEl) titleEl.value = note ? String(note.title || "").trim() : "";
-    const dateInput = document.getElementById("noteRichEditorDate");
-    if (dateInput) {
-      if (note && note.noteDate) {
-        const d = String(note.noteDate).slice(0, 10);
-        dateInput.value = /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : "";
-      } else {
-        dateInput.value = "";
-      }
+    if (titleEl) {
+      titleEl.value = note ? String(note.title || "").trim() : "";
+      clearTitleFieldError();
     }
     if (note && Array.isArray(note.tags)) {
       setNoteRichEditorTags(note.tags);
@@ -23738,7 +23750,10 @@ ${prefix}
     wireEditorHooks(editor);
     updateWordCount(editor);
     if (titleEl) {
-      titleEl.oninput = () => schedulePersist();
+      titleEl.oninput = () => {
+        clearTitleFieldError();
+        schedulePersist();
+      };
     }
     if (catSelect) {
       catSelect.onchange = () => {
@@ -23759,9 +23774,6 @@ ${prefix}
       };
       tagInput.oninput = () => {
       };
-    }
-    if (dateInput) {
-      dateInput.onchange = () => schedulePersist();
     }
     screen.classList.remove("hidden");
     screen.setAttribute("aria-hidden", "false");

@@ -5429,26 +5429,10 @@ function populateNoteEditorCategorySelect() {
 }
 
 async function noteRichEditorPersistRequest(payload) {
-  const {
-    mode,
-    origin,
-    presetCategory,
-    noteId,
-    title,
-    storageText,
-    plainText,
-    tags,
-    noteDate
-  } = payload || {};
+  const { mode, origin, presetCategory, noteId, title, storageText, plainText, tags } = payload || {};
 
   const titleTrim = String(title || "").trim();
   const tagsPayload = Array.isArray(tags) ? tags.map((t) => String(t || "").trim()).filter(Boolean) : [];
-  const noteDatePayload =
-    noteDate === null || noteDate === ""
-      ? null
-      : noteDate !== undefined
-        ? noteDate
-        : undefined;
 
   const hasId = noteId && String(noteId).length > 0;
 
@@ -5483,8 +5467,7 @@ async function noteRichEditorPersistRequest(payload) {
         category,
         text: storageText,
         title: titleTrim,
-        tags: tagsPayload,
-        noteDate: noteDatePayload !== undefined ? noteDatePayload : null
+        tags: tagsPayload
       })
     });
     if (created && created.note && created.note._id) {
@@ -5528,8 +5511,7 @@ async function noteRichEditorPersistRequest(payload) {
     body: JSON.stringify({
       text: storageText,
       title: titleTrim,
-      tags: tagsPayload,
-      noteDate: noteDatePayload !== undefined ? noteDatePayload : null
+      tags: tagsPayload
     })
   });
   if (updated && updated.note && updated.note._id) {

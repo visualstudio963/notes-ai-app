@@ -1328,7 +1328,9 @@
             data-t-placeholder="noteTitlePlaceholder"
             placeholder="Title"
             autocomplete="off"
+            aria-required="true"
           />
+          <p id="noteRichEditorTitleError" class="note-rich-editor-title-error hidden" role="alert"></p>
         </div>
         <div class="note-rich-editor-status-wrap">
           <span id="noteRichEditorStatus" class="note-rich-editor-status" role="status"></span>
@@ -1363,10 +1365,6 @@
               </div>
             </div>
           </div>
-          <div class="note-rich-editor-field note-rich-editor-field--date">
-            <label class="note-rich-editor-field-label" for="noteRichEditorDate" data-t="noteEditorDateLabel">Date</label>
-            <input type="date" id="noteRichEditorDate" class="note-rich-editor-date-input" />
-          </div>
         </section>
 
         <section class="note-rich-editor-content-shell note-rich-editor-glass">
@@ -1376,9 +1374,7 @@
             data-placeholder="Fillon të shkruash idetë e tua…"
           ></div>
           <footer class="note-rich-editor-content-footer">
-            <span id="noteRichEditorWordCount" class="note-rich-editor-wordcount" aria-live="polite">0 words</span>
-            <span class="note-rich-editor-divider" aria-hidden="true"></span>
-            <span class="note-rich-editor-hint-inline" data-t="noteRichEditorSaveHintShort">Auto-save · 2s</span>
+            <span id="noteRichEditorWordCount" class="note-rich-editor-wordcount" aria-live="polite">0</span>
           </footer>
         </section>
       </div>

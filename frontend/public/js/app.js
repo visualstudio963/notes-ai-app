@@ -2315,7 +2315,9 @@ function syncAuthGoogleLinkHref() {
   try {
     a.href = buildApiUrl("/auth/google");
   } catch {
-    a.href = "/auth/google";
+    const base =
+      typeof API_BASE_URL !== "undefined" && API_BASE_URL ? String(API_BASE_URL).replace(/\/+$/, "") : "";
+    a.href = base ? `${base}/auth/google` : "/auth/google";
   }
   a.classList.remove("auth-shell__btn-google--disabled", "auth-shell__btn-google--unavailable");
   a.removeAttribute("aria-disabled");
@@ -2459,12 +2461,14 @@ function initAuthLandingUi() {
   });
   const g = document.getElementById("authGoogleLink");
   if (g) {
-    g.addEventListener("click", (e) => {
+    g.addEventListener("click", () => {
+      /** Never call preventDefault here: blocking relied on public `googleClientId` from app-config.
+       * If that fetch fails or returns empty, users still must reach the backend `/auth/google`
+       * (server decides OAuth; misconfiguration shows 503 from API instead of a “dead” button). */
       if (googleOAuthConfigLoaded && !googleOAuthClientId) {
-        e.preventDefault();
         console.warn(
-          "[Google sign-in] OAuth is not configured (missing client id from app config / GOOGLE_CLIENT_ID). " +
-            "Use username and password, or set Google OAuth environment variables on the server."
+          "[Google sign-in] Public client id missing from app-config — still navigating to backend OAuth. " +
+            "Ensure GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_CALLBACK_URL are set on the server."
         );
       }
     });

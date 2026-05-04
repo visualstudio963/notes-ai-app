@@ -7,6 +7,9 @@ Para se të nisësh serverin, kopjo `.env.example` në `.env` dhe plotëso të p
 - `MONGO_URI` – lidhja me MongoDB Atlas  
 - `JWT_SECRET` dhe `JWT_REFRESH_SECRET` – stringa të gjata dhe të ndryshme (mos i commit-o në git)
 
+**Aplikacioni zyrtar në produksion:** `https://notes-ai-app-theta.vercel.app`  
+Në serverin e API-s (p.sh. Render) vendos `PUBLIC_APP_URL` me këtë URL që ridrejtimi pas Google/Stripe të kthejë te Vercel.
+
 Pa këto, `npm start` ndalon menjëherë me gabim të qartë.
 
 ### Windows: `npm` nuk niset (Execution Policy)

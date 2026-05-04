@@ -49,9 +49,10 @@ const googleClientId = process.env.GOOGLE_CLIENT_ID ? String(process.env.GOOGLE_
 /** Server-side OAuth secret (authorization code flow). Never expose to the frontend. */
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET ? String(process.env.GOOGLE_CLIENT_SECRET).trim() : "";
 /**
- * OAuth callback URL used by Passport (`passport-google-oauth20`) and Google Cloud Console.
+ * OAuth callback URL used by Passport (`passport-google-oauth20`) — must match Google Cloud “Authorized redirect URI”.
  * Prefer GOOGLE_CALLBACK_URL; GOOGLE_REDIRECT_URI is a legacy alias.
- * Example: https://notes-ai-app.vercel.app/auth/google/callback
+ * If unset, defaults to PUBLIC_APP_URL + /auth/google/callback (fine only when API and app share one origin).
+ * When the SPA is on Vercel (PUBLIC_APP_URL=https://notes-ai-app-theta.vercel.app) but the API is elsewhere, set GOOGLE_CALLBACK_URL to the API host explicitly (e.g. https://…onrender.com/auth/google/callback).
  */
 const googleCallbackUrlEnv = process.env.GOOGLE_CALLBACK_URL ? String(process.env.GOOGLE_CALLBACK_URL).trim() : "";
 const googleRedirectUriEnv = process.env.GOOGLE_REDIRECT_URI ? String(process.env.GOOGLE_REDIRECT_URI).trim() : "";

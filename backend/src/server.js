@@ -11,7 +11,7 @@ const cron = require("node-cron");
 const config = require("./config");
 const { createAuthMiddleware } = require("./middleware/auth");
 const { createApiRouter } = require("./routes");
-const { createIssueSessionTokens, createAdminPasswordLoginHandler } = require("./routes/auth.routes");
+const { createIssueSessionTokens, createPasswordLoginHandler } = require("./routes/auth.routes");
 const { configurePassport, passport } = require("./config/passport");
 const session = require("express-session");
 const { createStripeWebhookHandler } = require("./features/premium/stripeWebhook");
@@ -134,14 +134,14 @@ app.use(passport.session());
 
 const issueSessionTokens = createIssueSessionTokens(User, config.jwtSecret, config.jwtRefreshSecret);
 
-const adminPasswordLogin = createAdminPasswordLoginHandler({
+const passwordLogin = createPasswordLoginHandler({
   User,
   jwtSecret: config.jwtSecret,
   jwtRefreshSecret: config.jwtRefreshSecret
 });
 
-/** Admin-only password login (same handler as POST /api/login). */
-app.post("/auth/login", authLimiter, adminPasswordLogin);
+/** Same handler as POST /api/login. */
+app.post("/auth/login", authLimiter, passwordLogin);
 
 const safePublicUrl = () => String(config.publicAppUrl || "").replace(/\/$/, "") || "http://localhost:3000";
 
@@ -278,7 +278,8 @@ const apiRouter = createApiRouter(app, {
   stripePublishableKey: config.stripePublishableKey,
   openAiApiKey: config.openAiApiKey,
   publicAppUrl: config.publicAppUrl,
-  emailVerificationBypassUsernames: config.emailVerificationBypassUsernames
+  emailVerificationBypassUsernames: config.emailVerificationBypassUsernames,
+  googleClientId: config.googleClientId
 });
 
 app.use("/api", touchLastActive, apiLimiter, apiRouter);

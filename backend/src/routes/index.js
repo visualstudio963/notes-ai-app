@@ -38,7 +38,8 @@ function createApiRouter(app, deps) {
     stripePublishableKey,
     openAiApiKey,
     publicAppUrl,
-    emailVerificationBypassUsernames
+    emailVerificationBypassUsernames,
+    googleClientId
   } = deps;
 
   const getIo = () => app.get("io");

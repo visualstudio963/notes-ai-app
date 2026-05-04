@@ -1,18 +1,17 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
+const { publicUser } = require("../utils/serializers");
 
 function createUserRouter({ User, authMiddleware }) {
   const router = express.Router();
 
   router.get("/me", authMiddleware, async (req, res) => {
     try {
-      const user = await User.findById(req.userId).select(
-        "firstName lastName username email emailOrPhone phone theme language emailVerified role plan subscriptionPlan membershipRole isPremium premiumExpires premiumStartedAt billingCycle capabilities"
-      );
+      const user = await User.findById(req.userId);
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
-      return res.json({ user });
+      return res.json({ user: publicUser(user) });
     } catch {
       return res.status(500).json({ error: "Failed to load current user" });
     }
@@ -110,9 +109,6 @@ function createUserRouter({ User, authMiddleware }) {
   router.put("/user/password", authMiddleware, async (req, res) => {
     try {
       const { currentPassword, newPassword } = req.body || {};
-      if (!currentPassword || !newPassword) {
-        return res.status(400).json({ error: "Current password and new password are required" });
-      }
       if (typeof newPassword !== "string" || newPassword.length < 8) {
         return res.status(400).json({ error: "New password must be at least 8 characters" });
       }
@@ -123,7 +119,13 @@ function createUserRouter({ User, authMiddleware }) {
       }
 
       if (!user.password) {
-        return res.status(400).json({ error: "This account has no local password. Use Google sign-in or contact support." });
+        user.password = await bcrypt.hash(newPassword, 10);
+        await user.save();
+        return res.json({ success: true });
+      }
+
+      if (!currentPassword) {
+        return res.status(400).json({ error: "Current password and new password are required" });
       }
 
       const valid = await bcrypt.compare(currentPassword, user.password);

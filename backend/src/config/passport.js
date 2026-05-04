@@ -1,6 +1,9 @@
 const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
-const { findOrLinkGoogleUser, splitGoogleDisplayName } = require("../routes/auth.routes");
+const {
+  findOrLinkGoogleUser,
+  upsertGoogleUserFromIdTokenPayload
+} = require("../routes/auth.routes");
 
 const SERIALIZE_PENDING = "GOOGLE_SIGNUP_PENDING";
 
@@ -59,19 +62,24 @@ function configurePassport(deps) {
             return done(null, existing);
           }
 
-          const name = String(profile.displayName || "").trim();
-          const { firstName, lastName } = splitGoogleDisplayName(name);
-
-          req.session.pendingGoogleOAuth = {
-            googleId: sub,
-            email: emailRaw,
-            name,
-            firstName,
-            lastName,
-            picture: pic
-          };
-
-          return done(null, { isPending: true });
+          try {
+            const user = await upsertGoogleUserFromIdTokenPayload(
+              User,
+              {
+                sub,
+                email: emailRaw,
+                name: String(profile.displayName || "").trim()
+              },
+              ""
+            );
+            if (pic && user && user._id) {
+              await User.updateOne({ _id: user._id }, { $set: { googlePicture: pic } });
+            }
+            const fresh = await User.findById(user._id);
+            return done(null, fresh);
+          } catch (geoErr) {
+            return done(geoErr);
+          }
         } catch (err) {
           return done(err);
         }

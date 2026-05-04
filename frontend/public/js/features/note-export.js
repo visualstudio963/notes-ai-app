@@ -42,6 +42,17 @@
     }, 2500);
   }
 
+  function getNotePlainBody(note) {
+    if (
+      typeof window !== "undefined" &&
+      window.NoteRichEditor &&
+      typeof window.NoteRichEditor.storedToPreviewText === "function"
+    ) {
+      return window.NoteRichEditor.storedToPreviewText((note && note.text) || "", 100000);
+    }
+    return (note && note.text) || "";
+  }
+
   function triggerDownloadDataUrl(dataUrl, filename) {
     var a = document.createElement("a");
     a.href = dataUrl;
@@ -54,7 +65,7 @@
 
   function exportNoteTxt(note) {
     var title = typeof noteTitleTrim === "function" ? noteTitleTrim(note) : "";
-    var body = (note && note.text) || "";
+    var body = getNotePlainBody(note);
     var content = title ? title + "\r\n\r\n" + body : body;
     var blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     triggerDownloadBlob(blob, sanitizeExportBasename(note) + ".txt");
@@ -72,7 +83,7 @@
     }
     var doc = new JsPDF({ unit: "mm", format: "a4" });
     var title = typeof noteTitleTrim === "function" ? noteTitleTrim(note) : "";
-    var text = (note && note.text) || "";
+    var text = getNotePlainBody(note);
     var margin = 18;
     doc.setFillColor(15, 23, 42);
     doc.rect(0, 0, 210, 38, "F");
@@ -131,7 +142,7 @@
     var title =
       (typeof noteTitleTrim === "function" ? noteTitleTrim(note) : "") ||
       (typeof t === "function" ? t("noteCardUntitled") : "Note");
-    var body = (note && note.text) || "";
+    var body = getNotePlainBody(note);
     var imgSrc = note && note.scanCamImageDataUrl;
 
     function drawTextCard(topY) {

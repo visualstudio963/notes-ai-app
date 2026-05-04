@@ -863,7 +863,12 @@ const NOTE_SHARE_WA_MAX_CHARS = 3800;
 
 function getNoteShareParts(note) {
   const title = noteTitleTrim(note) || "";
-  const content = (note && note.text) != null ? String(note.text) : "";
+  let content = "";
+  if (window.NoteRichEditor && typeof window.NoteRichEditor.storedToPreviewText === "function") {
+    content = window.NoteRichEditor.storedToPreviewText((note && note.text) || "", 50000);
+  } else {
+    content = (note && note.text) != null ? String(note.text) : "";
+  }
   const fullText = title ? `${title}\n\n${content}` : content;
   const subject = title || (typeof t === "function" ? t("noteCardUntitled") : "Note");
   return { title, content, fullText, subject };
@@ -900,7 +905,11 @@ function openNoteViewModal(note, origin = "all") {
   badgeEl.textContent = categoryLabel;
 
   dateEl.textContent = new Date(note.createdAt).toLocaleString();
-  bodyEl.textContent = (note.text || "").toString();
+  if (window.NoteRichEditor && typeof window.NoteRichEditor.storedToHtml === "function") {
+    bodyEl.innerHTML = window.NoteRichEditor.storedToHtml(note.text || "");
+  } else {
+    bodyEl.textContent = (note.text || "").toString();
+  }
 
   const canManage = currentUser && !note.public;
   actionsEl.innerHTML = "";
@@ -1073,9 +1082,14 @@ function appendNoteCardHeadingAndBody(content, note) {
 
   const body = document.createElement("p");
   body.className = "note-card-text";
-  const text = note.text || "";
-  const max = 4000;
-  body.textContent = text.length > max ? `${text.slice(0, max)}…` : text;
+  let preview = "";
+  if (window.NoteRichEditor && typeof window.NoteRichEditor.storedToPreviewText === "function") {
+    preview = window.NoteRichEditor.storedToPreviewText(note.text || "", 4000);
+  } else {
+    const text = note.text || "";
+    preview = text.length > 4000 ? `${text.slice(0, 4000)}…` : text;
+  }
+  body.textContent = preview;
   content.appendChild(body);
 
   const dateP = document.createElement("p");
@@ -1086,7 +1100,12 @@ function appendNoteCardHeadingAndBody(content, note) {
 
 function formatNoteSelectOptionLabel(note) {
   const title = noteTitleTrim(note);
-  const text = (note.text || "").replace(/\s+/g, " ").trim();
+  let text = "";
+  if (window.NoteRichEditor && typeof window.NoteRichEditor.storedToPreviewText === "function") {
+    text = window.NoteRichEditor.storedToPreviewText(note.text || "", 120).replace(/\s+/g, " ").trim();
+  } else {
+    text = (note.text || "").replace(/\s+/g, " ").trim();
+  }
   if (!title) return text.length > 55 ? `${text.slice(0, 55)}…` : text;
   const combined = `${title}: ${text}`;
   return combined.length > 72 ? `${combined.slice(0, 70)}…` : combined;
@@ -2276,21 +2295,164 @@ function syncAuthShellVisibility() {
 
 function syncAuthGoogleLinkHref() {
   const a = document.getElementById("authGoogleLink");
-  const hint = document.getElementById("authGoogleConfigHint");
   if (!a) return;
   try {
-    a.href = buildApiUrl("/auth/google");
+    if (googleOAuthClientId) {
+      a.href = buildApiUrl("/auth/google");
+      a.classList.remove("auth-shell__btn-google--disabled", "auth-shell__btn-google--unavailable");
+      a.removeAttribute("aria-disabled");
+    } else {
+      a.href = "#";
+      a.classList.remove("auth-shell__btn-google--disabled");
+      a.classList.add("auth-shell__btn-google--unavailable");
+      a.setAttribute("aria-disabled", "true");
+    }
   } catch {
-    a.href = "/auth/google";
+    a.href = "#";
+    a.classList.add("auth-shell__btn-google--unavailable");
   }
-  if (googleOAuthClientId) {
-    a.classList.remove("auth-shell__btn-google--disabled");
-    a.removeAttribute("aria-disabled");
-    if (hint) hint.classList.add("hidden");
-  } else {
-    a.classList.add("auth-shell__btn-google--disabled");
-    a.setAttribute("aria-disabled", "true");
-    if (hint) hint.classList.remove("hidden");
+}
+
+function switchAuthTab(mode) {
+  const loginForm = document.getElementById("authLoginForm");
+  const signupForm = document.getElementById("authSignupForm");
+  const tabLogin = document.getElementById("authTabLogin");
+  const tabSignup = document.getElementById("authTabSignup");
+  const errL = document.getElementById("authLoginError");
+  const errS = document.getElementById("authSignupError");
+  if (!loginForm || !signupForm || !tabLogin || !tabSignup) return;
+  const isLogin = mode !== "signup";
+  loginForm.classList.toggle("hidden", !isLogin);
+  signupForm.classList.toggle("hidden", isLogin);
+  tabLogin.classList.toggle("is-active", isLogin);
+  tabSignup.classList.toggle("is-active", !isLogin);
+  tabLogin.setAttribute("aria-selected", isLogin ? "true" : "false");
+  tabSignup.setAttribute("aria-selected", !isLogin ? "true" : "false");
+  if (errL) {
+    errL.classList.add("hidden");
+    errL.textContent = "";
+  }
+  if (errS) {
+    errS.classList.add("hidden");
+    errS.textContent = "";
+  }
+}
+
+function authPostLoginShellSuccess(data) {
+  storeCurrentUser(data.user, data.accessToken, data.refreshToken, true);
+  syncAuthShellVisibility();
+  syncMobileHeaderActionUi();
+  showToast(`Welcome, ${data.user.username}`);
+  goHome();
+  refreshReminderRelatedViews();
+  void mergePremiumFromServer().then(() => {
+    displayAccountInfo();
+    void updateHomeDashboardStats();
+  });
+  if ("Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission();
+  }
+  startWebNotificationScheduler();
+}
+
+async function submitAuthLogin(ev) {
+  ev.preventDefault();
+  const errEl = document.getElementById("authLoginError");
+  const u = document.getElementById("authLoginUsername");
+  const p = document.getElementById("authLoginPassword");
+  if (errEl) {
+    errEl.classList.add("hidden");
+    errEl.textContent = "";
+  }
+  const username = (u && u.value.trim()) || "";
+  const password = (p && p.value) || "";
+  if (!username || !password) {
+    if (errEl) {
+      errEl.textContent = "Enter username and password.";
+      errEl.classList.remove("hidden");
+    }
+    return;
+  }
+  try {
+    const data = await apiFetch("/api/login", {
+      method: "POST",
+      body: JSON.stringify({ username, password })
+    });
+    authPostLoginShellSuccess(data);
+  } catch (e) {
+    if (errEl) {
+      errEl.textContent = e.message || "Login failed.";
+      errEl.classList.remove("hidden");
+    }
+  }
+}
+
+async function submitAuthSignup(ev) {
+  ev.preventDefault();
+  const errEl = document.getElementById("authSignupError");
+  const firstName = (document.getElementById("authSignupFirstName")?.value || "").trim();
+  const lastName = (document.getElementById("authSignupLastName")?.value || "").trim();
+  const username = (document.getElementById("authSignupUsername")?.value || "").trim().toLowerCase();
+  const password = document.getElementById("authSignupPassword")?.value || "";
+  const confirmPassword = document.getElementById("authSignupConfirm")?.value || "";
+  if (errEl) {
+    errEl.classList.add("hidden");
+    errEl.textContent = "";
+  }
+  if (!firstName || !lastName || !username || !password || !confirmPassword) {
+    if (errEl) {
+      errEl.textContent = "Fill in all fields.";
+      errEl.classList.remove("hidden");
+    }
+    return;
+  }
+  if (password !== confirmPassword) {
+    if (errEl) {
+      errEl.textContent = "Passwords do not match.";
+      errEl.classList.remove("hidden");
+    }
+    return;
+  }
+  if (password.length < 8) {
+    if (errEl) {
+      errEl.textContent = "Password must be at least 8 characters.";
+      errEl.classList.remove("hidden");
+    }
+    return;
+  }
+  try {
+    const data = await apiFetch("/api/register", {
+      method: "POST",
+      body: JSON.stringify({
+        firstName,
+        lastName,
+        username,
+        password,
+        confirmPassword
+      })
+    });
+    authPostLoginShellSuccess(data);
+  } catch (e) {
+    if (errEl) {
+      errEl.textContent = e.message || "Sign up failed.";
+      errEl.classList.remove("hidden");
+    }
+  }
+}
+
+function initAuthLandingUi() {
+  document.getElementById("authTabLogin")?.addEventListener("click", () => switchAuthTab("login"));
+  document.getElementById("authTabSignup")?.addEventListener("click", () => switchAuthTab("signup"));
+  document.getElementById("authLoginForm")?.addEventListener("submit", (ev) => void submitAuthLogin(ev));
+  document.getElementById("authSignupForm")?.addEventListener("submit", (ev) => void submitAuthSignup(ev));
+  const g = document.getElementById("authGoogleLink");
+  if (g) {
+    g.addEventListener("click", (e) => {
+      if (!googleOAuthClientId) {
+        e.preventDefault();
+        showToast("Google sign-in is not available on this server. Use username and password.");
+      }
+    });
   }
 }
 
@@ -2383,8 +2545,11 @@ function openAccountModal() {
     return;
   }
   syncAuthShellVisibility();
-  const link = document.getElementById("authGoogleLink");
-  if (link) link.focus();
+  switchAuthTab("login");
+  const u = document.getElementById("authLoginUsername");
+  if (u) {
+    window.setTimeout(() => u.focus(), 0);
+  }
 }
 
 function closeAccountModal() {
@@ -2393,7 +2558,7 @@ function closeAccountModal() {
 
 function requireAuth(actionName) {
   if (!currentUser) {
-    showToast(`Sign in with Google to ${actionName}.`);
+    showToast(`Sign in to ${actionName}.`);
     openAccountModal();
     return false;
   }
@@ -5120,6 +5285,102 @@ function populateNoteEditorCategorySelect() {
   });
 }
 
+async function noteRichEditorPersistRequest(payload) {
+  const {
+    mode,
+    origin,
+    presetCategory,
+    noteId,
+    title,
+    storageText,
+    plainText
+  } = payload || {};
+
+  const titleTrim = String(title || "").trim();
+  const hasId = noteId && String(noteId).length > 0;
+
+  if (mode === "create" && !hasId) {
+    let category = currentCategory;
+    if (origin === "all") {
+      const sel = document.getElementById("noteRichEditorCategory");
+      category = sel && sel.value ? sel.value : "";
+    } else if (origin === "home" && presetCategory) {
+      category = presetCategory;
+    }
+    if (!category) {
+      throw new Error(t("categoryRequired"));
+    }
+
+    if (category === "scan_cam") {
+      try {
+        await mergePremiumFromServer();
+      } catch (_) {
+        /* ignore */
+      }
+      if (typeof userHasScanCamAccess === "function" && !userHasScanCamAccess(currentUser)) {
+        throw new Error(t("scanCamRequiresStandard"));
+      }
+      const note = persistScanCamNoteLocally(storageText, titleTrim);
+      return { note };
+    }
+
+    const created = await apiFetch("/api/notes", {
+      method: "POST",
+      body: JSON.stringify({ category, text: storageText, title: titleTrim })
+    });
+    if (created && created.note && created.note._id) {
+      const id = String(created.note._id);
+      allNotes = [created.note, ...allNotes.filter((n) => String(n._id) !== id)];
+      if (created.note.category === currentCategory) {
+        currentNotes = [created.note, ...currentNotes.filter((n) => String(n._id) !== id)];
+      }
+      noteEditorState = {
+        mode: "edit",
+        origin,
+        editingNote: created.note,
+        presetCategory: null
+      };
+    }
+    return created;
+  }
+
+  const idStr = noteId ? String(noteId) : "";
+  if (!idStr) {
+    throw new Error("Missing note id");
+  }
+
+  if (idStr.startsWith("local-scan-")) {
+    updateScanCamLocalNote(idStr, { text: storageText, title: titleTrim });
+    const prev = noteEditorState.editingNote || {};
+    const updated = { ...prev, _id: idStr, text: storageText, title: titleTrim };
+    const lid = idStr;
+    const replace = (arr) => {
+      const ix = arr.findIndex((n) => String(n._id) === lid);
+      if (ix >= 0) arr[ix] = updated;
+    };
+    replace(allNotes);
+    replace(currentNotes);
+    noteEditorState.editingNote = updated;
+    return { note: updated };
+  }
+
+  const updated = await apiFetch(`/api/notes/${noteId}`, {
+    method: "PUT",
+    body: JSON.stringify({ text: storageText, title: titleTrim })
+  });
+  if (updated && updated.note && updated.note._id) {
+    const uid = String(updated.note._id);
+    const replace = (arr) => {
+      const ix = arr.findIndex((n) => String(n._id) === uid);
+      if (ix >= 0) arr[ix] = updated.note;
+    };
+    replace(allNotes);
+    replace(currentNotes);
+    noteEditorState.editingNote = updated.note;
+  }
+  return updated;
+}
+
 function openNoteEditorCreate(origin, presetCategory = null) {
   if (!requireAuth("add a note")) return;
   if (origin === "category" && !currentCategory) {
@@ -5130,49 +5391,73 @@ function openNoteEditorCreate(origin, presetCategory = null) {
     showToast(t("pickCategoryFirst"));
     return;
   }
-  noteEditorState = { mode: "create", origin, editingNote: null, presetCategory };
-  const categoryRow = document.getElementById("noteEditorCategoryRow");
-  const modalHeadingEl = document.getElementById("noteEditorModalHeading");
-  const titleInput = document.getElementById("noteEditorTitleInput");
-  const textEl = document.getElementById("noteEditorText");
-  const modal = document.getElementById("noteEditorModal");
-  if (!categoryRow || !modalHeadingEl || !textEl || !modal) return;
-
-  populateNoteEditorCategorySelect();
-  if (origin === "all") {
-    categoryRow.classList.remove("hidden");
-  } else {
-    categoryRow.classList.add("hidden");
+  if (!window.NoteRichEditor || typeof window.NoteRichEditor.open !== "function") {
+    showToast("Editor failed to load. Refresh the page.");
+    return;
   }
-  modalHeadingEl.textContent = t("newNoteTitle");
-  if (titleInput) titleInput.value = "";
-  textEl.value = "";
-  modal.classList.remove("hidden");
-  document.body.classList.add("modal-open");
-  textEl.focus();
+  noteEditorState = { mode: "create", origin, editingNote: null, presetCategory };
+  window.noteRichEditorPersist = noteRichEditorPersistRequest;
+  window.NoteRichEditor.open({
+    mode: "create",
+    origin,
+    presetCategory,
+    categories,
+    note: null,
+    onClosed: () => {
+      noteEditorState = { mode: "create", origin: "category", editingNote: null, presetCategory: null };
+      if (currentCategory) {
+        loadNotes();
+      }
+      if (!document.getElementById("notes-all")?.classList.contains("hidden")) {
+        loadMyNotes();
+      }
+      if (currentCategory) {
+        updateCategoryViewForWebReminders();
+      }
+      if (!document.getElementById("home")?.classList.contains("hidden")) {
+        void updateHomeDashboardStats();
+      }
+    }
+  });
 }
 
 function openNoteEditorEdit(note, origin) {
   if (!requireAuth("edit a note")) return;
   if (!note || !note._id) return;
+  if (!window.NoteRichEditor || typeof window.NoteRichEditor.open !== "function") {
+    showToast("Editor failed to load. Refresh the page.");
+    return;
+  }
   noteEditorState = { mode: "edit", origin, editingNote: note, presetCategory: null };
-  const categoryRow = document.getElementById("noteEditorCategoryRow");
-  const modalHeadingEl = document.getElementById("noteEditorModalHeading");
-  const titleInput = document.getElementById("noteEditorTitleInput");
-  const textEl = document.getElementById("noteEditorText");
-  const modal = document.getElementById("noteEditorModal");
-  if (!categoryRow || !modalHeadingEl || !textEl || !modal) return;
-
-  categoryRow.classList.add("hidden");
-  modalHeadingEl.textContent = t("editNoteTitle");
-  if (titleInput) titleInput.value = noteTitleTrim(note);
-  textEl.value = note.text || "";
-  modal.classList.remove("hidden");
-  document.body.classList.add("modal-open");
-  textEl.focus();
+  window.noteRichEditorPersist = noteRichEditorPersistRequest;
+  window.NoteRichEditor.open({
+    mode: "edit",
+    origin,
+    presetCategory: null,
+    categories,
+    note,
+    onClosed: () => {
+      noteEditorState = { mode: "create", origin: "category", editingNote: null, presetCategory: null };
+      if (currentCategory) {
+        loadNotes();
+      }
+      if (!document.getElementById("notes-all")?.classList.contains("hidden")) {
+        loadMyNotes();
+      }
+      if (currentCategory) {
+        updateCategoryViewForWebReminders();
+      }
+      if (!document.getElementById("home")?.classList.contains("hidden")) {
+        void updateHomeDashboardStats();
+      }
+    }
+  });
 }
 
 function closeNoteEditor() {
+  if (window.NoteRichEditor && typeof window.NoteRichEditor.close === "function") {
+    window.NoteRichEditor.close();
+  }
   const modal = document.getElementById("noteEditorModal");
   if (modal) modal.classList.add("hidden");
   const titleInput = document.getElementById("noteEditorTitleInput");
@@ -5927,7 +6212,10 @@ function displayAccountInfo() {
   fn.textContent = currentUser.firstName || "-";
   ln.textContent = currentUser.lastName || "-";
   un.textContent = currentUser.username || "-";
-  em.textContent = currentUser.email || currentUser.emailOrPhone || "-";
+  {
+    const rawMail = String(currentUser.email || currentUser.emailOrPhone || "").trim();
+    em.textContent = /@users\.notesai\.invalid$/i.test(rawMail) ? "—" : rawMail || "-";
+  }
   ph.textContent = currentUser.phone || t("notVerified");
 
   const premium =
@@ -6085,6 +6373,26 @@ async function saveSettingsProfileEdit() {
   }
 }
 
+function userHasLocalPasswordFlag() {
+  if (!currentUser) return false;
+  if (typeof currentUser.hasLocalPassword === "boolean") {
+    return currentUser.hasLocalPassword;
+  }
+  if (String(currentUser.provider || "local").toLowerCase() === "google") {
+    return false;
+  }
+  return true;
+}
+
+function syncSettingsPasswordFieldVisibility() {
+  const wrap = document.getElementById("settingsCurrentPasswordWrap");
+  if (!wrap) return;
+  const show = userHasLocalPasswordFlag();
+  wrap.classList.toggle("hidden", !show);
+  const cur = document.getElementById("settingsCurrentPassword");
+  if (cur && !show) cur.value = "";
+}
+
 function updateSettingsSecurityGuestState() {
   const forms = document.getElementById("settingsSecurityForms");
   const hint = document.getElementById("settingsSecurityLoginHint");
@@ -6092,10 +6400,8 @@ function updateSettingsSecurityGuestState() {
   const authed = !!(currentUser && accessToken);
   if (forms) forms.classList.toggle("hidden", !authed);
   if (hint) hint.classList.toggle("hidden", authed);
-  if (pwdBlock) {
-    const googleOnly = !!(currentUser && currentUser.provider === "google");
-    pwdBlock.classList.toggle("hidden", !authed || googleOnly);
-  }
+  if (pwdBlock) pwdBlock.classList.toggle("hidden", !authed);
+  syncSettingsPasswordFieldVisibility();
 }
 
 async function updateSettingsNotificationStatus() {
@@ -6155,8 +6461,13 @@ async function submitSettingsPasswordChange() {
   const currentPassword = cur.value;
   const newPassword = neu.value;
   const confirm = conf.value;
+  const needsCurrent = userHasLocalPasswordFlag();
 
-  if (!currentPassword || !newPassword || !confirm) {
+  if (!newPassword || !confirm) {
+    showToast(t("fillAllFields"));
+    return;
+  }
+  if (needsCurrent && !currentPassword) {
     showToast(t("fillAllFields"));
     return;
   }
@@ -6169,14 +6480,21 @@ async function submitSettingsPasswordChange() {
     return;
   }
 
+  const body = needsCurrent ? { currentPassword, newPassword } : { newPassword };
+
   try {
     await apiFetch("/api/user/password", {
       method: "PUT",
-      body: JSON.stringify({ currentPassword, newPassword })
+      body: JSON.stringify(body)
     });
     cur.value = "";
     neu.value = "";
     conf.value = "";
+    if (currentUser) {
+      currentUser.hasLocalPassword = true;
+      persistCurrentUserToStorage();
+    }
+    syncSettingsPasswordFieldVisibility();
     showToast(t("settingsPasswordChanged"));
   } catch (err) {
     const msg = err.message || "";
@@ -6312,6 +6630,10 @@ function updateThemeSelector() {
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
+  if (window.NoteRichEditor && typeof window.NoteRichEditor.initNoteRichEditorBridge === "function") {
+    window.NoteRichEditor.initNoteRichEditorBridge();
+  }
+  initAuthLandingUi();
   await consumeGoogleOAuthFromHash();
   void ensureNativeNotificationChannel();
   // Initialize theme and language

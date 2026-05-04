@@ -23,6 +23,38 @@
       <div class="auth-shell__card">
         <h1 class="auth-shell__title">Notes AI</h1>
         <p class="auth-shell__subtitle">Your smart notes assistant</p>
+
+        <div class="auth-shell__tabs" role="tablist" aria-label="Sign in or sign up">
+          <button type="button" id="authTabLogin" class="auth-shell__tab is-active" role="tab" aria-selected="true" aria-controls="authLoginForm">Login</button>
+          <button type="button" id="authTabSignup" class="auth-shell__tab" role="tab" aria-selected="false" aria-controls="authSignupForm">Sign Up</button>
+        </div>
+
+        <form id="authLoginForm" class="auth-shell__panel" autocomplete="on" novalidate>
+          <label class="auth-shell__label" for="authLoginUsername">Username</label>
+          <input type="text" id="authLoginUsername" class="auth-shell__input" name="username" autocomplete="username" />
+          <label class="auth-shell__label" for="authLoginPassword">Password</label>
+          <input type="password" id="authLoginPassword" class="auth-shell__input" name="password" autocomplete="current-password" />
+          <p class="auth-shell__error hidden" id="authLoginError" role="alert"></p>
+          <button type="submit" class="auth-shell__btn-primary" id="authLoginSubmit">Continue</button>
+        </form>
+
+        <form id="authSignupForm" class="auth-shell__panel hidden" autocomplete="on" novalidate>
+          <label class="auth-shell__label" for="authSignupFirstName">First name</label>
+          <input type="text" id="authSignupFirstName" class="auth-shell__input" name="firstName" autocomplete="given-name" />
+          <label class="auth-shell__label" for="authSignupLastName">Last name</label>
+          <input type="text" id="authSignupLastName" class="auth-shell__input" name="lastName" autocomplete="family-name" />
+          <label class="auth-shell__label" for="authSignupUsername">Username</label>
+          <input type="text" id="authSignupUsername" class="auth-shell__input" name="signupUsername" autocomplete="username" maxlength="30" spellcheck="false" />
+          <label class="auth-shell__label" for="authSignupPassword">Password</label>
+          <input type="password" id="authSignupPassword" class="auth-shell__input" name="newPassword" autocomplete="new-password" />
+          <label class="auth-shell__label" for="authSignupConfirm">Confirm password</label>
+          <input type="password" id="authSignupConfirm" class="auth-shell__input" name="confirmPassword" autocomplete="new-password" />
+          <p class="auth-shell__error hidden" id="authSignupError" role="alert"></p>
+          <button type="submit" class="auth-shell__btn-primary" id="authSignupSubmit">Continue</button>
+        </form>
+
+        <div class="auth-shell__divider" aria-hidden="true"><span>or</span></div>
+
         <a id="authGoogleLink" class="auth-shell__btn-google" href="#" data-api-href>
           <span class="auth-shell__g-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
@@ -34,7 +66,6 @@
           </span>
           <span>Continue with Google</span>
         </a>
-        <p class="auth-shell__hint hidden" id="authGoogleConfigHint">Google sign-in is not configured on the server.</p>
       </div>
     </div>
   </div>
@@ -1195,7 +1226,7 @@
                   <div id="settingsPasswordBlock" class="settings-password-block">
                     <p class="settings-subblock-title" data-t="settingsPasswordBlockTitle">Password</p>
                     <div class="settings-password-grid">
-                      <div class="field-group settings-field-compact">
+                      <div id="settingsCurrentPasswordWrap" class="field-group settings-field-compact">
                         <label for="settingsCurrentPassword" data-t="settingsCurrentPasswordLabel">Current password</label>
                         <input id="settingsCurrentPassword" type="password" autocomplete="current-password" data-t-placeholder="settingsCurrentPasswordPh" placeholder="Current password" />
                       </div>
@@ -1246,6 +1277,33 @@
       <p class="site-footer-copy">© 2026 Notes AI</p>
     </div>
   </footer>
+
+  <div id="noteRichEditorScreen" class="note-rich-editor-screen hidden" aria-hidden="true">
+    <header class="note-rich-editor-header">
+      <button type="button" id="noteRichEditorBack" class="note-rich-editor-back" aria-label="Back">← Back</button>
+      <div class="note-rich-editor-status-wrap">
+        <span id="noteRichEditorStatus" class="note-rich-editor-status" role="status"></span>
+        <span id="noteRichEditorSaveHint" class="note-rich-editor-save-hint"></span>
+      </div>
+    </header>
+    <div id="noteRichEditorToolbar" class="note-rich-editor-toolbar" aria-label="Formatting toolbar"></div>
+    <div class="note-rich-editor-meta">
+      <label class="sr-only" for="noteRichEditorTitle">Title</label>
+      <input
+        type="text"
+        id="noteRichEditorTitle"
+        class="note-rich-editor-title-input"
+        maxlength="200"
+        placeholder="Title"
+        autocomplete="off"
+      />
+      <div id="noteRichEditorCategoryRow" class="note-rich-editor-category-row hidden">
+        <label for="noteRichEditorCategory">Category</label>
+        <select id="noteRichEditorCategory" class="select note-rich-editor-category-select"></select>
+      </div>
+    </div>
+    <div id="noteRichEditorMount" class="note-rich-editor-mount"></div>
+  </div>
 
   <div class="modal hidden" id="reminderEditModal" role="dialog" aria-modal="true" aria-labelledby="reminderEditTitle" onclick="closeReminderEditModal()">
     <div class="modal-content note-editor-modal" onclick="event.stopPropagation();">
@@ -1309,7 +1367,7 @@
         <button type="button" class="close-button" onclick="closeNoteViewModal()" aria-label="Close">✕</button>
       </div>
       <div class="note-view-body-wrap">
-        <p id="noteViewText" class="note-view-text"></p>
+        <div id="noteViewText" class="note-view-text note-view-prose"></div>
       </div>
       <div id="noteViewActions" class="note-view-actions"></div>
     </div>
@@ -1462,6 +1520,7 @@
   <script src="js/services/socket-client.js"></script>
   <script src="translations.js"></script>
   <script src="js/components/toast.js"></script>
+  <script src="js/note-rich-editor.bundle.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

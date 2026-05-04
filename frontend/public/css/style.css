@@ -11535,7 +11535,7 @@ body.auth-shell-locked .site-footer {
 
 .auth-shell__inner {
   width: 100%;
-  max-width: 400px;
+  max-width: 440px;
 }
 
 .auth-shell__card {
@@ -11557,11 +11557,71 @@ body.auth-shell-locked .site-footer {
 }
 
 .auth-shell__subtitle {
-  margin: 0 0 28px;
+  margin: 0 0 20px;
   font-size: 0.98rem;
   color: rgba(226, 232, 240, 0.72);
   text-align: center;
   line-height: 1.45;
+}
+
+.auth-shell__tabs {
+  display: flex;
+  gap: 0;
+  margin: 0 0 20px;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.45);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.auth-shell__tab {
+  flex: 1;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(226, 232, 240, 0.65);
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.auth-shell__tab:hover {
+  color: #e2e8f0;
+}
+
+.auth-shell__tab.is-active {
+  background: rgba(56, 189, 248, 0.14);
+  color: #e0f2fe;
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.22);
+}
+
+.auth-shell__panel {
+  margin-bottom: 4px;
+}
+
+.auth-shell__panel .auth-shell__label:first-of-type {
+  margin-top: 0;
+}
+
+.auth-shell__divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0 18px;
+  color: rgba(148, 163, 184, 0.75);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.auth-shell__divider::before,
+.auth-shell__divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(148, 163, 184, 0.15);
 }
 
 .auth-shell__btn-google {
@@ -11590,6 +11650,12 @@ body.auth-shell-locked .site-footer {
 .auth-shell__btn-google--disabled {
   opacity: 0.45;
   pointer-events: none;
+}
+
+/** Google optional when OAuth not configured: visible but softer; click shows a toast instead of navigating */
+.auth-shell__btn-google--unavailable {
+  opacity: 0.55;
+  cursor: pointer;
 }
 
 .auth-shell__g-icon {
@@ -11662,4 +11728,330 @@ body.auth-shell-locked .site-footer {
 .auth-shell__btn-primary:hover {
   opacity: 0.95;
   transform: translateY(-1px);
+}
+
+/* —— TipTap full-screen note editor —— */
+body.note-rich-editor-open {
+  overflow: hidden;
+}
+
+.note-rich-editor-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 10040;
+  display: flex;
+  flex-direction: column;
+  background: #0a0f1a;
+  color: #e2e8f0;
+}
+
+.note-rich-editor-screen.hidden {
+  display: none !important;
+}
+
+.note-rich-editor-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(8px);
+}
+
+.note-rich-editor-back {
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(30, 41, 59, 0.6);
+  color: #e2e8f0;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.note-rich-editor-back:hover {
+  background: rgba(51, 65, 85, 0.75);
+}
+
+.note-rich-editor-status-wrap {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+  font-size: 0.82rem;
+  color: #94a3b8;
+}
+
+.note-rich-editor-status--saving {
+  color: #7dd3fc;
+}
+
+.note-rich-editor-status--ok {
+  color: #86efac;
+}
+
+.note-rich-editor-status--err {
+  color: #fca5a5;
+}
+
+.note-rich-editor-save-hint {
+  display: block;
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.note-rich-editor-toolbar {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  background: #0f172a;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.note-rich-editor-toolbar::-webkit-scrollbar {
+  height: 6px;
+}
+
+.note-rich-editor-toolbar::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.5);
+  border-radius: 3px;
+}
+
+.note-rich-toolbar-inner {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  min-width: min-content;
+}
+
+.note-rich-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: rgba(30, 41, 59, 0.65);
+  color: #cbd5e1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.note-rich-toolbar-btn:hover {
+  background: rgba(51, 65, 85, 0.9);
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+.note-rich-toolbar-btn.is-active {
+  background: rgba(56, 189, 248, 0.18);
+  border-color: rgba(56, 189, 248, 0.35);
+  color: #e0f2fe;
+}
+
+.note-rich-toolbar-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.95;
+}
+
+.note-rich-editor-meta {
+  flex-shrink: 0;
+  padding: 14px 18px 10px;
+  max-width: 920px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.note-rich-editor-title-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(15, 23, 42, 0.85);
+  color: #f8fafc;
+  font-size: 1.35rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+}
+
+.note-rich-editor-title-input::placeholder {
+  color: #475569;
+}
+
+.note-rich-editor-title-input:focus {
+  outline: none;
+  border-color: rgba(56, 189, 248, 0.45);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
+}
+
+.note-rich-editor-category-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.note-rich-editor-category-row label {
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+.note-rich-editor-mount {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 18px 48px;
+  max-width: 920px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.note-rich-editor-mount .note-rich-editor-content {
+  min-height: 55vh;
+}
+
+.note-rich-editor-mount .ProseMirror {
+  outline: none;
+  min-height: 50vh;
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: #e2e8f0;
+}
+
+.note-rich-editor-mount .ProseMirror p {
+  margin: 0.55em 0;
+}
+
+.note-rich-editor-mount .ProseMirror h1 {
+  font-size: 1.85rem;
+  font-weight: 700;
+  margin: 1rem 0 0.5rem;
+  letter-spacing: -0.03em;
+}
+
+.note-rich-editor-mount .ProseMirror h2 {
+  font-size: 1.45rem;
+  font-weight: 650;
+  margin: 0.9rem 0 0.45rem;
+}
+
+.note-rich-editor-mount .ProseMirror h3 {
+  font-size: 1.2rem;
+  font-weight: 650;
+  margin: 0.75rem 0 0.35rem;
+}
+
+.note-rich-editor-mount .ProseMirror ul,
+.note-rich-editor-mount .ProseMirror ol {
+  padding-left: 1.35rem;
+  margin: 0.5em 0;
+}
+
+.note-rich-editor-mount .ProseMirror blockquote {
+  border-left: 3px solid rgba(56, 189, 248, 0.45);
+  margin: 0.75em 0;
+  padding-left: 1rem;
+  color: #cbd5e1;
+}
+
+.note-rich-editor-mount .ProseMirror pre {
+  background: rgba(2, 6, 23, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.88rem;
+  overflow-x: auto;
+}
+
+.note-rich-editor-mount .ProseMirror img.note-rich-img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+  margin: 0.75em 0;
+}
+
+.note-rich-editor-mount .ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.note-rich-editor-mount .ProseMirror li[data-type="taskItem"] {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.note-rich-editor-mount .ProseMirror li[data-type="taskItem"] > label {
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.note-view-prose {
+  font-size: 1.02rem;
+  line-height: 1.65;
+  color: #e2e8f0;
+}
+
+.note-view-prose p {
+  margin: 0.55em 0;
+}
+
+.note-view-prose h1 {
+  font-size: 1.65rem;
+  font-weight: 700;
+  margin: 0.85em 0 0.45em;
+}
+
+.note-view-prose h2 {
+  font-size: 1.35rem;
+  font-weight: 650;
+  margin: 0.75em 0 0.35em;
+}
+
+.note-view-prose h3 {
+  font-size: 1.12rem;
+  font-weight: 650;
+  margin: 0.65em 0 0.3em;
+}
+
+.note-view-prose ul,
+.note-view-prose ol {
+  padding-left: 1.35rem;
+  margin: 0.5em 0;
+}
+
+.note-view-prose blockquote {
+  border-left: 3px solid rgba(56, 189, 248, 0.45);
+  margin: 0.65em 0;
+  padding-left: 1rem;
+  color: #cbd5e1;
+}
+
+.note-view-prose pre {
+  background: rgba(2, 6, 23, 0.65);
+  border-radius: 10px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  font-size: 0.88rem;
+}
+
+.note-view-prose img.note-rich-img {
+  max-width: 100%;
+  border-radius: 10px;
+}
+
+.note-view-prose a.note-rich-link {
+  color: #7dd3fc;
 }

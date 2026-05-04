@@ -23,7 +23,8 @@ function publicUser(user) {
     subscriptionPlan: plan,
     capabilities: premium.capabilities,
     googlePicture: user.googlePicture || "",
-    provider: user.provider || "local"
+    provider: user.provider || "local",
+    hasLocalPassword: Boolean(user.password)
   };
 }
 

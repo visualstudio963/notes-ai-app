@@ -4,24 +4,23 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { publicUser } = require("../utils/serializers");
 
-/** Single allowed local password login (admin bypass for Google-only policy). */
-const ADMIN_LOCAL_USERNAME = "redoncapoku";
-const ADMIN_LOCAL_EMAIL = "redoncapoku@gmail.com";
+/** Synthetic email domain for accounts created via username/password only (RFC 2606 .invalid). */
+const LOCAL_ACCOUNT_EMAIL_DOMAIN = "users.notesai.invalid";
 
-function isDesignatedAdminAccount(user) {
-  if (!user) return false;
-  const un = String(user.username || "").trim().toLowerCase();
-  const em = String(user.email || "").trim().toLowerCase();
-  return un === ADMIN_LOCAL_USERNAME || em === ADMIN_LOCAL_EMAIL;
+function localSyntheticEmail(username) {
+  const u = String(username || "")
+    .trim()
+    .toLowerCase();
+  return `${u}@${LOCAL_ACCOUNT_EMAIL_DOMAIN}`;
 }
 
 /**
- * POST /api/login and POST /auth/login — password login only for the designated admin user.
+ * POST /api/login and POST /auth/login — username or email + password.
  */
-function createAdminPasswordLoginHandler({ User, jwtSecret, jwtRefreshSecret }) {
+function createPasswordLoginHandler({ User, jwtSecret, jwtRefreshSecret }) {
   const issueSessionTokens = createIssueSessionTokens(User, jwtSecret, jwtRefreshSecret);
 
-  return async function adminPasswordLogin(req, res) {
+  return async function passwordLogin(req, res) {
     try {
       const { identifier, username, password } = req.body || {};
       const loginId = String(identifier || username || "")
@@ -30,25 +29,22 @@ function createAdminPasswordLoginHandler({ User, jwtSecret, jwtRefreshSecret }) 
       const pwd = String(password || "");
 
       if (!loginId || !pwd) {
-        return res.status(400).json({ error: "Username (or email) and password are required" });
-      }
-
-      const isAdminPath =
-        loginId === ADMIN_LOCAL_USERNAME || loginId === ADMIN_LOCAL_EMAIL.toLowerCase();
-      if (!isAdminPath) {
-        return res.status(403).json({ error: "Use Continue with Google to sign in." });
+        return res.status(400).json({ error: "Username and password are required" });
       }
 
       const user = await User.findOne({
         $or: [{ username: loginId }, { email: loginId }]
       });
 
-      if (!user || !user.password) {
-        return res.status(400).json({ error: "Invalid credentials" });
+      if (!user) {
+        return res.status(400).json({ error: "Invalid username or password" });
       }
 
-      if (!isDesignatedAdminAccount(user)) {
-        return res.status(403).json({ error: "Use Continue with Google to sign in." });
+      if (!user.password) {
+        return res.status(400).json({
+          error:
+            "This account uses Google sign-in. Use Continue with Google, or set a password in Settings after signing in."
+        });
       }
 
       let valid = false;
@@ -56,15 +52,10 @@ function createAdminPasswordLoginHandler({ User, jwtSecret, jwtRefreshSecret }) 
         valid = await bcrypt.compare(pwd, user.password);
       } catch (err) {
         console.error("[auth/login] bcrypt compare error:", err.message);
-        return res.status(400).json({ error: "Invalid credentials" });
+        return res.status(400).json({ error: "Invalid username or password" });
       }
       if (!valid) {
-        return res.status(400).json({ error: "Invalid credentials" });
-      }
-
-      if (user.role !== "admin") {
-        user.role = "admin";
-        await user.save();
+        return res.status(400).json({ error: "Invalid username or password" });
       }
 
       const fresh = await User.findById(user._id);
@@ -205,7 +196,7 @@ async function upsertGoogleUserFromIdTokenPayload(User, payload, cleanDeviceId) 
 
 /**
  * Find existing user by Google id or email and link Google id if needed.
- * Does not create new users (first-time signups use pending session + complete-google-signup).
+ * New Google users are auto-provisioned in the Passport callback (see `upsertGoogleUserFromIdTokenPayload`).
  */
 async function findOrLinkGoogleUser(User, { sub, email, name, picture }) {
   const emailNorm = String(email || "")
@@ -257,13 +248,79 @@ function createAuthRouter({
   );
 
   const issueSessionTokens = createIssueSessionTokens(User, jwtSecret, jwtRefreshSecret);
-  const adminPasswordLogin = createAdminPasswordLoginHandler({ User, jwtSecret, jwtRefreshSecret });
+  const passwordLogin = createPasswordLoginHandler({ User, jwtSecret, jwtRefreshSecret });
 
-  router.post("/register", signupLimiter, (_req, res) => {
-    res.status(410).json({ error: "Password registration has been disabled. Use Continue with Google." });
+  router.post("/register", signupLimiter, async (req, res) => {
+    try {
+      const firstName = String((req.body && req.body.firstName) || "").trim();
+      const lastName = String((req.body && req.body.lastName) || "").trim();
+      const username = String((req.body && req.body.username) || "")
+        .trim()
+        .toLowerCase();
+      const password = String((req.body && req.body.password) || "");
+      const confirmPassword = String((req.body && req.body.confirmPassword) || "");
+
+      if (!firstName || !lastName) {
+        return res.status(400).json({ error: "First name and last name are required" });
+      }
+      if (username.length < 3 || username.length > 30) {
+        return res.status(400).json({ error: "Username must be between 3 and 30 characters" });
+      }
+      if (!/^[a-z0-9_]+$/.test(username)) {
+        return res.status(400).json({
+          error: "Username may only contain lowercase letters, numbers, and underscores"
+        });
+      }
+      if (password.length < 8) {
+        return res.status(400).json({ error: "Password must be at least 8 characters" });
+      }
+      if (password !== confirmPassword) {
+        return res.status(400).json({ error: "Passwords do not match" });
+      }
+
+      const email = localSyntheticEmail(username);
+      const emailOrPhone = email;
+
+      const taken = await User.findOne({
+        $or: [{ username }, { email }, { emailOrPhone: email }]
+      })
+        .select("_id")
+        .lean();
+      if (taken) {
+        return res.status(409).json({ error: "Username already taken" });
+      }
+
+      const passwordHash = await bcrypt.hash(password, 10);
+      const user = await User.create({
+        firstName,
+        lastName,
+        username,
+        email,
+        emailOrPhone,
+        password: passwordHash,
+        provider: "local",
+        emailVerified: true,
+        emailVerificationTokenHash: null,
+        emailVerificationExpiresAt: null,
+        plan: "free",
+        subscriptionPlan: "free",
+        membershipRole: "free",
+        isPremium: false,
+        premiumExpires: null
+      });
+
+      const { accessToken, refreshToken } = await issueSessionTokens(user._id);
+      res.json({ accessToken, refreshToken, user: publicUser(user) });
+    } catch (err) {
+      if (err && err.code === 11000) {
+        return res.status(409).json({ error: "Username or email already in use" });
+      }
+      console.error("[auth/register]", err.message);
+      res.status(500).json({ error: "Registration failed" });
+    }
   });
 
-  router.post("/login", authLimiter, adminPasswordLogin);
+  router.post("/login", authLimiter, passwordLogin);
 
   router.get("/auth/pending-google", (req, res) => {
     const p = req.session && req.session.pendingGoogleOAuth;
@@ -407,9 +464,11 @@ function createAuthRouter({
 
 module.exports = {
   createAuthRouter,
-  createAdminPasswordLoginHandler,
+  createPasswordLoginHandler,
   upsertGoogleUserFromIdTokenPayload,
   createIssueSessionTokens,
   findOrLinkGoogleUser,
-  splitGoogleDisplayName
+  splitGoogleDisplayName,
+  localSyntheticEmail,
+  LOCAL_ACCOUNT_EMAIL_DOMAIN
 };

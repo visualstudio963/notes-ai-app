@@ -2425,11 +2425,64 @@ async function submitAuthLogin(ev) {
   }
 }
 
+let signupEmailCheckTimer = null;
+
+function wireSignupEmailLiveCheck() {
+  const input = document.getElementById("authSignupEmail");
+  const hint = document.getElementById("authSignupEmailHint");
+  if (!input || !hint) return;
+
+  const runCheck = () => {
+    const v = String(input.value || "").trim().toLowerCase();
+    if (!v) {
+      hint.classList.add("hidden");
+      hint.textContent = "";
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+      hint.classList.add("hidden");
+      hint.textContent = "";
+      return;
+    }
+    const url = buildApiUrl(`/auth/check-email?email=${encodeURIComponent(v)}`);
+    void fetch(url, { method: "GET", credentials: "include" })
+      .then((r) => r.json().catch(() => ({})))
+      .then((data) => {
+        if (data && data.available === false) {
+          hint.textContent = typeof t === "function" ? t("emailAlreadyInUse") : "Email already in use";
+          hint.classList.remove("hidden");
+        } else {
+          hint.classList.add("hidden");
+          hint.textContent = "";
+        }
+      })
+      .catch(() => {});
+  };
+
+  input.addEventListener("input", () => {
+    clearTimeout(signupEmailCheckTimer);
+    hint.classList.add("hidden");
+    hint.textContent = "";
+    const v = String(input.value || "").trim().toLowerCase();
+    if (!v) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return;
+    signupEmailCheckTimer = window.setTimeout(runCheck, 450);
+  });
+
+  input.addEventListener("blur", () => {
+    const v = String(input.value || "").trim().toLowerCase();
+    if (v && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+      runCheck();
+    }
+  });
+}
+
 async function submitAuthSignup(ev) {
   ev.preventDefault();
   const errEl = document.getElementById("authSignupError");
   const firstName = (document.getElementById("authSignupFirstName")?.value || "").trim();
   const lastName = (document.getElementById("authSignupLastName")?.value || "").trim();
+  const emailRaw = (document.getElementById("authSignupEmail")?.value || "").trim().toLowerCase();
   const username = (document.getElementById("authSignupUsername")?.value || "").trim().toLowerCase();
   const password = document.getElementById("authSignupPassword")?.value || "";
   const confirmPassword = document.getElementById("authSignupConfirm")?.value || "";
@@ -2437,9 +2490,16 @@ async function submitAuthSignup(ev) {
     errEl.classList.add("hidden");
     errEl.textContent = "";
   }
-  if (!firstName || !lastName || !username || !password || !confirmPassword) {
+  if (!firstName || !lastName || !emailRaw || !username || !password || !confirmPassword) {
     if (errEl) {
       errEl.textContent = "Fill in all fields.";
+      errEl.classList.remove("hidden");
+    }
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw)) {
+    if (errEl) {
+      errEl.textContent = typeof t === "function" ? t("signupEmailInvalid") : "Enter a valid email address.";
       errEl.classList.remove("hidden");
     }
     return;
@@ -2464,6 +2524,7 @@ async function submitAuthSignup(ev) {
       body: JSON.stringify({
         firstName,
         lastName,
+        email: emailRaw,
         username,
         password,
         confirmPassword
@@ -2471,8 +2532,22 @@ async function submitAuthSignup(ev) {
     });
     authPostLoginShellSuccess(data);
   } catch (e) {
+    const raw = String((e && e.message) || "");
+    const duplicate = /exists|already in use|already taken|User already|email or username already/i.test(raw);
+    if (duplicate) {
+      const msg = typeof t === "function" ? t("accountAlreadyExistsToast") : "This account already exists. Please log in.";
+      showToast(msg);
+      switchAuthTab("login");
+      if (errEl) {
+        errEl.classList.add("hidden");
+        errEl.textContent = "";
+      }
+      const loginUser = document.getElementById("authLoginUsername");
+      if (loginUser) window.setTimeout(() => loginUser.focus(), 0);
+      return;
+    }
     if (errEl) {
-      errEl.textContent = e.message || "Sign up failed.";
+      errEl.textContent = raw || "Sign up failed.";
       errEl.classList.remove("hidden");
     }
   }
@@ -2484,6 +2559,7 @@ function initAuthLandingUi() {
   document.getElementById("authLoginForm")?.addEventListener("submit", (ev) => void submitAuthLogin(ev));
   document.getElementById("authSignupForm")?.addEventListener("submit", (ev) => void submitAuthSignup(ev));
   document.getElementById("setPasswordForm")?.addEventListener("submit", (ev) => void submitSetPassword(ev));
+  wireSignupEmailLiveCheck();
   const landing = document.getElementById("authLanding");
   landing?.addEventListener("click", (e) => {
     if (e.target === landing) closeAccountModal();

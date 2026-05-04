@@ -7,6 +7,11 @@ const { publicUser } = require("../utils/serializers");
 /** Synthetic email domain for accounts created via username/password only (RFC 2606 .invalid). */
 const LOCAL_ACCOUNT_EMAIL_DOMAIN = "users.notesai.invalid";
 
+function isValidEmailShape(email) {
+  const e = String(email || "").trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+}
+
 function localSyntheticEmail(username) {
   const u = String(username || "")
     .trim()
@@ -249,6 +254,29 @@ function createAuthRouter({
   const issueSessionTokens = createIssueSessionTokens(User, jwtSecret, jwtRefreshSecret);
   const passwordLogin = createPasswordLoginHandler({ User, jwtSecret, jwtRefreshSecret });
 
+  router.get("/auth/check-email", authLimiter, async (req, res) => {
+    try {
+      const email = String(req.query.email || "")
+        .trim()
+        .toLowerCase();
+      if (!email) {
+        return res.status(400).json({ error: "email query required", available: false });
+      }
+      if (!isValidEmailShape(email)) {
+        return res.status(400).json({ error: "Invalid email", available: false });
+      }
+      const existing = await User.findOne({
+        $or: [{ email }, { emailOrPhone: email }]
+      })
+        .select("_id")
+        .lean();
+      res.json({ available: !existing });
+    } catch (err) {
+      console.error("[auth/check-email]", err.message);
+      res.status(500).json({ error: "Could not check email", available: false });
+    }
+  });
+
   router.post("/register", signupLimiter, async (req, res) => {
     try {
       const firstName = String((req.body && req.body.firstName) || "").trim();
@@ -256,11 +284,20 @@ function createAuthRouter({
       const username = String((req.body && req.body.username) || "")
         .trim()
         .toLowerCase();
+      const email = String((req.body && req.body.email) || "")
+        .trim()
+        .toLowerCase();
       const password = String((req.body && req.body.password) || "");
       const confirmPassword = String((req.body && req.body.confirmPassword) || "");
 
       if (!firstName || !lastName) {
         return res.status(400).json({ error: "First name and last name are required" });
+      }
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+      if (!isValidEmailShape(email)) {
+        return res.status(400).json({ error: "Please enter a valid email address" });
       }
       if (username.length < 3 || username.length > 30) {
         return res.status(400).json({ error: "Username must be between 3 and 30 characters" });
@@ -277,16 +314,18 @@ function createAuthRouter({
         return res.status(400).json({ error: "Passwords do not match" });
       }
 
-      const email = localSyntheticEmail(username);
       const emailOrPhone = email;
 
-      const taken = await User.findOne({
-        $or: [{ username }, { email }, { emailOrPhone: email }]
+      const existingUser = await User.findOne({
+        $or: [{ email }, { username }, { emailOrPhone: email }]
       })
         .select("_id")
         .lean();
-      if (taken) {
-        return res.status(409).json({ error: "Username already taken" });
+      if (existingUser) {
+        return res.status(400).json({
+          message: "User already exists",
+          error: "User already exists"
+        });
       }
 
       const passwordHash = await bcrypt.hash(password, 10);
@@ -312,10 +351,13 @@ function createAuthRouter({
       res.json({ accessToken, refreshToken, user: publicUser(user) });
     } catch (err) {
       if (err && err.code === 11000) {
-        return res.status(409).json({ error: "Username or email already in use" });
+        return res.status(400).json({
+          message: "Email or username already exists",
+          error: "Email or username already exists"
+        });
       }
       console.error("[auth/register]", err.message);
-      res.status(500).json({ error: "Registration failed" });
+      res.status(500).json({ message: "Server error", error: "Registration failed" });
     }
   });
 

@@ -11694,6 +11694,12 @@ body.auth-shell-locked .site-footer {
   box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
 }
 
+.auth-shell__field-hint {
+  margin: -6px 0 8px;
+  font-size: 0.78rem;
+  color: #fb923c;
+}
+
 .auth-shell__error {
   margin: 0 0 12px;
   font-size: 0.86rem;

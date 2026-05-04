@@ -11647,17 +11647,6 @@ body.auth-shell-locked .site-footer {
   box-shadow: 0 12px 28px rgba(2, 8, 22, 0.28);
 }
 
-.auth-shell__btn-google--disabled {
-  opacity: 0.45;
-  pointer-events: none;
-}
-
-/** Google optional when OAuth not configured: visible but softer; click shows a toast instead of navigating */
-.auth-shell__btn-google--unavailable {
-  opacity: 0.55;
-  cursor: pointer;
-}
-
 .auth-shell__g-icon {
   display: flex;
   flex-shrink: 0;

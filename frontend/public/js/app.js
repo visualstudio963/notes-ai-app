@@ -76,6 +76,8 @@ let discordUpdatesCount = 0;
 let stripePublishableKey = "";
 /** Set from GET /api/public/app-config (GOOGLE_CLIENT_ID). Used by Sign in with Google. */
 let googleOAuthClientId = "";
+/** True after `/api/public/app-config` finishes (success or failure). Avoids blocking OAuth before config loads. */
+let googleOAuthConfigLoaded = false;
 const REMINDER_NOTIFY_PREFS_KEY = "webReminderNotificationPrefs";
 const ANDROID_REMINDERS_CHANNEL_ID = "reminders-high";
 
@@ -2257,6 +2259,9 @@ function isChooseUsernamePath() {
 
 let chooseUsernameInitStarted = false;
 
+/** When true, guest user intentionally opened the login/sign-up overlay (sidebar Account / requireAuth). */
+let authLoginModalOpen = false;
+
 function syncAuthShellVisibility() {
   const landing = document.getElementById("authLanding");
   const choose = document.getElementById("chooseUsernameScreen");
@@ -2266,6 +2271,7 @@ function syncAuthShellVisibility() {
   const loggedIn = Boolean(currentUser && accessToken);
 
   if (loggedIn) {
+    authLoginModalOpen = false;
     landing?.classList.add("hidden");
     choose?.classList.add("hidden");
     appEl?.classList.remove("hidden");
@@ -2275,21 +2281,31 @@ function syncAuthShellVisibility() {
     return;
   }
 
-  document.body.classList.add("auth-shell-locked");
-  appEl?.classList.add("hidden");
-  footer?.classList.add("hidden");
-  if (fab) fab.classList.add("hidden");
-
   if (isChooseUsernamePath()) {
+    authLoginModalOpen = false;
     landing?.classList.add("hidden");
     choose?.classList.remove("hidden");
     chooseUsernameInitStarted = false;
+    document.body.classList.add("auth-shell-locked");
+    appEl?.classList.add("hidden");
+    footer?.classList.add("hidden");
+    if (fab) fab.classList.add("hidden");
     void initChooseUsernameFlow();
-  } else {
-    choose?.classList.add("hidden");
+    return;
+  }
+
+  document.body.classList.remove("auth-shell-locked");
+  appEl?.classList.remove("hidden");
+  footer?.classList.remove("hidden");
+  if (fab) fab.classList.remove("hidden");
+  choose?.classList.add("hidden");
+  chooseUsernameInitStarted = false;
+
+  if (authLoginModalOpen) {
     landing?.classList.remove("hidden");
-    chooseUsernameInitStarted = false;
     syncAuthGoogleLinkHref();
+  } else {
+    landing?.classList.add("hidden");
   }
 }
 
@@ -2297,20 +2313,12 @@ function syncAuthGoogleLinkHref() {
   const a = document.getElementById("authGoogleLink");
   if (!a) return;
   try {
-    if (googleOAuthClientId) {
-      a.href = buildApiUrl("/auth/google");
-      a.classList.remove("auth-shell__btn-google--disabled", "auth-shell__btn-google--unavailable");
-      a.removeAttribute("aria-disabled");
-    } else {
-      a.href = "#";
-      a.classList.remove("auth-shell__btn-google--disabled");
-      a.classList.add("auth-shell__btn-google--unavailable");
-      a.setAttribute("aria-disabled", "true");
-    }
+    a.href = buildApiUrl("/auth/google");
   } catch {
-    a.href = "#";
-    a.classList.add("auth-shell__btn-google--unavailable");
+    a.href = "/auth/google";
   }
+  a.classList.remove("auth-shell__btn-google--disabled", "auth-shell__btn-google--unavailable");
+  a.removeAttribute("aria-disabled");
 }
 
 function switchAuthTab(mode) {
@@ -2445,12 +2453,19 @@ function initAuthLandingUi() {
   document.getElementById("authTabSignup")?.addEventListener("click", () => switchAuthTab("signup"));
   document.getElementById("authLoginForm")?.addEventListener("submit", (ev) => void submitAuthLogin(ev));
   document.getElementById("authSignupForm")?.addEventListener("submit", (ev) => void submitAuthSignup(ev));
+  const landing = document.getElementById("authLanding");
+  landing?.addEventListener("click", (e) => {
+    if (e.target === landing) closeAccountModal();
+  });
   const g = document.getElementById("authGoogleLink");
   if (g) {
     g.addEventListener("click", (e) => {
-      if (!googleOAuthClientId) {
+      if (googleOAuthConfigLoaded && !googleOAuthClientId) {
         e.preventDefault();
-        showToast("Google sign-in is not available on this server. Use username and password.");
+        console.warn(
+          "[Google sign-in] OAuth is not configured (missing client id from app config / GOOGLE_CLIENT_ID). " +
+            "Use username and password, or set Google OAuth environment variables on the server."
+        );
       }
     });
   }
@@ -2544,7 +2559,9 @@ function openAccountModal() {
     showToast(`You are already signed in as ${currentUser.username || currentUser.emailOrPhone}`);
     return;
   }
+  authLoginModalOpen = true;
   syncAuthShellVisibility();
+  syncAuthGoogleLinkHref();
   switchAuthTab("login");
   const u = document.getElementById("authLoginUsername");
   if (u) {
@@ -2553,7 +2570,8 @@ function openAccountModal() {
 }
 
 function closeAccountModal() {
-  /* Legacy no-op: auth uses full-page shells instead of a modal. */
+  authLoginModalOpen = false;
+  document.getElementById("authLanding")?.classList.add("hidden");
 }
 
 function requireAuth(actionName) {
@@ -2893,6 +2911,8 @@ async function loadDiscordCommunityConfig() {
     discordUpdatesCount = 0;
     stripePublishableKey = "";
     googleOAuthClientId = "";
+  } finally {
+    googleOAuthConfigLoaded = true;
   }
   applyDiscordCommunityUi();
   syncAuthGoogleLinkHref();
@@ -6687,6 +6707,12 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
+    const authLandingEl = document.getElementById("authLanding");
+    if (authLandingEl && !authLandingEl.classList.contains("hidden")) {
+      e.preventDefault();
+      closeAccountModal();
+      return;
+    }
     if (webChatQuickPanelOpen()) {
       e.preventDefault();
       closeWebChatQuickActions();

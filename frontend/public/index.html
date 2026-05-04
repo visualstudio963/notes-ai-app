@@ -18,9 +18,10 @@
     </div>
   </div>
 
-  <div id="authLanding" class="auth-shell auth-shell--landing hidden" role="region" aria-label="Sign in">
+  <div id="authLanding" class="auth-shell auth-shell--landing hidden" role="dialog" aria-modal="true" aria-label="Sign in">
     <div class="auth-shell__inner">
       <div class="auth-shell__card">
+        <button type="button" class="close-button" onclick="closeAccountModal(); event.stopPropagation();" aria-label="Close">✕</button>
         <h1 class="auth-shell__title">Notes AI</h1>
         <p class="auth-shell__subtitle">Your smart notes assistant</p>
 
@@ -55,7 +56,7 @@
 
         <div class="auth-shell__divider" aria-hidden="true"><span>or</span></div>
 
-        <a id="authGoogleLink" class="auth-shell__btn-google" href="#" data-api-href>
+        <a id="authGoogleLink" class="auth-shell__btn-google" href="/auth/google">
           <span class="auth-shell__g-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>

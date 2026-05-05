@@ -1,16 +1,20 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const { publicUser } = require("../utils/serializers");
+const { finalizeInviteBonusById, ensureReferralCode } = require("../features/coins/coinService");
 
 function createUserRouter({ User, authMiddleware }) {
   const router = express.Router();
 
   router.get("/me", authMiddleware, async (req, res) => {
     try {
-      const user = await User.findById(req.userId);
+      let user = await User.findById(req.userId);
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
+      user = await ensureReferralCode(User, user);
+      await finalizeInviteBonusById(User, user._id);
+      user = await User.findById(req.userId);
       return res.json({ user: publicUser(user) });
     } catch {
       return res.status(500).json({ error: "Failed to load current user" });

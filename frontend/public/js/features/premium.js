@@ -50,5 +50,5 @@ function userCanExportNotePdf(user) {
 }
 
 function userCanExportNoteJpg(user) {
-  return userHasPremiumCapabilities(user);
+  return userHasStandardTierFeatures(user);
 }

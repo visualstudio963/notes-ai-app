@@ -13242,3 +13242,255 @@ body.note-rich-editor-open #dailyPlannerFab {
 .note-view-prose a.note-rich-link {
   color: #7dd3fc;
 }
+
+/* Coins & rewards hub */
+.coins-hub-page .coins-hub-shell {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.coins-hub-page-header {
+  align-items: flex-start;
+}
+
+.coins-hub-mult-banner {
+  margin: 0.35rem 0 0;
+  padding: 0.55rem 0.85rem;
+  border-radius: 10px;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  font-size: 0.92rem;
+  color: #bae6fd;
+}
+
+.coins-hub-trial-banner {
+  margin: 0.75rem 0 0;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background: linear-gradient(120deg, rgba(56, 189, 248, 0.18), rgba(167, 139, 250, 0.12));
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.coins-hub-trial-banner p {
+  margin: 0;
+  line-height: 1.45;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+}
+
+.coins-hub-balance-panel {
+  margin-top: 1.25rem;
+  padding: 1.25rem 1.1rem;
+  border-radius: 14px;
+  background: radial-gradient(circle at 20% 0%, rgba(56, 189, 248, 0.22), transparent 55%),
+    rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(51, 65, 85, 0.6);
+}
+
+.coins-hub-balance-label {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.coins-hub-balance-line {
+  margin: 0.35rem 0 1rem;
+  font-size: 1.95rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.coins-hub-balance-cap {
+  font-weight: 500;
+  color: #94a3b8;
+  font-size: 1.2rem;
+}
+
+.coins-hub-progress__track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(30, 41, 59, 0.9);
+  overflow: hidden;
+}
+
+.coins-hub-progress__fill {
+  height: 100%;
+  border-radius: 999px;
+  width: 0%;
+  transition: width 0.35s ease;
+  background: linear-gradient(90deg, #38bdf8, #a78bfa);
+}
+
+.coins-hub-progress-label {
+  margin: 0.45rem 0 0;
+  font-size: 0.9rem;
+  color: #cbd5e1;
+}
+
+.coins-hub-actions {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.coins-hub-invite-panel {
+  margin-top: 1.5rem;
+  padding: 1rem 1.1rem;
+  border-radius: 12px;
+  border: 1px dashed rgba(71, 85, 105, 0.75);
+}
+
+.coins-hub-invite-label {
+  margin: 0;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+}
+
+.coins-hub-invite-code {
+  margin: 0.35rem 0 0.5rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #fde68a;
+}
+
+.coins-hub-muted {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.coins-hub-footer-note {
+  margin-top: 1rem;
+}
+
+@media (max-width: 840px) {
+  .coins-hub-actions .save-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+body.trial-gift-modal-open {
+  overflow: hidden;
+}
+
+/* Trial Standard gift — centered overlay shown once per user (trial lifecycle). */
+.trial-gift-modal:not(.hidden) {
+  display: flex !important;
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  box-sizing: border-box;
+}
+
+.trial-gift-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.78);
+  backdrop-filter: blur(8px);
+}
+
+.trial-gift-modal__dialog {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: min(36rem, 100%);
+  padding: clamp(1.25rem, 4vw, 1.85rem);
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: linear-gradient(
+      155deg,
+      rgba(15, 23, 42, 0.98) 0%,
+      rgba(30, 41, 59, 0.95) 40%,
+      rgba(17, 24, 39, 0.98) 100%
+    );
+  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(56, 189, 248, 0.12);
+}
+
+.trial-gift-modal__badge {
+  margin: 0 0 0.5rem;
+  display: inline-block;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #a5f3fc;
+  background: rgba(34, 211, 238, 0.12);
+  border: 1px solid rgba(34, 211, 238, 0.35);
+}
+
+.trial-gift-modal__title {
+  margin: 0 0 0.75rem;
+  font-size: clamp(1.35rem, 3.8vw, 1.65rem);
+  font-weight: 800;
+  line-height: 1.2;
+  color: #f8fafc;
+}
+
+.trial-gift-modal__lead {
+  margin: 0 0 1rem;
+  font-size: 0.98rem;
+  line-height: 1.55;
+  color: #cbd5e1;
+}
+
+.trial-gift-modal__list {
+  margin: 0 0 1.1rem;
+  padding-left: 1.35rem;
+  color: #e2e8f0;
+  font-size: 0.93rem;
+  line-height: 1.58;
+}
+
+.trial-gift-modal__list li + li {
+  margin-top: 0.42rem;
+}
+
+.trial-gift-modal__note {
+  margin: 0 0 1.35rem;
+  font-size: 0.87rem;
+  line-height: 1.52;
+  color: #94a3b8;
+}
+
+.trial-gift-modal__cta {
+  width: 100%;
+  justify-content: center;
+  min-height: 48px;
+  font-weight: 700;
+}
+
+/* Coins hub — system explainer above balance / actions */
+.coins-hub-guide {
+  margin: 0 0 1.35rem;
+  padding: 1rem 1.1rem;
+  border-radius: 14px;
+  background: radial-gradient(circle at 10% 0%, rgba(56, 189, 248, 0.14), transparent 52%),
+    rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(71, 85, 105, 0.55);
+}
+
+.coins-hub-guide-title {
+  margin: 0 0 0.85rem;
+  font-size: 1.06rem;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.coins-hub-guide-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  line-height: 1.55;
+}

@@ -16,7 +16,9 @@
 
 /** Premium Web Chat: max OpenAI completions per monthly billing window (UTC). */
 
-const OPENAI_WEB_CHAT_MONTHLY_LIMIT = 120;
+const OPENAI_WEB_CHAT_MONTHLY_LIMIT = 130;
+
+const { COIN_CAP } = require("../coins/coinConstants");
 
 
 
@@ -82,13 +84,32 @@ function getStoredProductTier(user) {
 
 }
 
+function clampCoinBalancePreview(n) {
+  const x = Math.floor(Number(n) || 0);
+  return Math.min(COIN_CAP, Math.max(0, x));
+}
 
+function trialActive(user, nowMs = Date.now()) {
+  if (!user || !user.trialEndsAt) return false;
+  const t = new Date(user.trialEndsAt).getTime();
+  return Number.isFinite(t) && t > nowMs;
+}
+
+function coinStandardActive(user, nowMs = Date.now()) {
+  if (!user || !user.standardCoinExpiresAt) return false;
+  const t = new Date(user.standardCoinExpiresAt).getTime();
+  return Number.isFinite(t) && t > nowMs;
+}
+
+function boostStandardFromPromos(user, nowMs = Date.now()) {
+  return trialActive(user, nowMs) || coinStandardActive(user, nowMs);
+}
 
 /**
 
  * Effective product plan (admin + app + billing), merging legacy fields.
 
- * @param {{ plan?: string; subscriptionPlan?: string; membershipRole?: string; isPremium?: boolean; premiumExpires?: Date | null } | null | undefined} user
+ * @param {{ plan?: string; subscriptionPlan?: string; membershipRole?: string; isPremium?: boolean; premiumExpires?: Date | null; trialEndsAt?: Date | null; standardCoinExpiresAt?: Date | null } | null | undefined} user
 
  * @returns {"free"|"standard"|"premium"}
 
@@ -98,11 +119,13 @@ function getUserPlan(user) {
 
   let r = planRank(getStoredProductTier(user));
 
+  const nowMs = Date.now();
+
   /** Only real boolean true counts — avoids truthy garbage from imports (e.g. string "false"). */
   const premiumBillingActive =
     user &&
     user.isPremium === true &&
-    (user.premiumExpires == null || new Date(user.premiumExpires).getTime() > Date.now());
+    (user.premiumExpires == null || new Date(user.premiumExpires).getTime() > nowMs);
 
   if (premiumBillingActive) {
 
@@ -110,7 +133,41 @@ function getUserPlan(user) {
 
   }
 
+  if (boostStandardFromPromos(user, nowMs)) {
+
+    r = Math.max(r, planRank("standard"));
+
+  }
+
   return tierFromRank(r);
+
+}
+
+/**
+ * Exclusive UI/account state — not the same as {@link getUserPlan} tier (trial still maps to Standard features).
+ * @returns {"trial"|"free"|"standard"|"premium"}
+ */
+function getUserLifecycle(user) {
+
+  if (!user) return "free";
+
+  const nowMs = Date.now();
+
+  const tier = getUserPlan(user);
+
+  const stored = getStoredProductTier(user);
+
+  const trialOn = trialActive(user, nowMs);
+
+  const coinOn = coinStandardActive(user, nowMs);
+
+  if (tier === "premium") return "premium";
+
+  if (trialOn && stored === "free" && !coinOn && tier === "standard") return "trial";
+
+  if (tier === "standard") return "standard";
+
+  return "free";
 
 }
 
@@ -316,15 +373,31 @@ function getPremiumStatusPayload(user) {
 
   const standardFeatures = hasStandardTierAccess(user);
 
+  const lifecycle = getUserLifecycle(user);
+
 
 
   return {
 
     tier,
 
+    lifecycle,
+
     isPremium: premium,
 
     premiumExpiresAt: user && user.premiumExpires ? new Date(user.premiumExpires).toISOString() : null,
+
+    trialEndsAt: user && user.trialEndsAt ? new Date(user.trialEndsAt).toISOString() : null,
+
+    standardCoinExpiresAt:
+      user && user.standardCoinExpiresAt ? new Date(user.standardCoinExpiresAt).toISOString() : null,
+
+    coinBalance: clampCoinBalancePreview(user && user.coins),
+
+    referralCode:
+      user && user.referralCode != null && String(user.referralCode).trim()
+        ? String(user.referralCode).trim()
+        : "",
 
     capabilities: {
 
@@ -505,6 +578,8 @@ async function applyProductPlan(User, userId, plan, options = {}) {
 module.exports = {
 
   getUserPlan,
+
+  getUserLifecycle,
 
   getStoredProductTier,
 

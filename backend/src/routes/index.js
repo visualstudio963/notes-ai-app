@@ -7,6 +7,7 @@ const { createPremiumRouter } = require("../features/premium/premium.routes");
 const { createContactRouter } = require("./contact.routes");
 const { createAdminRouter } = require("./admin.routes");
 const { createWebChatRouter } = require("./webchat.routes");
+const { createCoinsRouter } = require("./coins.routes");
 const { createAppConfigRouter } = require("./app-config.routes");
 
 /**
@@ -93,6 +94,13 @@ function createApiRouter(app, deps) {
       authMiddleware,
       sendWhatsAppMessage,
       getIo
+    })
+  );
+
+  api.use(
+    createCoinsRouter({
+      User,
+      authMiddleware
     })
   );
 

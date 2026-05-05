@@ -142,6 +142,31 @@
   </div>
 
   <div class="app">
+    <div id="trialGiftModal" class="trial-gift-modal hidden" role="dialog" aria-modal="true" aria-labelledby="trialGiftTitle">
+      <div class="trial-gift-modal__backdrop" aria-hidden="true"></div>
+      <div class="trial-gift-modal__dialog">
+        <p class="trial-gift-modal__badge" data-t="trialGiftBadge">Your welcome gift</p>
+        <h2 id="trialGiftTitle" class="trial-gift-modal__title" data-t="trialGiftTitle">
+          Standard access free for 7 days
+        </h2>
+        <p class="trial-gift-modal__lead" data-t="trialGiftLead">
+          You&apos;ve received Standard on us for one week — here&apos;s everything you can try in Notes AI today.
+        </p>
+        <ul class="trial-gift-modal__list">
+          <li data-t="trialGiftItem1">Full Web Chat (local bot flows + saving reminders from chat)</li>
+          <li data-t="trialGiftItem2">Scan Cam — photo/PDF → text → save as notes</li>
+          <li data-t="trialGiftItem3">Exports — PDF, JPG (+ TXT)</li>
+          <li data-t="trialGiftItem4">Daily planner &amp; category workspace</li>
+          <li data-t="trialGiftItem5">Coins — start collecting for Standard after trial</li>
+        </ul>
+        <p class="trial-gift-modal__note" data-t="trialGiftAfter">
+          After 7 days you move to the Free plan unless you subscribe or redeem Standard with coins. Open Rewards &amp; coins anytime during the trial.
+        </p>
+        <button type="button" class="save-button trial-gift-modal__cta" onclick="dismissTrialGiftModal()" data-t="trialGiftCta">
+          Accept gift
+        </button>
+      </div>
+    </div>
     <button
       type="button"
       class="mobile-nav-overlay hidden"
@@ -196,6 +221,12 @@
               <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M9 2 7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
             </span>
             <span class="menu-label" data-t="menuScanCam">Scan Cam</span>
+          </button>
+          <button type="button" class="menu-item" id="menuCoinsRewards" onclick="openCoinsRewards()">
+            <span class="menu-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.35-3.09-3.84V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+            </span>
+            <span class="menu-label" data-t="menuCoinsRewards">Rewards & coins</span>
           </button>
           <button type="button" class="menu-item" id="menuBot" onclick="openBot()">
             <span class="menu-icon" aria-hidden="true">
@@ -748,11 +779,9 @@
                     <span class="pricing-lite-badge" data-t="premiumLiteBadgeStarter">🆓 Starter</span>
                   </div>
                   <p class="pricing-lite-price">€0 <span>/month</span></p>
-                  <ul class="pricing-lite-benefits">
-                    <li data-t="premiumLiteFree1">Category notes</li>
-                    <li data-t="premiumLiteFree2">Manual reminders</li>
-                    <li data-t="premiumLiteFree3">TXT export</li>
-                    <li data-t="premiumLiteFree4">Daily planner locked</li>
+                  <ul class="pricing-lite-benefits pricing-lite-benefits--compact">
+                    <li data-t="premiumLiteFree1">Category notes — synced while signed in</li>
+                    <li data-t="premiumLiteFree2">Manual reminders on Home (you pick date &amp; time)</li>
                   </ul>
                 </article>
 
@@ -764,11 +793,11 @@
                   <p class="pricing-lite-price"><span id="premiumLiteStandardPriceMain">€2.99</span> <span id="premiumLiteStandardPricePeriod">/month</span></p>
                   <p id="premiumLiteStandardSub" class="pricing-lite-subline hidden"></p>
                   <ul class="pricing-lite-benefits">
-                    <li data-t="premiumLiteStd1">Unlimited chat 🚀</li>
-                    <li data-t="premiumLiteStd2">Chat reminders</li>
-                    <li data-t="premiumLiteStd3">PDF export</li>
-                    <li data-t="premiumLiteStd4">Scan → text</li>
-                    <li data-t="premiumLiteStd5">Daily planner</li>
+                    <li data-t="premiumLiteStd1">Full Web Chat + reminders saved from chat</li>
+                    <li data-t="premiumLiteStd2">Scan Cam — docs → editable text → notes</li>
+                    <li data-t="premiumLiteStd3">Export notes — PDF, JPG &amp; TXT</li>
+                    <li data-t="premiumLiteStd4">Daily planner &amp; richer workspace flows</li>
+                    <li data-t="premiumLiteStd5">May show ads — Premium removes them</li>
                   </ul>
                   <button type="button" id="premiumLiteStandardCta" class="save-button pricing-lite-cta" onclick="event.stopPropagation(); premiumPlanCheckoutClick('standard')" data-t="premiumLiteCtaStandard">Start Standard</button>
                 </article>
@@ -780,15 +809,17 @@
                   </div>
                   <p class="pricing-lite-price"><span id="premiumLitePremiumPriceMain">€4.99</span> <span id="premiumLitePremiumPricePeriod">/month</span></p>
                   <p id="premiumLitePremiumSub" class="pricing-lite-subline hidden"></p>
-                  <p id="premiumLiteSaveLine" class="pricing-lite-save" data-t="premiumLiteSaveLine">More power for just +€2</p>
-                  <ul class="pricing-lite-benefits">
-                    <li data-t="premiumLitePrem1b">Everything you need + more power</li>
-                    <li data-t="premiumLitePrem2">Smarter AI 🧠</li>
-                    <li data-t="premiumLitePrem3">Higher limits</li>
-                    <li data-t="premiumLitePrem4">(Future) WhatsApp reminders</li>
-                    <li data-t="premiumLitePrem5">Daily planner included</li>
+                  <p id="premiumLiteSaveLine" class="pricing-lite-save" data-t="premiumLitePremSubtitle">
+                    On top of full Standard workspace
+                  </p>
+                  <ul class="pricing-lite-benefits pricing-lite-benefits--premium">
+                    <li data-t="premiumLitePremOpenAi">OpenAI in Web Chat — 130 credits / month</li>
+                    <li data-t="premiumLitePremWa">WhatsApp bot — coming soon</li>
+                    <li data-t="premiumLitePremNoAds">No ads — clean Premium experience</li>
                   </ul>
-                  <p id="premiumLiteSocialProof" class="pricing-lite-social-proof" data-t="premiumLiteSocialProof">Most users choose Premium</p>
+                  <p id="premiumLiteSocialProof" class="pricing-lite-social-proof" data-t="premiumLiteSocialProofSoft">
+                    OpenAI quota resets each billing month · WhatsApp rollout announced later
+                  </p>
                   <button type="button" id="premiumLitePremiumCta" class="save-button pricing-lite-cta pricing-lite-cta--premium" onclick="event.stopPropagation(); premiumPlanCheckoutClick('premium')" data-t="premiumLiteCtaPremium2">Unlock Premium 🚀</button>
                 </article>
               </div>
@@ -801,13 +832,22 @@
                   <span data-t="premiumPlanPremiumTierName">Premium</span>
                 </div>
                 <div class="pricing-lite-compare__row">
-                  <span data-t="premiumLiteCmpChat">Chat limit</span><span>✔️</span><span>✔️</span><span>✔️</span>
+                  <span data-t="premiumLiteCmpWorkspace">Web Chat • Scan • planner</span><span>❌</span><span>✔️</span><span>✔️</span>
                 </div>
                 <div class="pricing-lite-compare__row">
-                  <span data-t="premiumLiteCmpAi">AI advanced</span><span>❌</span><span>❌</span><span>✔️</span>
+                  <span data-t="premiumLiteCmpAi130">OpenAI (130 credits / mo)</span><span>❌</span><span>❌</span><span>✔️</span>
                 </div>
                 <div class="pricing-lite-compare__row">
-                  <span data-t="premiumLiteCmpPdf">Export PDF</span><span>❌</span><span>✔️</span><span>✔️</span>
+                  <span data-t="premiumLiteCmpWaBot">WhatsApp bot</span>
+                  <span data-t="premiumLiteCmpSoon">Soon</span>
+                  <span data-t="premiumLiteCmpSoon">Soon</span>
+                  <span data-t="premiumLiteCmpSoon">Soon</span>
+                </div>
+                <div class="pricing-lite-compare__row">
+                  <span data-t="premiumLiteCmpAds">In-app ads</span>
+                  <span data-t="premiumLiteCmpAdsFree">Yes</span>
+                  <span data-t="premiumLiteCmpAdsStd">Yes</span>
+                  <span data-t="premiumLiteCmpAdsPrem">None</span>
                 </div>
               </div>
             </section>
@@ -927,7 +967,7 @@
                 class="web-chat-openai-usage__track"
                 role="progressbar"
                 aria-valuemin="0"
-                aria-valuemax="120"
+                aria-valuemax="130"
                 aria-valuenow="0"
                 id="webChatOpenAiUsageTrack"
               >
@@ -970,6 +1010,75 @@
           </footer>
         </div>
       </section>
+
+      <section id="coins-hub" class="page hidden coins-hub-page" aria-labelledby="coinsHubTitleHeading">
+        <div class="page-shell coins-hub-shell">
+          <div class="page-header coins-hub-page-header">
+            <button type="button" class="back-button" onclick="goHome()">&#x2190; Home</button>
+            <div>
+              <p class="eyebrow" data-t="coinsHubEyebrow">Rewards</p>
+              <h2 id="coinsHubTitleHeading" data-t="coinsHubTitle">Coins & Standard</h2>
+            </div>
+          </div>
+
+          <div class="coins-hub-guide" aria-labelledby="coinsSystemGuideTitle">
+            <h3 id="coinsSystemGuideTitle" class="coins-hub-guide-title" data-t="coinsSystemGuideTitle">How coins work</h3>
+            <ul class="coins-hub-guide-list coins-hub-muted">
+              <li data-t="coinsGuideLi1"></li>
+              <li data-t="coinsGuideLi2"></li>
+              <li data-t="coinsGuideLi3"></li>
+              <li data-t="coinsGuideLi4"></li>
+              <li data-t="coinsGuideLi5"></li>
+              <li data-t="coinsGuideLi6"></li>
+              <li data-t="coinsGuideLi7"></li>
+              <li data-t="coinsGuideLi8"></li>
+            </ul>
+          </div>
+
+          <div id="coinsHubTrialBanner" class="coins-hub-trial-banner hidden" role="status">
+            <p id="coinsHubTrialText"></p>
+          </div>
+
+          <div id="coinsHubEarnMult" class="coins-hub-mult-banner hidden"></div>
+
+          <div class="coins-hub-balance-panel">
+            <p class="coins-hub-balance-label" data-t="coinsBalanceCaption">Coins balance</p>
+            <p class="coins-hub-balance-line">
+              <span id="coinsHubBalanceValue" class="coins-hub-balance-value">—</span>
+              <span class="coins-hub-balance-gap"> </span>
+              <span class="coins-hub-balance-cap" data-t="coinsBalanceCapSuffix">/ 1200</span>
+            </p>
+            <div class="coins-hub-progress">
+              <div class="coins-hub-progress__track"><div id="coinsHubProgressFill" class="coins-hub-progress__fill"></div></div>
+              <p id="coinsHubProgressLabel" class="coins-hub-progress-label"></p>
+            </div>
+          </div>
+
+          <div class="coins-hub-actions">
+            <button type="button" id="coinsHubDailyBtn" class="save-button secondary" onclick="coinsHubClaimDaily()" data-t="coinsDailyBtn">
+              Daily reward streak
+            </button>
+            <button type="button" id="coinsHubVideoBtn" class="save-button secondary" onclick="coinsHubWatchVideoAd()" data-t="coinsVideoBtn">
+              Watch rewarded video (+10 coins)
+            </button>
+            <button type="button" id="coinsHubRedeemBtn" class="save-button" onclick="coinsHubRedeemStandard()" data-t="coinsRedeemBtn">
+              Spend 600 coins → 30 days Standard
+            </button>
+            <button type="button" class="save-button secondary" onclick="coinsHubCopyInvite()" data-t="coinsInviteShareBtn">
+              Copy invite link
+            </button>
+          </div>
+
+          <div class="coins-hub-invite-panel">
+            <p class="coins-hub-invite-label" data-t="coinsInviteCodeLabel">Your invite code</p>
+            <p id="coinsHubReferralCode" class="coins-hub-invite-code" aria-live="polite">—</p>
+            <p class="coins-hub-invite-note coins-hub-muted" data-t="coinsInviteNote"></p>
+          </div>
+
+          <p class="coins-hub-footer-note coins-hub-muted" data-t="coinsHubFooterNote"></p>
+        </div>
+      </section>
+
       <button
         id="webChatFab"
         class="web-chat-fab"

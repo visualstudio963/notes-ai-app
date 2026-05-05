@@ -3,6 +3,8 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { publicUser } = require("../utils/serializers");
+const { TRIAL_DURATION_MS } = require("../features/coins/coinConstants");
+const { bindReferralCode } = require("../features/coins/coinService");
 
 /** Synthetic email domain for accounts created via username/password only (RFC 2606 .invalid). */
 const LOCAL_ACCOUNT_EMAIL_DOMAIN = "users.notesai.invalid";
@@ -192,7 +194,8 @@ async function upsertGoogleUserFromIdTokenPayload(User, payload, cleanDeviceId) 
       membershipRole: "free",
       isPremium: false,
       premiumExpires: null,
-      needsUsername: true
+      needsUsername: true,
+      trialEndsAt: new Date(Date.now() + TRIAL_DURATION_MS)
     });
   }
 
@@ -355,16 +358,28 @@ function createAuthRouter({
         membershipRole: "free",
         isPremium: false,
         premiumExpires: null,
-        needsUsername: false
+        needsUsername: false,
+        trialEndsAt: new Date(Date.now() + TRIAL_DURATION_MS)
       });
+
+      const referralTry = String((req.body && req.body.referralCode) || "").trim();
+      if (referralTry) {
+        try {
+          await bindReferralCode(User, user._id, referralTry);
+        } catch {
+          /* invalid / duplicate invite — signup still succeeds */
+        }
+      }
 
       delete req.session.pendingGoogleOAuth;
 
-      const { accessToken, refreshToken } = await issueSessionTokens(user._id);
+      const freshUser = await User.findById(user._id);
+      const outUser = freshUser || user;
+      const { accessToken, refreshToken } = await issueSessionTokens(outUser._id);
 
       req.logout((logoutErr) => {
         if (logoutErr) console.error("[auth/complete-google-signup] logout:", logoutErr.message);
-        res.json({ accessToken, refreshToken, user: publicUser(user) });
+        res.json({ accessToken, refreshToken, user: publicUser(outUser) });
       });
     } catch (err) {
       if (err && err.code === 11000) {

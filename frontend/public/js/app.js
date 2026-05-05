@@ -38,9 +38,6 @@ const SCAN_CAM_LOCAL_STORAGE_KEY = "aiNotesScanCamSimulated";
 const SCAN_CAM_ONBOARDING_KEY = "aiNotesScanCamOnboardingDismissed";
 
 /** Free tier (base Chat Bot): total user sends on this device while on Free, persisted in localStorage. */
-const WEB_CHAT_FREE_MESSAGE_LIMIT = 10;
-const WEB_CHAT_FREE_COUNT_KEY = "aiNotesWebChatFreeMsgCount";
-const WEB_CHAT_FREE_USER_KEY = "aiNotesWebChatFreeMsgUser";
 const WEB_CHAT_MODE_KEY = "aiNotesWebChatMode";
 const WEB_CHAT_RECENT_COMMANDS_KEY = "aiNotesWebChatRecentCmds";
 const DAILY_PLANNER_KEY_PREFIX = "aiNotesDailyPlanner";
@@ -1496,6 +1493,11 @@ function hideScanCamPage() {
   if (el) el.classList.add("hidden");
 }
 
+function hideCoinsHubPage() {
+  const el = document.getElementById("coins-hub");
+  if (el) el.classList.add("hidden");
+}
+
 function getStoredAccessToken() {
   return localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
 }
@@ -1560,6 +1562,79 @@ function persistCurrentUserToStorage() {
   }
 }
 
+function captureInviteCodeFromLocation() {
+  try {
+    const u = new URL(window.location.href);
+    let code =
+      u.searchParams.get("invite") || u.searchParams.get("ref") || u.searchParams.get("referralCode") || "";
+    code = String(code).trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (code.length >= 4) {
+      sessionStorage.setItem("aiNotesPendingInvite", code);
+      u.searchParams.delete("invite");
+      u.searchParams.delete("ref");
+      u.searchParams.delete("referralCode");
+      window.history.replaceState({}, document.title, `${u.pathname}${u.search}${u.hash}`);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function mergePremiumStatusIntoCurrentUser(data) {
+  if (!currentUser || !data) return;
+  Object.assign(currentUser, {
+    isPremium: data.isPremium,
+    tier: data.tier,
+    plan: data.plan != null ? data.plan : data.tier || currentUser.plan || "free",
+    membershipRole:
+      data.plan != null ? data.plan : data.tier || currentUser.membershipRole || "free",
+    subscriptionPlan:
+      data.subscriptionPlan != null ? data.subscriptionPlan : currentUser.subscriptionPlan || "free",
+    capabilities: data.capabilities,
+    premiumExpiresAt: data.premiumExpiresAt,
+    openAiWebChat: data.openAiWebChat !== undefined ? data.openAiWebChat : currentUser.openAiWebChat,
+    subscriptionStatus: data.subscriptionStatus || null,
+    cancelAtPeriodEnd: Boolean(data.cancelAtPeriodEnd),
+    currentPeriodEnd: data.currentPeriodEnd || null,
+    lifecycle: data.lifecycle != null ? data.lifecycle : currentUser.lifecycle || "free",
+    trialEndsAt: data.trialEndsAt != null ? data.trialEndsAt : currentUser.trialEndsAt || null,
+    standardCoinExpiresAt:
+      data.standardCoinExpiresAt != null ? data.standardCoinExpiresAt : currentUser.standardCoinExpiresAt || null,
+    coinBalance: data.coinBalance != null ? data.coinBalance : currentUser.coinBalance ?? 0,
+    referralCode:
+      data.referralCode != null && String(data.referralCode).trim()
+        ? String(data.referralCode).trim()
+        : currentUser.referralCode || ""
+  });
+}
+
+async function tryConsumePendingInviteCode() {
+  if (!accessToken || !currentUser) return;
+  let pending = "";
+  try {
+    pending = String(sessionStorage.getItem("aiNotesPendingInvite") || "")
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+  } catch {
+    return;
+  }
+  if (pending.length < 4) return;
+  try {
+    sessionStorage.removeItem("aiNotesPendingInvite");
+    await apiFetch("/api/coins/invite/bind", {
+      method: "POST",
+      body: JSON.stringify({ referralCode: pending })
+    });
+    const data = await apiFetch("/api/premium/status");
+    mergePremiumStatusIntoCurrentUser(data);
+    persistCurrentUserToStorage();
+    updatePremiumUi();
+  } catch {
+    /* ignore — invalid invite or offline */
+  }
+}
+
 /**
  * Refreshes subscription fields from the server. Callers that gate paid features
  * should treat `false` as "cannot confirm access" and deny (avoids stale localStorage tiers).
@@ -1569,87 +1644,73 @@ async function mergePremiumFromServer() {
   if (!currentUser || !accessToken) return false;
   try {
     const data = await apiFetch("/api/premium/status");
-    Object.assign(currentUser, {
-      isPremium: data.isPremium,
-      tier: data.tier,
-      plan: data.plan != null ? data.plan : data.tier || currentUser.plan || "free",
-      membershipRole:
-        data.plan != null ? data.plan : data.tier || currentUser.membershipRole || "free",
-      subscriptionPlan:
-        data.subscriptionPlan != null ? data.subscriptionPlan : currentUser.subscriptionPlan || "free",
-      capabilities: data.capabilities,
-      premiumExpiresAt: data.premiumExpiresAt,
-      openAiWebChat: data.openAiWebChat !== undefined ? data.openAiWebChat : currentUser.openAiWebChat,
-      subscriptionStatus: data.subscriptionStatus || null,
-      cancelAtPeriodEnd: Boolean(data.cancelAtPeriodEnd),
-      currentPeriodEnd: data.currentPeriodEnd || null
-    });
+    mergePremiumStatusIntoCurrentUser(data);
     persistCurrentUserToStorage();
     updatePremiumUi();
+    await tryConsumePendingInviteCode();
+    maybeShowTrialGiftWelcome();
     return true;
   } catch {
     return false;
   }
 }
 
-/** Sidebar: Web Chat stays open for everyone; lock icon only after free-plan message quota is used up. */
+const TRIAL_GIFT_DISMISS_STORAGE = "aiNotesTrialGiftDismissed";
+
+function trialGiftDismissStorageKey() {
+  const id = currentUser && currentUser.id != null ? String(currentUser.id) : "";
+  return id ? `${TRIAL_GIFT_DISMISS_STORAGE}_${id}` : TRIAL_GIFT_DISMISS_STORAGE;
+}
+
+function maybeShowTrialGiftWelcome() {
+  if (!currentUser || !accessToken) return;
+  const life = currentUser.lifecycle;
+  if (life !== "trial") return;
+  try {
+    if (typeof localStorage !== "undefined" && localStorage.getItem(trialGiftDismissStorageKey()) === "1") {
+      return;
+    }
+  } catch {
+    /* ignore */
+  }
+  const el = document.getElementById("trialGiftModal");
+  if (!el) return;
+  el.classList.remove("hidden");
+  document.body.classList.add("trial-gift-modal-open");
+  if (typeof applyTranslations === "function") applyTranslations();
+}
+
+function dismissTrialGiftModal() {
+  const el = document.getElementById("trialGiftModal");
+  if (el) el.classList.add("hidden");
+  document.body.classList.remove("trial-gift-modal-open");
+  try {
+    localStorage.setItem(trialGiftDismissStorageKey(), "1");
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Optional sidebar Web Chat control (if present): lock when the user has no Standard-tier access. */
 function syncPremiumGatedNav() {
   const webChatBtn = document.getElementById("menuWebChat");
   if (!webChatBtn) return;
   webChatBtn.disabled = false;
   const paid = Boolean(currentUser) && typeof userHasWebChatAccess === "function" && userHasWebChatAccess(currentUser);
-  const exceeded =
-    Boolean(currentUser) &&
-    !paid &&
-    typeof webChatIsFreeQuotaExceeded === "function" &&
-    webChatIsFreeQuotaExceeded();
-  webChatBtn.classList.toggle("menu-item--locked", exceeded);
+  webChatBtn.classList.toggle("menu-item--locked", Boolean(currentUser) && !paid);
   if (paid) {
     webChatBtn.removeAttribute("title");
     webChatBtn.removeAttribute("aria-label");
-  } else if (exceeded) {
+  } else if (currentUser) {
     const tip = typeof t === "function" ? t("webChatRequiresStandard") : "Web Chat needs Standard or Premium.";
     webChatBtn.title = tip;
     const labelEl = webChatBtn.querySelector(".menu-label");
     const labelText = (labelEl && labelEl.textContent) || "Web Chat";
     webChatBtn.setAttribute("aria-label", `${labelText}. ${tip}`);
   } else {
-    const tip = typeof t === "function" ? t("webChatMenuLimitedTip") : "Limited free messages; Standard for unlimited.";
-    webChatBtn.title = tip;
+    webChatBtn.removeAttribute("title");
     webChatBtn.removeAttribute("aria-label");
   }
-}
-
-function webChatGetFreeMessageCount() {
-  try {
-    const uid = currentUser && currentUser.id != null ? String(currentUser.id) : "";
-    if (!uid) return 0;
-    const storedUser = localStorage.getItem(WEB_CHAT_FREE_USER_KEY);
-    if (storedUser !== uid) {
-      localStorage.setItem(WEB_CHAT_FREE_USER_KEY, uid);
-      localStorage.setItem(WEB_CHAT_FREE_COUNT_KEY, "0");
-      return 0;
-    }
-    return parseInt(localStorage.getItem(WEB_CHAT_FREE_COUNT_KEY) || "0", 10) || 0;
-  } catch {
-    return 0;
-  }
-}
-
-function webChatIncrementFreeMessageCount() {
-  if (typeof userHasWebChatAccess === "function" && userHasWebChatAccess(currentUser)) return;
-  const n = webChatGetFreeMessageCount() + 1;
-  try {
-    localStorage.setItem(WEB_CHAT_FREE_COUNT_KEY, String(n));
-  } catch {
-    /* ignore */
-  }
-}
-
-function webChatIsFreeQuotaExceeded() {
-  if (!currentUser) return true;
-  if (typeof userHasWebChatAccess === "function" && userHasWebChatAccess(currentUser)) return false;
-  return webChatGetFreeMessageCount() >= WEB_CHAT_FREE_MESSAGE_LIMIT;
 }
 
 function getWebChatMode() {
@@ -1697,7 +1758,7 @@ function syncWebChatOpenAiUsageUi() {
   }
   wrap.classList.remove("hidden");
   const u = currentUser && currentUser.openAiWebChat;
-  const limit = u && Number(u.monthlyLimit) > 0 ? Number(u.monthlyLimit) : 120;
+  const limit = u && Number(u.monthlyLimit) > 0 ? Number(u.monthlyLimit) : 130;
   const used = u && u.used != null ? Number(u.used) : 0;
   const remaining = u && u.remaining != null ? Number(u.remaining) : Math.max(0, limit - used);
   const pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
@@ -1962,28 +2023,18 @@ function syncWebChatSoftPaywallUi() {
   syncWebChatModelSelectorUi();
   if (!hint) return;
   const paid = Boolean(currentUser) && typeof userHasWebChatAccess === "function" && userHasWebChatAccess(currentUser);
+  if (quotaEl) quotaEl.classList.add("hidden");
   if (paid || !currentUser) {
     hint.classList.add("hidden");
-    if (quotaEl) quotaEl.classList.add("hidden");
     if (input) input.disabled = false;
     if (sendBtn) sendBtn.disabled = false;
     if (quick) quick.classList.remove("web-chat-quick-actions--disabled");
     return;
   }
-  const exceeded = webChatIsFreeQuotaExceeded();
-  hint.classList.toggle("hidden", !exceeded);
-  if (quotaEl) {
-    if (exceeded) {
-      quotaEl.classList.add("hidden");
-    } else {
-      quotaEl.classList.remove("hidden");
-      const left = Math.max(0, WEB_CHAT_FREE_MESSAGE_LIMIT - webChatGetFreeMessageCount());
-      quotaEl.textContent = t("webChatFreeQuotaRemaining").replace("{n}", String(left));
-    }
-  }
-  if (input) input.disabled = exceeded;
-  if (sendBtn) sendBtn.disabled = exceeded;
-  if (quick) quick.classList.toggle("web-chat-quick-actions--disabled", exceeded);
+  hint.classList.remove("hidden");
+  if (input) input.disabled = true;
+  if (sendBtn) sendBtn.disabled = true;
+  if (quick) quick.classList.add("web-chat-quick-actions--disabled");
 }
 
 function updatePremiumUi() {
@@ -2397,9 +2448,6 @@ function switchAuthTab(mode) {
     errS.classList.add("hidden");
     errS.textContent = "";
   }
-  if (isLogin) {
-    window.setTimeout(() => document.getElementById("authLoginUsername")?.focus(), 0);
-  }
 }
 
 function authPostLoginShellSuccess(data) {
@@ -2564,10 +2612,6 @@ function openAccountModal() {
   syncAuthShellVisibility();
   syncAuthGoogleLinkHref();
   switchAuthTab("login");
-  const u = document.getElementById("authLoginUsername");
-  if (u) {
-    window.setTimeout(() => u.focus(), 0);
-  }
 }
 
 function closeAccountModal() {
@@ -2599,6 +2643,7 @@ function goHome() {
   document.getElementById("reminder-history").classList.add("hidden");
   document.getElementById("settings").classList.add("hidden");
   hideScanCamPage();
+  hideCoinsHubPage();
   setBodyHomePage(true);
   void loadHomeEmbedRemindersList();
   void updateHomeDashboardStats();
@@ -2622,6 +2667,7 @@ function openMyNotes() {
   document.getElementById("reminder-history").classList.add("hidden");
   document.getElementById("settings").classList.add("hidden");
   hideScanCamPage();
+  hideCoinsHubPage();
   loadMyNotes();
 }
 
@@ -2637,6 +2683,7 @@ function openCategory(cat) {
   document.getElementById("reminder-history").classList.add("hidden");
   document.getElementById("settings").classList.add("hidden");
   hideScanCamPage();
+  hideCoinsHubPage();
   document.getElementById("catTitle").innerText = categories[cat] || cat;
   const scanBanner = document.getElementById("scanCamCategoryBanner");
   if (scanBanner) scanBanner.classList.toggle("hidden", cat !== "scan_cam" || !currentUser);
@@ -2669,8 +2716,161 @@ function openBot() {
   document.getElementById("reminder-history").classList.add("hidden");
   document.getElementById("settings").classList.add("hidden");
   hideScanCamPage();
+  hideCoinsHubPage();
   updatePremiumUi();
   premiumLiteInitPricingUi();
+}
+
+async function openCoinsRewards() {
+  if (!requireAuth("use rewards")) return;
+  setBodyHomePage(false);
+  activateMenu("menuCoinsRewards");
+  document.getElementById("home").classList.add("hidden");
+  document.getElementById("category").classList.add("hidden");
+  document.getElementById("notes-all").classList.add("hidden");
+  document.getElementById("bot").classList.add("hidden");
+  closeWebChatDrawer();
+  document.getElementById("reminder-history").classList.add("hidden");
+  document.getElementById("settings").classList.add("hidden");
+  hideScanCamPage();
+  const hub = document.getElementById("coins-hub");
+  if (hub) hub.classList.remove("hidden");
+  applyTranslations();
+  await refreshCoinsHubUi();
+}
+
+async function refreshCoinsHubUi() {
+  const ok = await mergePremiumFromServer();
+  if (!ok) {
+    showToast(typeof t === "function" ? t("coinsHubUpdateFailed") : "Could not refresh your plan.");
+    return;
+  }
+  let coins = null;
+  try {
+    coins = await apiFetch("/api/coins/status");
+  } catch {
+    coins = null;
+  }
+
+  const balEl = document.getElementById("coinsHubBalanceValue");
+  const progFill = document.getElementById("coinsHubProgressFill");
+  const progLabel = document.getElementById("coinsHubProgressLabel");
+  const trialBan = document.getElementById("coinsHubTrialBanner");
+  const trialText = document.getElementById("coinsHubTrialText");
+  const btnDaily = document.getElementById("coinsHubDailyBtn");
+  const btnVideo = document.getElementById("coinsHubVideoBtn");
+  const btnRedeem = document.getElementById("coinsHubRedeemBtn");
+  const codeEl = document.getElementById("coinsHubReferralCode");
+  const multEl = document.getElementById("coinsHubEarnMult");
+
+  if (!coins || coins.cap == null) return;
+
+  if (balEl) balEl.textContent = String(coins.balance ?? 0);
+  const cost = coins.standardCoinCost || 600;
+  const pct = cost ? Math.min(100, ((Number(coins.balance) || 0) / cost) * 100) : 0;
+  if (progFill) progFill.style.width = `${pct}%`;
+  if (progLabel && typeof t === "function") {
+    const b = Number(coins.balance) || 0;
+    progLabel.textContent = t("coinsProgressToStandardShort")
+      .replace("{b}", String(b))
+      .replace("{cost}", String(cost));
+  }
+
+  if (trialBan && trialText) {
+    if (coins.lifecycle === "trial") {
+      const left = coins.trialDaysRemaining != null ? String(coins.trialDaysRemaining) : "—";
+      trialBan.classList.remove("hidden");
+      trialText.textContent = typeof t === "function" ? t("coinsTrialHint").replace("{d}", left) : "";
+    } else {
+      trialBan.classList.add("hidden");
+      trialText.textContent = "";
+    }
+  }
+
+  if (btnDaily) {
+    btnDaily.disabled = Boolean(coins.dailyLogin && coins.dailyLogin.claimedToday);
+  }
+  if (btnVideo) {
+    btnVideo.disabled = Boolean(
+      coins.videoRewards && coins.videoRewards.countToday >= coins.videoRewards.maxToday
+    );
+  }
+  if (btnRedeem) {
+    btnRedeem.disabled = coins.lifecycle === "premium" || Number(coins.balance) < cost;
+  }
+
+  if (codeEl) {
+    codeEl.textContent =
+      coins.referralCode && String(coins.referralCode).trim()
+        ? String(coins.referralCode).trim()
+        : "—";
+  }
+  if (multEl && typeof t === "function") {
+    const nm = coins.earnMultiplierPreview != null ? Number(coins.earnMultiplierPreview) : 1;
+    multEl.textContent = nm < 0.995 ? t("coinsEarnReducedNotice") : "";
+    multEl.classList.toggle("hidden", nm >= 0.995);
+  }
+}
+
+async function coinsHubClaimDaily() {
+  if (!requireAuth("collect rewards")) return;
+  try {
+    await apiFetch("/api/coins/daily-login", { method: "POST", body: JSON.stringify({}) });
+  } catch (e) {
+    showToast(e && e.message ? e.message : t("coinsActionFailed"));
+    return;
+  }
+  await refreshCoinsHubUi();
+}
+
+async function coinsHubWatchVideoAd() {
+  if (!requireAuth("watch rewarded ads")) return;
+  try {
+    await apiFetch("/api/coins/rewarded-ad", { method: "POST", body: JSON.stringify({}) });
+  } catch (e) {
+    showToast(e && e.message ? e.message : t("coinsActionFailed"));
+    return;
+  }
+  await refreshCoinsHubUi();
+}
+
+async function coinsHubRedeemStandard() {
+  if (!requireAuth("redeem rewards")) return;
+  const msg = typeof t === "function" ? t("coinsRedeemConfirm") : "Spend 600 coins for 30 days of Standard access?";
+  const okConfirm = typeof window !== "undefined" && window.confirm && window.confirm(msg);
+  if (!okConfirm) return;
+  try {
+    await apiFetch("/api/coins/redeem-standard", { method: "POST", body: JSON.stringify({}) });
+    showToast(typeof t === "function" ? t("coinsRedeemSuccess") : "Standard unlocked with coins.");
+  } catch (e) {
+    showToast(e && e.message ? e.message : typeof t === "function" ? t("coinsActionFailed") : "Action failed.");
+    return;
+  }
+  await refreshCoinsHubUi();
+}
+
+function coinsHubCopyInvite() {
+  const raw = document.getElementById("coinsHubReferralCode");
+  const code =
+    raw &&
+    typeof raw.textContent === "string" &&
+    raw.textContent.trim().length > 2 &&
+    raw.textContent.trim() !== "—"
+      ? raw.textContent.trim().toUpperCase()
+      : (currentUser && currentUser.referralCode ? String(currentUser.referralCode).trim().toUpperCase() : "");
+  if (!code) {
+    showToast(typeof t === "function" ? t("coinsInviteNoCode") : "Invite code unavailable.");
+    return;
+  }
+  const link = `${window.location.origin}${window.location.pathname}?invite=${encodeURIComponent(code)}`;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard
+      .writeText(link)
+      .then(() => showToast(typeof t === "function" ? t("coinsInviteCopied") : "Link copied"))
+      .catch(() => window.prompt("", link));
+    return;
+  }
+  window.prompt("", link);
 }
 
 function premiumLiteInitPricingUi() {
@@ -2715,6 +2915,10 @@ function premiumLiteBillingToggle(mode) {
   const saveLine = document.getElementById("premiumLiteSaveLine");
   const social = document.getElementById("premiumLiteSocialProof");
   const root = document.getElementById("premiumPlansSection");
+  if (saveLine) {
+    saveLine.setAttribute("data-t", "premiumLitePremSubtitle");
+    saveLine.textContent = t("premiumLitePremSubtitle");
+  }
   if (root) root.classList.toggle("pricing-lite-plans--yearly", m === "yearly");
   if (m === "yearly") {
     if (stdMain) stdMain.textContent = "€29";
@@ -2741,13 +2945,9 @@ function premiumLiteBillingToggle(mode) {
       sticky.setAttribute("data-t", "premiumLiteCtaPremiumYearly");
       sticky.textContent = t("premiumLiteCtaPremiumYearly");
     }
-    if (saveLine) {
-      saveLine.setAttribute("data-t", "premiumLiteSaveLineYearly");
-      saveLine.textContent = t("premiumLiteSaveLineYearly");
-    }
     if (social) {
-      social.setAttribute("data-t", "premiumLiteYearlySaveNotice");
-      social.textContent = t("premiumLiteYearlySaveNotice");
+      social.setAttribute("data-t", "premiumLitePremiumYearlyFootnote");
+      social.textContent = t("premiumLitePremiumYearlyFootnote");
     }
   } else {
     if (stdMain) stdMain.textContent = "€2.99";
@@ -2768,13 +2968,9 @@ function premiumLiteBillingToggle(mode) {
       sticky.setAttribute("data-t", "premiumLiteCtaPremium2");
       sticky.textContent = t("premiumLiteCtaPremium2");
     }
-    if (saveLine) {
-      saveLine.setAttribute("data-t", "premiumLiteSaveLine");
-      saveLine.textContent = t("premiumLiteSaveLine");
-    }
     if (social) {
-      social.setAttribute("data-t", "premiumLiteSocialProof");
-      social.textContent = t("premiumLiteSocialProof");
+      social.setAttribute("data-t", "premiumLiteSocialProofSoft");
+      social.textContent = t("premiumLiteSocialProofSoft");
     }
   }
 }
@@ -3227,6 +3423,7 @@ function openScanCamPage() {
     closeWebChatDrawer();
     document.getElementById("reminder-history").classList.add("hidden");
     document.getElementById("settings").classList.add("hidden");
+    hideCoinsHubPage();
     const scan = document.getElementById("scan-cam");
     if (scan) scan.classList.remove("hidden");
     applyTranslations();
@@ -4536,12 +4733,10 @@ async function sendWebChatMessage() {
   const sendBtn = document.querySelector(".web-chat-send");
   if (!input) return;
   if (currentUser && typeof userHasWebChatAccess === "function" && !userHasWebChatAccess(currentUser)) {
-    if (webChatIsFreeQuotaExceeded()) {
-      showToast(t("webChatRequiresStandard"));
-      syncWebChatSoftPaywallUi();
-      syncPremiumGatedNav();
-      return;
-    }
+    showToast(t("webChatRequiresStandard"));
+    syncWebChatSoftPaywallUi();
+    syncPremiumGatedNav();
+    return;
   }
   const text = input.value.trim();
   if (!text) return;
@@ -4621,11 +4816,6 @@ async function sendWebChatMessage() {
       syncWebChatModePresentation(mode, false);
     }
     webChatPushRecentCommand(text);
-    if (currentUser && typeof userHasWebChatAccess === "function" && !userHasWebChatAccess(currentUser)) {
-      webChatIncrementFreeMessageCount();
-      syncWebChatSoftPaywallUi();
-      syncPremiumGatedNav();
-    }
   } catch (e) {
     removeWebChatTyping();
     const errText = e && e.message ? String(e.message) : t("webChatPlanVerifyFailed");
@@ -4654,6 +4844,7 @@ function openReminderHistory() {
   document.getElementById("reminder-history").classList.remove("hidden");
   document.getElementById("settings").classList.add("hidden");
   hideScanCamPage();
+  hideCoinsHubPage();
   resetHistoryPageUi();
   void renderReminderHistory();
 }
@@ -4669,6 +4860,7 @@ async function openSettings() {
   document.getElementById("reminder-history").classList.add("hidden");
   document.getElementById("settings").classList.remove("hidden");
   hideScanCamPage();
+  hideCoinsHubPage();
   await mergePremiumFromServer();
   displayAccountInfo();
   updateLanguageSelector();
@@ -6829,6 +7021,7 @@ function updateThemeSelector() {
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
+  captureInviteCodeFromLocation();
   if (window.NoteRichEditor && typeof window.NoteRichEditor.initNoteRichEditorBridge === "function") {
     window.NoteRichEditor.initNoteRichEditorBridge();
   }

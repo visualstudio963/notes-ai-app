@@ -85,7 +85,7 @@ function createPremiumRouter({
   router.get("/premium/status", authMiddleware, async (req, res) => {
     try {
       const user = await User.findById(req.userId).select(
-        "isPremium premiumExpires premiumStartedAt createdAt billingCycle billingCustomerId stripeSubscriptionId plan subscriptionPlan membershipRole webChatOpenAiPeriod webChatOpenAiUsed"
+        "isPremium premiumExpires premiumStartedAt createdAt billingCycle billingCustomerId stripeSubscriptionId plan subscriptionPlan membershipRole webChatOpenAiPeriod webChatOpenAiUsed coins trialEndsAt standardCoinExpiresAt referralCode"
       );
       if (!user) {
         return res.status(404).json({ error: "User not found" });

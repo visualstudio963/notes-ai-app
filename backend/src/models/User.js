@@ -53,7 +53,23 @@ const userSchema = new mongoose.Schema(
      * True for new Google sign-ups until the user picks a public username in Settings
      * (a provisional unique username is still stored for schema/legacy reasons).
      */
-    needsUsername: { type: Boolean, default: false }
+    needsUsername: { type: Boolean, default: false },
+    /** Trial: new accounts get STANDARD-level features until this UTC time */
+    trialEndsAt: { type: Date, default: null },
+    /** STANDARD unlocked with coins until this UTC time */
+    standardCoinExpiresAt: { type: Date, default: null },
+    /** Gamification balance (hard cap enforced in app logic) */
+    coins: { type: Number, default: 0 },
+    dailyLoginUtcDate: { type: String, default: "" },
+    /** Next streak reward day in the 7-day cycle (1–7) */
+    loginStreakNextIndex: { type: Number, default: 1, min: 1, max: 7 },
+    videoRewardUtcDate: { type: String, default: "" },
+    videoRewardCount: { type: Number, default: 0 },
+    referralCode: { type: String, default: "", trim: true },
+    referredByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    inviteBonusCreditedAt: { type: Date, default: null },
+    inviteFriendMonthYm: { type: String, default: "" },
+    inviteFriendMonthCount: { type: Number, default: 0 }
   },
   { timestamps: true }
 );
@@ -88,6 +104,14 @@ userSchema.index(
   {
     unique: true,
     partialFilterExpression: { googleId: { $exists: true, $type: "string", $gt: "" } }
+  }
+);
+
+userSchema.index(
+  { referralCode: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { referralCode: { $exists: true, $type: "string", $gt: "" } }
   }
 );
 

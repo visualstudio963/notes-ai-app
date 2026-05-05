@@ -1,0 +1,602 @@
+/* Coins Rewards — structured grid layout (.coins-page on #coins-hub) */
+.page.coins-dash-page.coins-page {
+  padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0));
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  min-height: 100vh;
+  color: #f8fafc;
+  box-sizing: border-box;
+}
+
+.coins-page-shell {
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.coins-page-shell .card {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 20px;
+  margin: 0;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(148, 163, 184, 0.08);
+  box-sizing: border-box;
+}
+
+.coins-rewards-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px 16px;
+}
+
+.coins-rewards-back {
+  margin: 0;
+}
+
+.coins-rewards-eyebrow {
+  margin: 0 0 2px;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  font-weight: 700;
+}
+
+.coins-rewards-page-title {
+  margin: 0;
+  font-size: clamp(1.25rem, 4.2vw, 1.55rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.coins-rewards-balance-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(250, 204, 21, 0.2);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  font-size: 0.92rem;
+}
+
+.coins-rewards-balance-chip__icon {
+  font-size: 1rem;
+  margin-right: 2px;
+}
+
+.coins-rewards-balance-chip__num {
+  color: #fde047;
+}
+
+.coins-rewards-balance-chip__sep {
+  opacity: 0.45;
+  font-weight: 600;
+}
+
+.coins-rewards-balance-chip__cap {
+  color: #cbd5e1;
+  font-weight: 750;
+}
+
+.coins-rewards-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(30, 27, 8, 0.45);
+}
+
+.coins-rewards-banner--trial.hidden {
+  display: none !important;
+}
+
+.coins-rewards-banner__icon {
+  flex-shrink: 0;
+  font-size: 1.25rem;
+}
+
+.coins-rewards-banner__text {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: #fef3c7;
+}
+
+.coins-rewards-chip {
+  font-size: 0.82rem;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(2, 6, 23, 0.35);
+}
+
+.coins-rewards-chip--muted.hidden {
+  display: none !important;
+}
+
+.coins-rewards-muted {
+  color: #94a3b8;
+}
+
+.coins-rewards-section-title-row {
+  margin-bottom: 16px;
+}
+
+.coins-rewards-section-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.coins-rewards-subtitle {
+  margin: 0 0 8px;
+  font-size: 0.92rem;
+  font-weight: 750;
+}
+
+.coins-rewards-streak-msg {
+  margin: 0 0 10px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #cbd5e1;
+}
+
+.coins-rewards-streak-accent {
+  color: #22c55e;
+  font-weight: 800;
+}
+
+.coins-rewards-mini-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.coins-rewards-mini-track-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #22c55e, #06b6d4);
+  transition: width 0.35s ease;
+}
+
+.coins-rewards-earn-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 152px);
+  gap: 20px;
+  align-items: stretch;
+}
+
+@media (max-width: 520px) {
+  .coins-rewards-earn-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.coins-rewards-daily-col {
+  min-width: 0;
+}
+
+.daily-grid.coins-rewards-daily-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.coins-rewards-day-box {
+  padding: 10px 4px;
+  border-radius: 10px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid transparent;
+  color: inherit;
+  font: inherit;
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+}
+
+.coins-rewards-day-box.day-box.active {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+  border-color: rgba(187, 247, 208, 0.35);
+  cursor: pointer;
+}
+
+.coins-rewards-day-box.day-box.completed {
+  background: rgba(34, 197, 94, 0.3);
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.coins-rewards-day-box.day-box.locked {
+  opacity: 0.45;
+}
+
+.coins-rewards-day-box--finale {
+  border-color: rgba(250, 204, 21, 0.25);
+}
+
+.coins-rewards-day-idx {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: inherit;
+}
+
+.coins-rewards-day-box.locked .coins-rewards-day-idx {
+  color: #94a3b8;
+}
+
+.coins-rewards-day-reward {
+  font-size: 0.7rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.coins-rewards-day-tag {
+  font-size: 0.58rem;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.coins-rewards-day-box--pop {
+  animation: coins-rewards-day-pop 0.65s ease;
+}
+
+@keyframes coins-rewards-day-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.04);
+    box-shadow: 0 0 24px rgba(34, 197, 94, 0.55);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.coins-rewards-video-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.watch-video.coins-rewards-watch-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 22px 14px;
+  min-height: 200px;
+  border-radius: 16px;
+  font-family: inherit;
+  cursor: pointer;
+  color: #f0fdf4;
+  background: linear-gradient(135deg, #06b6d4, #3b82f6);
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.35),
+    0 0 20px rgba(34, 197, 94, 0.25);
+  transition: transform 0.18s ease, filter 0.18s ease, opacity 0.18s ease;
+}
+
+.coins-rewards-watch-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.06);
+}
+
+.coins-rewards-watch-btn--disabled,
+.coins-rewards-watch-btn:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+  transform: none;
+  filter: grayscale(0.15);
+}
+
+.coins-rewards-watch-btn__play {
+  font-size: 2rem;
+  line-height: 1;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+}
+
+.coins-rewards-watch-btn__title {
+  font-size: 1.02rem;
+  font-weight: 850;
+}
+
+.coins-rewards-watch-btn__reward {
+  font-size: 0.88rem;
+  font-weight: 750;
+  opacity: 0.95;
+}
+
+.coins-rewards-watch-btn__limit {
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.25);
+}
+
+.coins-rewards-video-foot {
+  margin: 0;
+  font-size: 0.78rem;
+  text-align: center;
+  color: #fbbf24;
+}
+
+.coins-rewards-video-wrap--burst {
+  animation: coins-rewards-watch-burst 0.58s ease;
+}
+
+@keyframes coins-rewards-watch-burst {
+  0% {
+    filter: brightness(1);
+  }
+  35% {
+    filter: brightness(1.12);
+    box-shadow: 0 0 32px rgba(34, 197, 94, 0.35);
+  }
+  100% {
+    filter: brightness(1);
+  }
+}
+
+.coins-rewards-progress-block {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.coins-rewards-micro-eyebrow {
+  margin: 8px 0 0;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #a5b4fc;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.coins-rewards-micro-bar__track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.coins-rewards-micro-bar__track--glow {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.coins-rewards-micro-bar__fill {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  transition: width 0.35s ease;
+}
+
+.coins-rewards-micro-bar__fill--wallet {
+  background: linear-gradient(90deg, #22c55e, #06b6d4);
+}
+
+.coins-rewards-micro-bar__fill--goal {
+  background: linear-gradient(90deg, #22c55e, #eab308);
+}
+
+.coins-rewards-micro-bar__label {
+  margin: 6px 0 0;
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  line-height: 1.35;
+}
+
+.page.coins-dash-page.coins-page .btn {
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 0.88rem;
+  color: white;
+  background: linear-gradient(135deg, #22c55e, #06b6d4);
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.35);
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.page.coins-dash-page.coins-page .btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+.page.coins-dash-page.coins-page .btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.coins-rewards-redeem-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.coins-rewards-invite-lead {
+  margin: 0 0 12px;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.coins-rewards-invite-input.invite-box {
+  width: 100%;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  border: none;
+  background: rgba(2, 6, 23, 0.45);
+  color: #e2e8f0;
+  font-size: 0.82rem;
+  box-sizing: border-box;
+}
+
+.coins-rewards-invite-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.coins-rewards-btn-share.coins-rewards-btn--alt {
+  background: linear-gradient(135deg, #0891b2, #2563eb);
+  box-shadow: 0 0 18px rgba(6, 182, 212, 0.35);
+}
+
+.coins-rewards-invite-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.coins-rewards-stat-cell {
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.coins-rewards-stat-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+
+.coins-rewards-stat-val {
+  font-size: 1.25rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #fde047;
+}
+
+.coins-rewards-invite-code {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.coins-rewards-details summary {
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.coins-rewards-details-summary {
+  list-style: none;
+}
+
+.coins-rewards-details-summary::-webkit-details-marker {
+  display: none;
+}
+
+.coins-rewards-details-body {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.coins-rewards-info-short {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #cbd5e1;
+}
+
+@media (max-width: 420px) {
+  .coins-rewards-day-reward {
+    font-size: 0.62rem;
+  }
+
+  .coins-rewards-day-idx {
+    font-size: 0.58rem;
+  }
+}
+
+.coins-rewards-pulse-target.coins-rewards-pulse {
+  animation: coins-rewards-section-pulse 0.74s ease;
+}
+
+@keyframes coins-rewards-section-pulse {
+  0% {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  }
+  45% {
+    box-shadow: 0 12px 40px rgba(34, 197, 94, 0.22);
+    border-color: rgba(74, 222, 128, 0.25);
+  }
+  100% {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  }
+}
+
+.theme-normal body .page.coins-dash-page.coins-page {
+  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+  color: #0f172a;
+}
+
+.theme-normal body .coins-page-shell .card {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(148, 163, 184, 0.2);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+.theme-normal body .coins-rewards-balance-chip {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(251, 191, 36, 0.4);
+}
+
+.theme-normal body .coins-rewards-invite-input.invite-box {
+  background: #f8fafc;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+}
+
+.theme-normal body .coins-rewards-streak-msg,
+.theme-normal body .coins-rewards-muted,
+.theme-normal body .coins-rewards-micro-bar__label,
+.theme-normal body .coins-rewards-invite-lead {
+  color: #64748b;
+}
+
+.theme-normal body .coins-rewards-day-box.day-box.completed {
+  background: rgba(34, 197, 94, 0.2);
+}

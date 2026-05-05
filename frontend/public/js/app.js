@@ -2824,7 +2824,7 @@ function coinsHubApplyStreakUi(coins) {
       const parts = tpl.split("{n}");
       const safe = (s) => escapeHtml(s || "");
       progressEl.innerHTML =
-        `${safe(parts[0])}<span class="coins-daily-checkin-head__accent">${escapeHtml(nStr)}</span>${safe(parts.slice(1).join("{n}"))}`;
+        `${safe(parts[0])}<span class="coins-rewards-streak-accent">${escapeHtml(nStr)}</span>${safe(parts.slice(1).join("{n}"))}`;
     } else if (claimedToday) {
       progressEl.textContent = t("coinsHubStreakDoneShort");
     } else {
@@ -2852,14 +2852,14 @@ function coinsHubApplyStreakUi(coins) {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className =
-        `daily-checkin-slot daily-checkin-slot--claim${d === 7 ? " daily-checkin-slot--finale" : ""}`.trim();
+        `coins-rewards-day-box day-box active coins-rewards-day-box--claim${d === 7 ? " coins-rewards-day-box--finale" : ""}`.trim();
       btn.setAttribute("data-day", String(d));
       btn.setAttribute("role", "listitem");
       btn.setAttribute("aria-label", `${todayTag}: +${amt}`);
       btn.innerHTML =
-        `<span class="daily-checkin-slot__coin-ring" aria-hidden="true"><span class="daily-checkin-slot__coin">🪙</span></span>` +
-        `<span class="daily-checkin-slot__amt">+${amt}</span>` +
-        `<span class="daily-checkin-slot__meta">${escapeHtml(todayTag)}</span>`;
+        `<span class="coins-rewards-day-idx">${d}/7</span>` +
+        `<span class="coins-rewards-day-reward">${escapeHtml(`+${amt}`)} 🪙</span>` +
+        `<span class="coins-rewards-day-tag">${escapeHtml(todayTag)}</span>`;
       btn.onclick = () => void coinsHubClaimDaily();
       grid.appendChild(btn);
       continue;
@@ -2867,9 +2867,7 @@ function coinsHubApplyStreakUi(coins) {
 
     const box = document.createElement("div");
     box.className =
-      `daily-checkin-slot${done ? " daily-checkin-slot--done" : " daily-checkin-slot--locked"}${
-        d === 7 ? " daily-checkin-slot--finale" : ""
-      }`.trim();
+      `coins-rewards-day-box day-box${done ? " completed" : " locked"}${d === 7 ? " coins-rewards-day-box--finale" : ""}`.trim();
     box.setAttribute("data-day", String(d));
     box.setAttribute("role", "listitem");
     box.setAttribute(
@@ -2878,12 +2876,12 @@ function coinsHubApplyStreakUi(coins) {
     );
 
     const coinMarkup = done
-      ? `<span class="daily-checkin-slot__coin-ring" aria-hidden="true"><span class="daily-checkin-slot__coin">🪙</span><span class="daily-checkin-slot__tick">✓</span></span>` +
-        `<span class="daily-checkin-slot__amt daily-checkin-slot__amt--muted">+${amt}</span>` +
-        `<span class="daily-checkin-slot__meta daily-checkin-slot__meta--done">${escapeHtml(dayOnly(d))}</span>`
-      : `<span class="daily-checkin-slot__coin-ring" aria-hidden="true"><span class="daily-checkin-slot__coin daily-checkin-slot__coin--muted">🪙</span></span>` +
-        `<span class="daily-checkin-slot__amt daily-checkin-slot__amt--locked">+${amt}</span>` +
-        `<span class="daily-checkin-slot__meta daily-checkin-slot__meta--locked">${escapeHtml(dayOnly(d))}</span>`;
+      ? `<span class="coins-rewards-day-idx">${d}/7</span>` +
+        `<span class="coins-rewards-day-reward coins-rewards-day-reward--done">+${amt} 🪙</span>` +
+        `<span class="coins-rewards-day-tag coins-rewards-day-tag--done">✓ ${escapeHtml(dayOnly(d))}</span>`
+      : `<span class="coins-rewards-day-idx">${d}/7</span>` +
+        `<span class="coins-rewards-day-reward coins-rewards-day-reward--locked">+${amt}</span>` +
+        `<span class="coins-rewards-day-tag coins-rewards-day-tag--muted" aria-hidden="true">🪙</span>`;
 
     box.innerHTML = coinMarkup;
     grid.appendChild(box);
@@ -2893,22 +2891,22 @@ function coinsHubApplyStreakUi(coins) {
 function coinsHubAnimateClaimedDay(dayNum) {
   const d = Number(dayNum);
   if (!Number.isFinite(d) || d < 1 || d > 7) return;
-  const el = document.querySelector(`#coinsHubStreakGrid .daily-checkin-slot[data-day="${d}"]`);
+  const el = document.querySelector(`#coinsHubStreakGrid .coins-rewards-day-box[data-day="${d}"]`);
   if (!el) return;
-  el.classList.remove("daily-checkin-slot--pop");
+  el.classList.remove("coins-rewards-day-box--pop");
   void el.offsetWidth;
-  el.classList.add("daily-checkin-slot--pop");
-  window.setTimeout(() => el.classList.remove("daily-checkin-slot--pop"), 720);
+  el.classList.add("coins-rewards-day-box--pop");
+  window.setTimeout(() => el.classList.remove("coins-rewards-day-box--pop"), 720);
 }
 
 function coinsHubPulseHero() {
-  const pulseTargets = document.querySelectorAll(".coins-dash-card--hero, .coins-daily-checkin-card");
+  const pulseTargets = document.querySelectorAll(".coins-rewards-pulse-target");
   pulseTargets.forEach((hero) => {
     if (!hero) return;
-    hero.classList.remove("coins-dash-pulse");
+    hero.classList.remove("coins-rewards-pulse");
     void hero.offsetWidth;
-    hero.classList.add("coins-dash-pulse");
-    window.setTimeout(() => hero.classList.remove("coins-dash-pulse"), 750);
+    hero.classList.add("coins-rewards-pulse");
+    window.setTimeout(() => hero.classList.remove("coins-rewards-pulse"), 750);
   });
 }
 
@@ -2935,19 +2933,22 @@ async function refreshCoinsHubUi() {
   const trialText = document.getElementById("coinsHubTrialText");
   const btnVideo = document.getElementById("coinsHubVideoBtn");
   const btnRedeem = document.getElementById("coinsHubRedeemBtn");
-  const videoLbl = document.getElementById("coinsHubVideoBtnLabel");
   const redeemLbl = document.getElementById("coinsHubRedeemBtnLabel");
   const codeEl = document.getElementById("coinsHubReferralCode");
   const linkInput = document.getElementById("coinsHubInviteLinkInput");
   const inviteStatsLine = document.getElementById("coinsHubInviteStatsLine");
+  const inviteFriendsVal = document.getElementById("coinsHubInviteFriendsValue");
+  const inviteCoinsVal = document.getElementById("coinsHubInviteCoinsValue");
   const multEl = document.getElementById("coinsHubEarnMult");
   const videoMeta = document.getElementById("coinsHubVideoCooldown");
   const videoRowMeta = document.getElementById("coinsHubVideoRowMeta");
-  const dailyHeaderBal = document.getElementById("coinsHubDailyHeaderBalance");
+  const videoRewardLine = document.getElementById("coinsHubVideoRewardLine");
 
   if (!coins || coins.cap == null) {
-    if (dailyHeaderBal) dailyHeaderBal.textContent = "0";
     if (balEl) balEl.textContent = "0";
+    if (inviteFriendsVal) inviteFriendsVal.textContent = "0";
+    if (inviteCoinsVal) inviteCoinsVal.textContent = "0";
+    if (inviteStatsLine) inviteStatsLine.textContent = "";
     return;
   }
 
@@ -2961,7 +2962,6 @@ async function refreshCoinsHubUi() {
 
   coinsHubApplyStreakUi(coins);
 
-  if (dailyHeaderBal) dailyHeaderBal.textContent = String(balance);
   if (balEl) balEl.textContent = String(balance);
   if (capDisplay) capDisplay.textContent = String(cap);
   const capPct = cap ? Math.min(100, (balance / cap) * 100) : 0;
@@ -2977,16 +2977,16 @@ async function refreshCoinsHubUi() {
   }
 
   const claimedToday = Boolean(coins.dailyLogin && coins.dailyLogin.claimedToday);
-  if (videoLbl && typeof t === "function") {
-    videoLbl.textContent = t("coinsHubVideoGo");
+  if (videoRewardLine) {
+    videoRewardLine.textContent =
+      typeof t === "function" ? `+${vReward} ${t("coinsRewardsCoinsWord")}` : `+${vReward} coins`;
   }
   if (videoRowMeta && typeof t === "function" && coins.videoRewards) {
     const cnt = Number(coins.videoRewards.countToday) || 0;
     const maxv = Number(coins.videoRewards.maxToday) || 0;
-    videoRowMeta.textContent = t("coinsHubVideoRowMeta")
+    videoRowMeta.textContent = t("coinsRewardsVideoDailyLimitShort")
       .replace("{n}", String(cnt))
-      .replace("{max}", String(maxv))
-      .replace("{reward}", String(vReward));
+      .replace("{max}", String(maxv));
   } else if (videoRowMeta) {
     videoRowMeta.textContent = "";
   }
@@ -3008,7 +3008,7 @@ async function refreshCoinsHubUi() {
   if (btnVideo) {
     const vCap = Boolean(coins.videoRewards && coins.videoRewards.countToday >= coins.videoRewards.maxToday);
     btnVideo.disabled = vCap;
-    btnVideo.classList.toggle("coins-hub-task__go--disabled", vCap);
+    btnVideo.classList.toggle("coins-rewards-watch-btn--disabled", vCap);
   }
   if (videoMeta && typeof t === "function") {
     const capHit = Boolean(coins.videoRewards && coins.videoRewards.countToday >= coins.videoRewards.maxToday);
@@ -3028,11 +3028,14 @@ async function refreshCoinsHubUi() {
 
   const friendsTotal = coins.inviteFriendsTotal != null ? Number(coins.inviteFriendsTotal) : null;
   const inviteEarned = coins.inviteCoinsEarnedThisMonth != null ? Number(coins.inviteCoinsEarnedThisMonth) : null;
+  const fNum = friendsTotal != null ? String(friendsTotal) : "0";
+  const ivNum = inviteEarned != null ? String(inviteEarned) : "0";
+  if (inviteFriendsVal) inviteFriendsVal.textContent = fNum;
+  if (inviteCoinsVal) inviteCoinsVal.textContent = ivNum;
   if (inviteStatsLine && typeof t === "function") {
-    const f = friendsTotal != null ? String(friendsTotal) : "0";
-    const iv = inviteEarned != null ? String(inviteEarned) : "0";
-    inviteStatsLine.textContent =
-      `${t("coinsDashFriendsStat").replace("{n}", f)} · ${t("coinsDashInviteCoinsStat").replace("{n}", iv)}`;
+    inviteStatsLine.textContent = `${t("coinsDashFriendsStat").replace("{n}", fNum)} · ${t(
+      "coinsDashInviteCoinsStat"
+    ).replace("{n}", ivNum)}`;
   }
 
   if (multEl && typeof t === "function") {
@@ -3044,7 +3047,7 @@ async function refreshCoinsHubUi() {
 
 async function coinsHubClaimDaily() {
   if (!requireAuth("collect rewards")) return;
-  const cur = document.querySelector("#coinsHubStreakGrid .daily-checkin-slot--claim");
+  const cur = document.querySelector("#coinsHubStreakGrid .coins-rewards-day-box--claim");
   const claimedDay = cur ? Number(cur.getAttribute("data-day")) : null;
   try {
     await apiFetch("/api/coins/daily-login", { method: "POST", body: JSON.stringify({}) });
@@ -3059,18 +3062,18 @@ async function coinsHubClaimDaily() {
 
 async function coinsHubWatchVideoAd() {
   if (!requireAuth("watch rewarded ads")) return;
-  const vidRow = document.querySelector(".coins-hub-task--video");
+  const vidWrap = document.querySelector(".coins-rewards-video-wrap");
   try {
     await apiFetch("/api/coins/rewarded-ad", { method: "POST", body: JSON.stringify({}) });
   } catch (e) {
     showToast(e && e.message ? e.message : t("coinsActionFailed"));
     return;
   }
-  if (vidRow) {
-    vidRow.classList.remove("coins-hub-task--burst");
-    void vidRow.offsetWidth;
-    vidRow.classList.add("coins-hub-task--burst");
-    window.setTimeout(() => vidRow.classList.remove("coins-hub-task--burst"), 600);
+  if (vidWrap) {
+    vidWrap.classList.remove("coins-rewards-video-wrap--burst");
+    void vidWrap.offsetWidth;
+    vidWrap.classList.add("coins-rewards-video-wrap--burst");
+    window.setTimeout(() => vidWrap.classList.remove("coins-rewards-video-wrap--burst"), 600);
   }
   await refreshCoinsHubUi();
   coinsHubPulseHero();

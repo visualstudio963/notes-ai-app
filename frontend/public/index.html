@@ -1164,25 +1164,30 @@
               <h2 id="coinsRewardsS1Heading" class="coins-rewards-section-title" data-t="coinsRewardsSectionEarnTitle">Daily login &amp; video</h2>
             </div>
 
-            <div class="coins-rewards-earn-grid">
-              <div class="coins-rewards-daily-col">
-                <h3 id="coinsHubStreakTitleHeading" class="coins-rewards-subtitle" data-t="coinsHubStreakTitle">Daily check-in (7 days)</h3>
-                <p id="coinsHubStreakProgressText" class="coins-rewards-streak-msg" aria-live="polite"></p>
-                <div class="coins-rewards-mini-track" aria-hidden="true">
-                  <div id="coinsHubStreakBarFill" class="coins-rewards-mini-track-fill"></div>
-                </div>
-                <div id="coinsHubStreakGrid" class="daily-grid coins-rewards-daily-grid" role="list" aria-label="Daily rewards"></div>
+            <div class="coins-rewards-video-strip coins-rewards-video-wrap">
+              <div class="coins-rewards-video-strip__info">
+                <span class="coins-rewards-video-strip__title">
+                  <span aria-hidden="true">▶️</span>
+                  <span data-t="coinsHubVideoRowTitle">Watch video</span>
+                </span>
+                <span id="coinsHubVideoRewardLine" class="coins-rewards-video-strip__reward"></span>
+                <span id="coinsHubVideoRowMeta" class="coins-rewards-video-strip__meta"></span>
               </div>
+              <button type="button" id="coinsHubVideoBtn" class="btn coins-rewards-video-strip__go" onclick="coinsHubWatchVideoAd()">
+                <span data-t="coinsHubVideoGo">Watch</span>
+              </button>
+            </div>
+            <p id="coinsHubVideoCooldown" class="coins-rewards-video-strip__foot coins-rewards-muted" role="status"></p>
 
-              <div class="coins-rewards-video-col coins-rewards-video-wrap coins-rewards-pulse-watch">
-                <button type="button" id="coinsHubVideoBtn" class="coins-rewards-watch-btn watch-video" onclick="coinsHubWatchVideoAd()">
-                  <span class="coins-rewards-watch-btn__play" aria-hidden="true">▶️</span>
-                  <span class="coins-rewards-watch-btn__title" data-t="coinsHubVideoRowTitle">Watch Video</span>
-                  <span id="coinsHubVideoRewardLine" class="coins-rewards-watch-btn__reward">+10 coins</span>
-                  <span id="coinsHubVideoRowMeta" class="coins-rewards-watch-btn__limit"></span>
-                </button>
-                <p id="coinsHubVideoCooldown" class="coins-rewards-video-foot coins-rewards-muted" role="status"></p>
+            <div class="coins-rewards-daily-block">
+              <h3 id="coinsHubStreakTitleHeading" class="coins-rewards-subtitle coins-rewards-daily-heading" data-t="coinsHubStreakTitle">
+                Daily check-in (7 days)
+              </h3>
+              <p id="coinsHubStreakProgressText" class="coins-rewards-streak-msg" aria-live="polite"></p>
+              <div class="coins-rewards-mini-track" aria-hidden="true">
+                <div id="coinsHubStreakBarFill" class="coins-rewards-mini-track-fill"></div>
               </div>
+              <div id="coinsHubStreakGrid" class="daily-grid coins-rewards-daily-grid" role="list" aria-label="Daily rewards"></div>
             </div>
 
             <div class="coins-rewards-progress-block">

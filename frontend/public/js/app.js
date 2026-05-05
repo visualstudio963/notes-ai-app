@@ -2842,64 +2842,78 @@ function coinsHubApplyStreakUi(coins) {
   const dayOnly =
     typeof t === "function" ? (n) => t("coinsHubStreakDayOnly").replace("{d}", String(n)) : (n) => `Day ${n}`;
   const todayTag = typeof t === "function" ? t("coinsHubStreakTodayTag") : "Today";
+  const claimWord = typeof t === "function" ? t("coinsRewardsDailyClaimBtn") : "Claim";
+  const doneWord = typeof t === "function" ? t("coinsHubStreakRowDone") : "Done";
 
   for (let d = 1; d <= 7; d += 1) {
     const amt = amounts[d - 1];
     const done = d <= completed;
     const claimable = !claimedToday && d === nextIdx;
-    const locked = !done && !claimable;
 
     const labelHint = `${dayOnly(d)} · +${amt}`;
 
     if (claimable) {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className =
-        `coins-rewards-day-box day-box active coins-rewards-day-box--claim${d === 7 ? " coins-rewards-day-box--finale" : ""}`.trim();
-      btn.setAttribute("data-day", String(d));
-      btn.setAttribute("role", "listitem");
-      btn.setAttribute("aria-label", `${todayTag}: +${amt}`);
-      btn.innerHTML =
-        `<span class="coins-rewards-day-idx">${d}/7</span>` +
-        `<span class="coins-rewards-day-reward">${escapeHtml(`+${amt}`)} 🪙</span>` +
-        `<span class="coins-rewards-day-tag">${escapeHtml(todayTag)}</span>`;
-      btn.onclick = () => void coinsHubClaimDaily();
-      grid.appendChild(btn);
+      const wrap = document.createElement("div");
+      wrap.className =
+        `coins-rewards-day-slot coins-rewards-day-slot--today${d === 7 ? " coins-rewards-day-slot--finale" : ""}`.trim();
+      wrap.setAttribute("data-day", String(d));
+      wrap.setAttribute("role", "listitem");
+      wrap.setAttribute("aria-label", `${labelHint} · ${todayTag}`);
+      wrap.innerHTML =
+        `<div class="coins-rewards-day-slot__top">` +
+        `<span class="coins-rewards-day-slot__n">${escapeHtml(String(d))}/7</span>` +
+        `<span class="coins-rewards-day-slot__day">${escapeHtml(dayOnly(d))}</span>` +
+        `<span class="coins-rewards-day-slot__coins">+${amt}</span>` +
+        `<span class="coins-rewards-day-slot__tag">${escapeHtml(todayTag)}</span>` +
+        `</div>` +
+        `<button type="button" class="coins-rewards-day-slot__claim">${escapeHtml(claimWord)}</button>`;
+
+      const b = wrap.querySelector("button");
+      if (b) b.onclick = () => void coinsHubClaimDaily();
+      grid.appendChild(wrap);
       continue;
     }
 
-    const box = document.createElement("div");
-    box.className =
-      `coins-rewards-day-box day-box${done ? " completed" : " locked"}${d === 7 ? " coins-rewards-day-box--finale" : ""}`.trim();
-    box.setAttribute("data-day", String(d));
-    box.setAttribute("role", "listitem");
-    box.setAttribute(
+    const wrap = document.createElement("div");
+    wrap.className =
+      `coins-rewards-day-slot${done ? " coins-rewards-day-slot--done" : " coins-rewards-day-slot--locked"}${
+        d === 7 ? " coins-rewards-day-slot--finale" : ""
+      }`.trim();
+    wrap.setAttribute("data-day", String(d));
+    wrap.setAttribute("role", "listitem");
+    wrap.setAttribute(
       "aria-label",
-      done ? `${labelHint} (${typeof t === "function" ? t("coinsHubStreakRowDone") : "Done"})` : labelHint
+      done ? `${labelHint} (${doneWord})` : `${labelHint} · ${claimWord}`
     );
 
-    const coinMarkup = done
-      ? `<span class="coins-rewards-day-idx">${d}/7</span>` +
-        `<span class="coins-rewards-day-reward coins-rewards-day-reward--done">+${amt} 🪙</span>` +
-        `<span class="coins-rewards-day-tag coins-rewards-day-tag--done">✓ ${escapeHtml(dayOnly(d))}</span>`
-      : `<span class="coins-rewards-day-idx">${d}/7</span>` +
-        `<span class="coins-rewards-day-reward coins-rewards-day-reward--locked">+${amt}</span>` +
-        `<span class="coins-rewards-day-tag coins-rewards-day-tag--muted" aria-hidden="true">🪙</span>`;
+    wrap.innerHTML =
+      `<div class="coins-rewards-day-slot__top">` +
+      `<span class="coins-rewards-day-slot__n">${escapeHtml(String(d))}/7</span>` +
+      `<span class="coins-rewards-day-slot__day">${escapeHtml(dayOnly(d))}</span>` +
+      `<span class="coins-rewards-day-slot__coins">${done ? "+" + amt + " 🪙" : "+" + amt}</span>` +
+      (done ? `<span class="coins-rewards-day-slot__tag coins-rewards-day-slot__tag--ok">✓</span>` : "") +
+      `</div>` +
+      (done
+        ? `<button type="button" class="coins-rewards-day-slot__claim coins-rewards-day-slot__claim--done" disabled>${escapeHtml(
+            doneWord
+          )}</button>`
+        : `<button type="button" class="coins-rewards-day-slot__claim coins-rewards-day-slot__claim--muted" disabled>${escapeHtml(
+            claimWord
+          )}</button>`);
 
-    box.innerHTML = coinMarkup;
-    grid.appendChild(box);
+    grid.appendChild(wrap);
   }
 }
 
 function coinsHubAnimateClaimedDay(dayNum) {
   const d = Number(dayNum);
   if (!Number.isFinite(d) || d < 1 || d > 7) return;
-  const el = document.querySelector(`#coinsHubStreakGrid .coins-rewards-day-box[data-day="${d}"]`);
+  const el = document.querySelector(`#coinsHubStreakGrid .coins-rewards-day-slot[data-day="${d}"]`);
   if (!el) return;
-  el.classList.remove("coins-rewards-day-box--pop");
+  el.classList.remove("coins-rewards-day-slot--pop");
   void el.offsetWidth;
-  el.classList.add("coins-rewards-day-box--pop");
-  window.setTimeout(() => el.classList.remove("coins-rewards-day-box--pop"), 720);
+  el.classList.add("coins-rewards-day-slot--pop");
+  window.setTimeout(() => el.classList.remove("coins-rewards-day-slot--pop"), 720);
 }
 
 function coinsHubPulseHero() {
@@ -3050,7 +3064,7 @@ async function refreshCoinsHubUi() {
 
 async function coinsHubClaimDaily() {
   if (!requireAuth("collect rewards")) return;
-  const cur = document.querySelector("#coinsHubStreakGrid .coins-rewards-day-box--claim");
+  const cur = document.querySelector("#coinsHubStreakGrid .coins-rewards-day-slot--today[data-day]");
   const claimedDay = cur ? Number(cur.getAttribute("data-day")) : null;
   try {
     await apiFetch("/api/coins/daily-login", { method: "POST", body: JSON.stringify({}) });

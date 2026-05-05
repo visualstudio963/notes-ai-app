@@ -380,6 +380,7 @@ const translations = {
     coinsRewardsInfoBlurbShort:
       "Earn from your streak, watching videos (daily cap), and invites. Redeem for Standard access.",
     coinsRewardsCoinsWord: "coins",
+    coinsRewardsDailyClaimBtn: "Claim",
     coinsRewardsVideoDailyLimitShort: "{n}/{max} today",
     coinsRewardsStatFriendsInvited: "Friends invited",
     coinsRewardsStatCoinsEarned: "Coins earned (month)",
@@ -1213,6 +1214,7 @@ const translations = {
     coinsRewardsInfoBlurbShort:
       "Fitoni nga seria ditore, videot (kufiri ditor) dhe ftesat. Shpenzoni monedha për Standard.",
     coinsRewardsCoinsWord: "monedha",
+    coinsRewardsDailyClaimBtn: "Merr",
     coinsRewardsVideoDailyLimitShort: "{n}/{max} sot",
     coinsRewardsStatFriendsInvited: "Miq të ftuar",
     coinsRewardsStatCoinsEarned: "Monedha (muaji)",

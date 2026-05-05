@@ -112,6 +112,43 @@ let baselineSnapshot = "";
 /** True when current editor/title differs from baselineSnapshot. */
 let dirty = false;
 let openOptions = {};
+/** Clears inline styles from visualViewport lock when closing editor */
+let viewportLockCleanup = null;
+
+function teardownEditorViewportLock() {
+  if (!viewportLockCleanup) return;
+  viewportLockCleanup();
+  viewportLockCleanup = null;
+}
+
+/** Keeps fullscreen editor sized to the visible viewport above the mobile keyboard so chrome + toolbar stay reachable */
+function setupEditorViewportLock(screen) {
+  teardownEditorViewportLock();
+  if (!screen || typeof window.visualViewport === "undefined" || !window.visualViewport) return;
+
+  const vv = window.visualViewport;
+  const sync = () => {
+    const h = Math.max(180, Math.round(vv.height));
+    const y = Math.max(0, Math.round(vv.offsetTop));
+    screen.style.top = `${y}px`;
+    screen.style.left = "0";
+    screen.style.right = "0";
+    screen.style.width = "100%";
+    screen.style.height = `${h}px`;
+    screen.style.bottom = "auto";
+    screen.style.maxHeight = `${h}px`;
+  };
+
+  vv.addEventListener("resize", sync);
+  vv.addEventListener("scroll", sync);
+  sync();
+
+  viewportLockCleanup = () => {
+    vv.removeEventListener("resize", sync);
+    vv.removeEventListener("scroll", sync);
+    ["top", "left", "right", "width", "height", "bottom", "maxHeight"].forEach((prop) => screen.style.removeProperty(prop));
+  };
+}
 
 function tKey(key, fallback) {
   return typeof window.t === "function" ? window.t(key) : fallback;
@@ -343,6 +380,7 @@ function destroyEditor() {
 }
 
 function close() {
+  teardownEditorViewportLock();
   const cb = openOptions && typeof openOptions.onClosed === "function" ? openOptions.onClosed : null;
   destroyEditor();
   const screen = document.getElementById("noteRichEditorScreen");
@@ -363,6 +401,7 @@ function close() {
 
 function open(opts = {}) {
   openOptions = opts;
+  teardownEditorViewportLock();
   destroyEditor();
 
   rootMode = opts.mode === "edit" ? "edit" : "create";
@@ -424,9 +463,8 @@ function open(opts = {}) {
   screen.setAttribute("aria-hidden", "false");
   document.body.classList.add("note-rich-editor-open");
 
-  window.setTimeout(() => {
-    editor.commands.focus("end", { scrollIntoView: false });
-  }, 50);
+  setupEditorViewportLock(screen);
+  /* Keyboard opens only after user taps title or note body — avoids jumping chrome on entry */
 }
 
 function requestClose() {

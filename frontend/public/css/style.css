@@ -12400,8 +12400,8 @@ body.note-rich-editor-open #dailyPlannerFab {
 .note-rich-editor-main-inner {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
+  /* Scroll only inside the note body — header, title & toolbar stay fixed above the typing area */
+  overflow: hidden;
   padding: clamp(16px, 3vw, 24px);
   display: flex;
   flex-direction: column;
@@ -12790,7 +12790,7 @@ body.note-rich-editor-open #dailyPlannerFab {
 
 .note-rich-editor-content-shell {
   flex: 1;
-  min-height: min(46vh, 480px);
+  min-height: 0;
   border-radius: 16px;
   padding: 0;
   display: flex;
@@ -12813,12 +12813,15 @@ body.note-rich-editor-open #dailyPlannerFab {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   padding: clamp(22px, 4vw, 36px);
   box-sizing: border-box;
 }
 
 .note-rich-editor-mount .note-rich-editor-content {
-  min-height: min(44vh, 420px);
+  min-height: 0;
   max-width: 680px;
   margin: 0 auto;
 }
@@ -12845,7 +12848,7 @@ body.note-rich-editor-open #dailyPlannerFab {
 
 .note-rich-editor-mount .ProseMirror {
   outline: none;
-  min-height: min(40vh, 380px);
+  min-height: 12rem;
   font-size: 1.1rem;
   line-height: 1.78;
   color: rgba(234, 252, 255, 0.96);
@@ -12977,6 +12980,13 @@ body.note-rich-editor-open #dailyPlannerFab {
   .note-rich-editor-main-inner {
     gap: 6px;
     padding: 8px 10px 10px;
+    overflow: hidden;
+  }
+
+  .note-rich-editor-row--header,
+  .note-rich-editor-title-block,
+  .note-rich-editor-toolbar {
+    flex-shrink: 0;
   }
 
   .note-rich-editor-row--header {
@@ -13133,7 +13143,7 @@ body.note-rich-editor-open #dailyPlannerFab {
   }
 
   .note-rich-editor-mount .ProseMirror {
-    min-height: 48vh;
+    min-height: 6rem;
     padding: 4px 2px 10px;
     font-size: 1.02rem;
     line-height: 1.65;

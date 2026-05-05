@@ -4764,8 +4764,18 @@ async function updateHomeDashboardStats() {
       apiFetch("/api/notes?count=1"),
       fetchWebRemindersListDeduped()
     ]);
-    const n = notesData && notesData.count;
-    const notesCount = typeof n === "number" ? n : parseInt(String(n || 0), 10) || 0;
+    /** Prefer lightweight `count`; if server ignores query (older deploy / proxy), fallback to notes array length. */
+    let notesCount = 0;
+    const rawCount = notesData && notesData.count;
+    if (rawCount !== undefined && rawCount !== null && rawCount !== "") {
+      const parsed = typeof rawCount === "number" ? rawCount : parseInt(String(rawCount), 10);
+      if (!Number.isNaN(parsed)) notesCount = parsed;
+    } else if (Array.isArray(notesData && notesData.notes)) {
+      notesCount = notesData.notes.length;
+    }
+    /* Scan Cam shënime lokale (jo në DB) — përfshihen në listat e app-it, duhet edhe në kryefaqe */
+    notesCount += readScanCamLocalNotes().length;
+
     const reminders = remData.reminders || [];
     notesEl.textContent = String(notesCount);
     remEl.textContent = String(reminders.length);

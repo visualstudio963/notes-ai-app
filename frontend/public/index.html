@@ -698,7 +698,7 @@
                         <button type="button" class="scan-cam-chip-btn scan-cam-chip-btn--secondary" onclick="scanCamUploadPhoto(); scanCamDismissOnboarding();" data-t="scanCamUploadPhoto">
                           Ngarko foto
                         </button>
-                        <button type="button" class="scan-cam-chip-btn scan-cam-chip-btn--secondary" onclick="scanCamUploadDocument(); scanCamDismissOnboarding();" data-t="scanCamUploadDocument">
+                        <button type="button" class="scan-cam-chip-btn scan-cam-chip-btn--secondary" onclick="scanCamUploadDocument()" data-t="scanCamUploadDocument">
                           Ngarko dokument
                         </button>
                       </div>
@@ -806,6 +806,30 @@
           </div>
 
           <textarea id="scanCamResultText" class="hidden" spellcheck="true" aria-hidden="true"></textarea>
+
+          <div
+            id="scanCamDocSourceSheet"
+            class="scan-cam-doc-sheet hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="scanCamDocSheetTitle"
+          >
+            <button type="button" class="scan-cam-doc-sheet__backdrop" onclick="scanCamCloseDocSourceSheet()" aria-label="Close"></button>
+            <div class="scan-cam-doc-sheet__panel">
+              <p id="scanCamDocSheetTitle" class="scan-cam-doc-sheet__title" data-t="scanCamDocSheetTitle">Where is your document?</p>
+              <button type="button" class="scan-cam-doc-sheet__option" onclick="scanCamDocPickFromPhone()">
+                <span class="scan-cam-doc-sheet__option-title" data-t="scanCamDocFromPhone">Phone files</span>
+                <span class="scan-cam-doc-sheet__option-sub" data-t="scanCamDocFromPhoneSub">PDF from this device</span>
+              </button>
+              <button type="button" class="scan-cam-doc-sheet__option" onclick="scanCamDocPickFromGoogleDrive()">
+                <span class="scan-cam-doc-sheet__option-title" data-t="scanCamDocFromDrive">Google Drive</span>
+                <span class="scan-cam-doc-sheet__option-sub" data-t="scanCamDocDriveHint">Open Drive · download PDF · then tap Phone files</span>
+              </button>
+              <button type="button" class="scan-cam-doc-sheet__cancel" onclick="scanCamCloseDocSourceSheet()" data-t="scanCamDocCancel">
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
         </div>
       </section>
@@ -1094,7 +1118,10 @@
 
           <div id="coinsHubEarnMult" class="coins-dash-chip coins-dash-chip--muted hidden"></div>
 
-          <article class="coins-dash-card coins-dash-card--hero coins-dash-card--hero-tight" aria-labelledby="coinsDashBalanceHeading">
+          <article
+            class="coins-dash-card coins-dash-card--hero coins-dash-card--hero-tight coins-dash-card--balance-compact"
+            aria-labelledby="coinsDashBalanceHeading"
+          >
             <div class="coins-dash-hero-aura" aria-hidden="true"></div>
             <div class="coins-dash-hero-head">
               <span class="coins-dash-coin-stack" aria-hidden="true"
@@ -1126,38 +1153,41 @@
             </div>
           </article>
 
-          <div class="coins-hub-main-split">
-            <article class="coins-dash-card coins-hub-streak-card" aria-labelledby="coinsHubStreakTitleHeading">
-              <div class="coins-hub-streak-top">
-                <div>
-                  <h3 id="coinsHubStreakTitleHeading" class="coins-dash-card-title coins-dash-card-title--tight" data-t="coinsHubStreakTitle">
-                    Daily login rewards
-                  </h3>
-                  <p id="coinsHubStreakProgressText" class="coins-hub-streak-progress">—</p>
-                </div>
+          <article class="coins-dash-card coins-hub-task coins-hub-task--video" aria-labelledby="coinsHubVideoTitle">
+            <div class="coins-hub-task__row">
+              <div class="coins-hub-task__icon-slot" aria-hidden="true">
+                <span class="coins-hub-task__icon-glyphs">▶</span>
               </div>
-              <div class="coins-hub-streak-track" aria-hidden="true">
-                <div id="coinsHubStreakBarFill" class="coins-hub-streak-fill"></div>
+              <div class="coins-hub-task__main">
+                <h3 id="coinsHubVideoTitle" class="coins-hub-task__title" data-t="coinsHubVideoRowTitle">Watch video</h3>
+                <p id="coinsHubVideoRowMeta" class="coins-hub-task__meta"></p>
               </div>
-              <div id="coinsHubStreakGrid" class="coins-hub-streak-grid" role="list"></div>
-              <button type="button" id="coinsHubDailyBtn" class="coins-hub-claim-btn" onclick="coinsHubClaimDaily()">
-                <span class="coins-hub-claim-icon" aria-hidden="true">🎁</span>
-                <span class="coins-hub-claim-text" id="coinsHubDailyBtnLabel">Daily reward</span>
+              <button type="button" id="coinsHubVideoBtn" class="coins-hub-task__go" onclick="coinsHubWatchVideoAd()">
+                <span id="coinsHubVideoBtnLabel">Watch</span>
               </button>
-            </article>
+            </div>
+            <p id="coinsHubVideoCooldown" class="coins-hub-task__foot coins-dash-muted"></p>
+            <p class="coins-hub-task__hint coins-dash-muted" data-t="coinsHubVideoPlaceholderNote">
+              Rewarded ads coming soon — still earns coins today.
+            </p>
+          </article>
 
-            <aside class="coins-hub-video-card coins-dash-card" aria-labelledby="coinsHubVideoTitle">
-              <h3 id="coinsHubVideoTitle" class="coins-dash-card-title coins-dash-card-title--tight" data-t="coinsHubVideoAsideTitle">
-                Extra coins
+          <article class="coins-dash-card coins-hub-streak-card coins-hub-streak-card--simple" aria-labelledby="coinsHubStreakTitleHeading">
+            <div class="coins-hub-streak-top coins-hub-streak-top--flush">
+              <h3 id="coinsHubStreakTitleHeading" class="coins-dash-card-title coins-dash-card-title--tight" data-t="coinsHubStreakTitle">
+                Daily login rewards
               </h3>
-              <button type="button" id="coinsHubVideoBtn" class="coins-hub-video-cta" onclick="coinsHubWatchVideoAd()">
-                <span class="coins-hub-video-play" aria-hidden="true">▶️</span>
-                <span class="coins-hub-video-cta-label" id="coinsHubVideoBtnLabel">Watch video (+10 coins)</span>
-              </button>
-              <p id="coinsHubVideoCooldown" class="coins-hub-video-limit coins-dash-muted"></p>
-              <p class="coins-hub-video-note coins-dash-muted" data-t="coinsHubVideoPlaceholderNote">Rewarded ads coming soon — still earns coins today.</p>
-            </aside>
-          </div>
+              <p id="coinsHubStreakProgressText" class="coins-hub-streak-progress coins-hub-streak-progress--solo">—</p>
+            </div>
+            <div class="coins-hub-streak-track" aria-hidden="true">
+              <div id="coinsHubStreakBarFill" class="coins-hub-streak-fill"></div>
+            </div>
+            <div id="coinsHubStreakGrid" class="coins-hub-streak-list" role="list"></div>
+            <button type="button" id="coinsHubDailyBtn" class="coins-hub-claim-btn" onclick="coinsHubClaimDaily()">
+              <span class="coins-hub-claim-icon" aria-hidden="true">🎁</span>
+              <span class="coins-hub-claim-text" id="coinsHubDailyBtnLabel">Daily reward</span>
+            </button>
+          </article>
 
           <article class="coins-dash-card coins-hub-redeem-card">
             <button type="button" id="coinsHubRedeemBtn" class="coins-hub-redeem-btn" onclick="coinsHubRedeemStandard()">
@@ -1166,18 +1196,16 @@
             </button>
           </article>
 
-          <article class="coins-dash-card coins-dash-card--invite">
-            <div class="coins-dash-invite-header">
-              <span class="coins-dash-invite-emoji" aria-hidden="true">🔗</span>
-              <div>
-                <h3 class="coins-dash-card-title coins-dash-card-title--flush" data-t="coinsDashInviteFriendsTitle">Invite friends &amp; earn coins</h3>
-              </div>
-            </div>
+          <article class="coins-dash-card coins-dash-card--invite coins-invite-panel">
+            <h3 class="coins-dash-card-title coins-dash-card-title--flush" data-t="coinsDashInviteFriendsTitle">Invite friends &amp; earn coins</h3>
+            <p class="coins-invite-panel__hint coins-dash-muted" data-t="coinsInvitePanelHint">
+              Your personal link invites people to sign up — you earn when they join.
+            </p>
             <label class="sr-only" for="coinsHubInviteLinkInput" data-t="coinsDashInviteLinkLabel">Your referral link</label>
-            <div class="coins-dash-link-box">
+            <div class="coins-dash-link-box coins-invite-panel__field">
               <input type="text" id="coinsHubInviteLinkInput" class="coins-dash-link-input" readonly tabindex="0" value="" autocomplete="off" />
             </div>
-            <div class="coins-dash-invite-actions">
+            <div class="coins-dash-invite-actions coins-invite-panel__cta">
               <button type="button" class="coins-dash-mini-btn coins-dash-mini-btn--blue" onclick="coinsHubCopyInvite()" data-t="coinsDashCopyLink">
                 Copy link
               </button>
@@ -1185,17 +1213,8 @@
                 Share
               </button>
             </div>
-            <div class="coins-dash-invite-stats">
-              <div class="coins-dash-stat-pill coins-dash-stat-pill--green">
-                <span aria-hidden="true">👥</span>
-                <span id="coinsHubInviteFriendsLine">Friends invited: —</span>
-              </div>
-              <div class="coins-dash-stat-pill coins-dash-stat-pill--gold">
-                <span aria-hidden="true">🪙</span>
-                <span id="coinsHubInviteCoinsLine">Coins from invites: —</span>
-              </div>
-            </div>
-            <p class="coins-dash-code-row">
+            <p id="coinsHubInviteStatsLine" class="coins-invite-panel__stats" aria-live="polite"></p>
+            <p class="coins-dash-code-row coins-invite-panel__code">
               <span data-t="coinsDashCodeLabel">Code</span>: <strong id="coinsHubReferralCode" class="coins-dash-code-strong" aria-live="polite">—</strong>
             </p>
           </article>

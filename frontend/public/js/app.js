@@ -1491,6 +1491,7 @@ function hideScanCamPage() {
   scanCamStopCamera();
   if (typeof closeScanCamUpgradeModal === "function") closeScanCamUpgradeModal();
   if (typeof closeScanCamShareModal === "function") closeScanCamShareModal();
+  if (typeof scanCamCloseDocSourceSheet === "function") scanCamCloseDocSourceSheet();
   const el = document.getElementById("scan-cam");
   if (el) el.classList.add("hidden");
 }
@@ -2827,14 +2828,29 @@ function coinsHubApplyStreakUi(coins) {
     const current = !claimedToday && d === nextIdx;
     const locked = !done && !current;
     const cell = document.createElement("div");
-    cell.className = "coins-hub-day";
+    cell.className = "coins-hub-streak-row";
     cell.setAttribute("role", "listitem");
     cell.setAttribute("data-day", String(d));
-    if (done) cell.classList.add("coins-hub-day--done");
-    if (current) cell.classList.add("coins-hub-day--current");
-    if (locked) cell.classList.add("coins-hub-day--locked");
-    const icon = done ? "🪙" : "🎁";
-    cell.innerHTML = `<span class="coins-hub-day-label">${d}/7</span><span class="coins-hub-day-icon" aria-hidden="true">${icon}</span><span class="coins-hub-day-amt">+${amounts[d - 1]}</span>`;
+    if (done) cell.classList.add("coins-hub-streak-row--done");
+    if (current) cell.classList.add("coins-hub-streak-row--current");
+    if (locked) cell.classList.add("coins-hub-streak-row--locked");
+    const sym = done ? "✓" : current ? "●" : "○";
+    const titleRaw =
+      typeof t === "function" ? t("coinsHubStreakRowLabel").replace("{d}", String(d)) : `Day ${d}/7`;
+    const titleEsc = escapeHtml(titleRaw);
+    let statusHtml = "";
+    if (done) {
+      statusHtml = `<span class="coins-hub-streak-status coins-hub-streak-status--done">${escapeHtml(typeof t === "function" ? t("coinsHubStreakRowDone") : "Done")}</span>`;
+    } else if (current) {
+      statusHtml = `<span class="coins-hub-streak-status coins-hub-streak-status--now">${escapeHtml(typeof t === "function" ? t("coinsHubStreakTodayTag") : "Today")}</span>`;
+    }
+    cell.innerHTML =
+      `<span class="coins-hub-streak-row__mark" aria-hidden="true">${sym}</span>` +
+      `<div class="coins-hub-streak-row__mid">` +
+      `<span class="coins-hub-streak-row__title">${titleEsc}</span>` +
+      `<span class="coins-hub-streak-row__coins">🪙 +${amounts[d - 1]}</span>` +
+      `</div>` +
+      `<div class="coins-hub-streak-row__tail">${statusHtml}</div>`;
     grid.appendChild(cell);
   }
 }
@@ -2842,12 +2858,12 @@ function coinsHubApplyStreakUi(coins) {
 function coinsHubAnimateClaimedDay(dayNum) {
   const d = Number(dayNum);
   if (!Number.isFinite(d) || d < 1 || d > 7) return;
-  const el = document.querySelector(`#coinsHubStreakGrid .coins-hub-day[data-day="${d}"]`);
+  const el = document.querySelector(`#coinsHubStreakGrid .coins-hub-streak-row[data-day="${d}"]`);
   if (!el) return;
-  el.classList.remove("coins-hub-day--pop");
+  el.classList.remove("coins-hub-streak-row--pop");
   void el.offsetWidth;
-  el.classList.add("coins-hub-day--pop");
-  window.setTimeout(() => el.classList.remove("coins-hub-day--pop"), 750);
+  el.classList.add("coins-hub-streak-row--pop");
+  window.setTimeout(() => el.classList.remove("coins-hub-streak-row--pop"), 750);
 }
 
 function coinsHubPulseHero() {
@@ -2889,10 +2905,10 @@ async function refreshCoinsHubUi() {
   const redeemLbl = document.getElementById("coinsHubRedeemBtnLabel");
   const codeEl = document.getElementById("coinsHubReferralCode");
   const linkInput = document.getElementById("coinsHubInviteLinkInput");
-  const friendsLine = document.getElementById("coinsHubInviteFriendsLine");
-  const coinsFromInvitesEl = document.getElementById("coinsHubInviteCoinsLine");
+  const inviteStatsLine = document.getElementById("coinsHubInviteStatsLine");
   const multEl = document.getElementById("coinsHubEarnMult");
   const videoMeta = document.getElementById("coinsHubVideoCooldown");
+  const videoRowMeta = document.getElementById("coinsHubVideoRowMeta");
 
   if (!coins || coins.cap == null) return;
 
@@ -2929,7 +2945,17 @@ async function refreshCoinsHubUi() {
       : t("coinsDailyBtnActive").replace("{n}", String(dailyNext));
   }
   if (videoLbl && typeof t === "function") {
-    videoLbl.textContent = t("coinsVideoBtnActive").replace("{n}", String(vReward));
+    videoLbl.textContent = t("coinsHubVideoGo");
+  }
+  if (videoRowMeta && typeof t === "function" && coins.videoRewards) {
+    const cnt = Number(coins.videoRewards.countToday) || 0;
+    const maxv = Number(coins.videoRewards.maxToday) || 0;
+    videoRowMeta.textContent = t("coinsHubVideoRowMeta")
+      .replace("{n}", String(cnt))
+      .replace("{max}", String(maxv))
+      .replace("{reward}", String(vReward));
+  } else if (videoRowMeta) {
+    videoRowMeta.textContent = "";
   }
   if (redeemLbl && typeof t === "function") {
     redeemLbl.textContent = t("coinsRedeemBtnActive").replace("{cost}", String(cost));
@@ -2950,12 +2976,11 @@ async function refreshCoinsHubUi() {
   if (btnVideo) {
     const vCap = Boolean(coins.videoRewards && coins.videoRewards.countToday >= coins.videoRewards.maxToday);
     btnVideo.disabled = vCap;
-    btnVideo.classList.toggle("coins-hub-video-cta--disabled", vCap);
+    btnVideo.classList.toggle("coins-hub-task__go--disabled", vCap);
   }
-  if (videoMeta && typeof t === "function" && coins.videoRewards) {
-    const c = Number(coins.videoRewards.countToday) || 0;
-    const m = Number(coins.videoRewards.maxToday) || 0;
-    videoMeta.textContent = t("coinsHubVideoLimitLine").replace("{n}", String(c)).replace("{max}", String(m));
+  if (videoMeta && typeof t === "function") {
+    const capHit = Boolean(coins.videoRewards && coins.videoRewards.countToday >= coins.videoRewards.maxToday);
+    videoMeta.textContent = capHit ? t("coinsHubVideoCappedFoot") : "";
   }
   if (btnRedeem) {
     btnRedeem.disabled = coins.lifecycle === "premium" || balance < cost;
@@ -2971,15 +2996,11 @@ async function refreshCoinsHubUi() {
 
   const friendsTotal = coins.inviteFriendsTotal != null ? Number(coins.inviteFriendsTotal) : null;
   const inviteEarned = coins.inviteCoinsEarnedThisMonth != null ? Number(coins.inviteCoinsEarnedThisMonth) : null;
-  if (friendsLine && typeof t === "function") {
-    friendsLine.textContent =
-      friendsTotal != null ? t("coinsDashFriendsStat").replace("{n}", String(friendsTotal)) : t("coinsDashFriendsStat").replace("{n}", "0");
-  }
-  if (coinsFromInvitesEl && typeof t === "function") {
-    coinsFromInvitesEl.textContent =
-      inviteEarned != null
-        ? t("coinsDashInviteCoinsStat").replace("{n}", String(inviteEarned))
-        : t("coinsDashInviteCoinsStat").replace("{n}", "0");
+  if (inviteStatsLine && typeof t === "function") {
+    const f = friendsTotal != null ? String(friendsTotal) : "0";
+    const iv = inviteEarned != null ? String(inviteEarned) : "0";
+    inviteStatsLine.textContent =
+      `${t("coinsDashFriendsStat").replace("{n}", f)} · ${t("coinsDashInviteCoinsStat").replace("{n}", iv)}`;
   }
 
   if (multEl && typeof t === "function") {
@@ -2991,7 +3012,7 @@ async function refreshCoinsHubUi() {
 
 async function coinsHubClaimDaily() {
   if (!requireAuth("collect rewards")) return;
-  const cur = document.querySelector("#coinsHubStreakGrid .coins-hub-day--current");
+  const cur = document.querySelector("#coinsHubStreakGrid .coins-hub-streak-row--current");
   const claimedDay = cur ? Number(cur.getAttribute("data-day")) : null;
   try {
     await apiFetch("/api/coins/daily-login", { method: "POST", body: JSON.stringify({}) });
@@ -3006,18 +3027,18 @@ async function coinsHubClaimDaily() {
 
 async function coinsHubWatchVideoAd() {
   if (!requireAuth("watch rewarded ads")) return;
-  const vidCard = document.querySelector(".coins-hub-video-card");
+  const vidRow = document.querySelector(".coins-hub-task--video");
   try {
     await apiFetch("/api/coins/rewarded-ad", { method: "POST", body: JSON.stringify({}) });
   } catch (e) {
     showToast(e && e.message ? e.message : t("coinsActionFailed"));
     return;
   }
-  if (vidCard) {
-    vidCard.classList.remove("coins-hub-video-card--burst");
-    void vidCard.offsetWidth;
-    vidCard.classList.add("coins-hub-video-card--burst");
-    window.setTimeout(() => vidCard.classList.remove("coins-hub-video-card--burst"), 600);
+  if (vidRow) {
+    vidRow.classList.remove("coins-hub-task--burst");
+    void vidRow.offsetWidth;
+    vidRow.classList.add("coins-hub-task--burst");
+    window.setTimeout(() => vidRow.classList.remove("coins-hub-task--burst"), 600);
   }
   await refreshCoinsHubUi();
   coinsHubPulseHero();
@@ -3765,9 +3786,45 @@ function scanCamUploadPhoto() {
   if (inp) inp.click();
 }
 
+function scanCamOpenDocSourceSheet() {
+  const sheet = document.getElementById("scanCamDocSourceSheet");
+  if (!sheet) return;
+  sheet.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+}
+
+function scanCamCloseDocSourceSheet() {
+  const sheet = document.getElementById("scanCamDocSourceSheet");
+  if (!sheet) return;
+  sheet.classList.add("hidden");
+  document.body.classList.remove("modal-open");
+}
+
 function scanCamUploadDocument() {
+  scanCamDismissOnboarding();
+  scanCamOpenDocSourceSheet();
+}
+
+function scanCamDocPickFromPhone() {
+  scanCamCloseDocSourceSheet();
   const inp = document.getElementById("scanCamUploadInputDoc");
   if (inp) inp.click();
+}
+
+function scanCamDocPickFromGoogleDrive() {
+  scanCamCloseDocSourceSheet();
+  const url = "https://drive.google.com/drive/";
+  try {
+    const w = window.open(url, "_blank", "noopener,noreferrer");
+    if (!w || typeof w.closed === "undefined") {
+      window.location.href = url;
+    }
+  } catch {
+    window.location.href = url;
+  }
+  if (typeof showToast === "function" && typeof t === "function") {
+    showToast(t("scanCamDocDriveToast"));
+  }
 }
 
 function scanCamHandlePhotoUpload(inputEl) {

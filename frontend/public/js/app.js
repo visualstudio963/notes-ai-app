@@ -2946,10 +2946,11 @@ async function refreshCoinsHubUi() {
   const multEl = document.getElementById("coinsHubEarnMult");
   const videoMeta = document.getElementById("coinsHubVideoCooldown");
   const videoRowMeta = document.getElementById("coinsHubVideoRowMeta");
-  const dailyHeaderBal = document.getElementById("coinsHubDailyHeaderBalance");
+  const topBalChip = document.getElementById("coinsHubTopBalance");
+  const topCapChip = document.getElementById("coinsHubTopCap");
 
   if (!coins || coins.cap == null) {
-    if (dailyHeaderBal) dailyHeaderBal.textContent = "0";
+    if (topBalChip) topBalChip.textContent = "0";
     if (balEl) balEl.textContent = "0";
     return;
   }
@@ -2964,7 +2965,8 @@ async function refreshCoinsHubUi() {
 
   coinsHubApplyStreakUi(coins);
 
-  if (dailyHeaderBal) dailyHeaderBal.textContent = String(balance);
+  if (topBalChip) topBalChip.textContent = String(balance);
+  if (topCapChip) topCapChip.textContent = String(cap);
   if (balEl) balEl.textContent = String(balance);
   if (capDisplay) capDisplay.textContent = String(cap);
   const capPct = cap ? Math.min(100, (balance / cap) * 100) : 0;

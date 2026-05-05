@@ -1127,10 +1127,18 @@
       <section id="coins-hub" class="page hidden coins-dash-page" aria-labelledby="coinsHubTitleHeading">
         <div class="page-shell coins-dash-shell">
           <header class="coins-dash-topbar">
-            <button type="button" class="back-button coins-dash-back" onclick="goHome()">&#x2190; Home</button>
-            <div class="coins-dash-topbar-text">
-              <p class="eyebrow" data-t="coinsHubEyebrow">Rewards</p>
-              <h2 id="coinsHubTitleHeading" class="coins-dash-page-title" data-t="coinsHubTitle">Rewards</h2>
+            <div class="coins-dash-topbar-left">
+              <button type="button" class="back-button coins-dash-back" onclick="goHome()">&#x2190; Home</button>
+              <div class="coins-dash-topbar-text">
+                <p class="eyebrow" data-t="coinsHubEyebrow">Rewards</p>
+                <h2 id="coinsHubTitleHeading" class="coins-dash-page-title" data-t="coinsHubTitle">Rewards</h2>
+              </div>
+            </div>
+            <div class="coins-dash-topbar-balance" aria-live="polite">
+              <span class="coins-dash-topbar-balance__icon" aria-hidden="true">🪙</span>
+              <span id="coinsHubTopBalance" class="coins-dash-topbar-balance__num">0</span>
+              <span class="coins-dash-topbar-balance__sep" data-t="coinsDashBalanceSlash">/</span>
+              <span id="coinsHubTopCap" class="coins-dash-topbar-balance__cap">1200</span>
             </div>
           </header>
 
@@ -1142,27 +1150,7 @@
           <div id="coinsHubEarnMult" class="coins-dash-chip coins-dash-chip--muted hidden"></div>
 
           <article
-            class="coins-dash-card coins-hub-streak-card coins-hub-streak-card--simple coins-daily-checkin-card"
-            aria-labelledby="coinsHubStreakTitleHeading"
-          >
-            <div class="coins-daily-checkin-head coins-daily-checkin-head--compact">
-              <h3 id="coinsHubStreakTitleHeading" class="coins-dash-card-title coins-dash-card-title--tight coins-daily-checkin-head__title" data-t="coinsHubStreakTitle">
-                Daily check-in (7 days)
-              </h3>
-              <div class="coins-daily-balance-hero" aria-live="polite">
-                <span class="coins-daily-balance-hero__label" data-t="coinsDailyMyBalanceCoin">My balance coin</span>
-                <span id="coinsHubDailyHeaderBalance" class="coins-daily-balance-hero__value">0</span>
-              </div>
-              <p id="coinsHubStreakProgressText" class="coins-daily-checkin-head__streak" aria-live="polite"></p>
-            </div>
-            <div class="coins-hub-streak-track" aria-hidden="true">
-              <div id="coinsHubStreakBarFill" class="coins-hub-streak-fill"></div>
-            </div>
-            <div id="coinsHubStreakGrid" class="daily-checkin-coins-row" role="list" aria-label="Daily rewards"></div>
-          </article>
-
-          <article
-            class="coins-dash-card coins-dash-card--hero coins-dash-card--hero-tight coins-dash-card--balance-compact"
+            class="coins-dash-card coins-dash-card--hero coins-dash-card--hero-tight coins-dash-card--balance-compact coins-dash-card--hero-first"
             aria-labelledby="coinsDashBalanceHeading"
           >
             <div class="coins-dash-hero-aura" aria-hidden="true"></div>
@@ -1194,6 +1182,22 @@
               </div>
               <p id="coinsHubProgressLabel" class="coins-dash-bar-label"></p>
             </div>
+          </article>
+
+          <article
+            class="coins-dash-card coins-hub-streak-card coins-hub-streak-card--simple coins-daily-checkin-card"
+            aria-labelledby="coinsHubStreakTitleHeading"
+          >
+            <div class="coins-daily-checkin-head coins-daily-checkin-head--compact">
+              <h3 id="coinsHubStreakTitleHeading" class="coins-dash-card-title coins-dash-card-title--tight coins-daily-checkin-head__title" data-t="coinsHubStreakTitle">
+                Daily check-in (7 days)
+              </h3>
+              <p id="coinsHubStreakProgressText" class="coins-daily-checkin-head__streak" aria-live="polite"></p>
+            </div>
+            <div class="coins-hub-streak-track coins-hub-streak-track--slim" aria-hidden="true">
+              <div id="coinsHubStreakBarFill" class="coins-hub-streak-fill"></div>
+            </div>
+            <div id="coinsHubStreakGrid" class="daily-checkin-coins-row" role="list" aria-label="Daily rewards"></div>
           </article>
 
           <article class="coins-dash-card coins-hub-task coins-hub-task--video" aria-labelledby="coinsHubVideoTitle">
@@ -1244,6 +1248,23 @@
               <span data-t="coinsDashCodeLabel">Code</span>: <strong id="coinsHubReferralCode" class="coins-dash-code-strong" aria-live="polite">—</strong>
             </p>
           </article>
+
+          <details class="coins-dash-details coins-dash-details--learn">
+            <summary class="coins-dash-details-summary">
+              <span data-t="coinsDashLearnMore">How coins work</span>
+              <span class="coins-dash-chevron" aria-hidden="true">▼</span>
+            </summary>
+            <div class="coins-dash-details-body">
+              <ul class="coins-dash-guide-ul coins-dash-guide-ul--short">
+                <li data-t="coinsDashGuideShort1">🎁 Trial gives 7-day Standard — earn coins while it lasts.</li>
+                <li data-t="coinsDashGuideShort2">💰 Wallet max 1200 — daily streak, videos (cap/day), invites.</li>
+                <li data-t="coinsDashGuideShort3">🔄 Spend 600 coins for +30 Standard days from your latest expiry.</li>
+                <li data-t="coinsDashGuideShort4">👥 Invite link credits you when someone signs up and logs in.</li>
+                <li data-t="coinsDashGuideShort5">⭐ Premium extras (OpenAI, future WhatsApp, no ads) are separate upgrades.</li>
+                <li data-t="coinsDashGuideShort6">⚡ Paid Standard slightly lowers earn speed — trials stay full speed.</li>
+              </ul>
+            </div>
+          </details>
         </div>
       </section>
 

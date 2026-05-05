@@ -2739,6 +2739,25 @@ async function openCoinsRewards() {
   await refreshCoinsHubUi();
 }
 
+function coinsHubBuildInviteUrl(codeRaw) {
+  const code =
+    typeof codeRaw === "string" && codeRaw.trim().length > 0 && codeRaw.trim() !== "—"
+      ? codeRaw.trim().toUpperCase()
+      : "";
+  if (!code) return "";
+  return `${window.location.origin}${window.location.pathname}?invite=${encodeURIComponent(code)}`;
+}
+
+function coinsHubPulseHero() {
+  const hero = document.querySelector(".coins-dash-card--hero");
+  if (!hero) return;
+  hero.classList.remove("coins-dash-pulse");
+  /* reflow restart animation */
+  void hero.offsetWidth;
+  hero.classList.add("coins-dash-pulse");
+  setTimeout(() => hero.classList.remove("coins-dash-pulse"), 750);
+}
+
 async function refreshCoinsHubUi() {
   const ok = await mergePremiumFromServer();
   if (!ok) {
@@ -2753,6 +2772,9 @@ async function refreshCoinsHubUi() {
   }
 
   const balEl = document.getElementById("coinsHubBalanceValue");
+  const capDisplay = document.getElementById("coinsHubCapDisplay");
+  const capFill = document.getElementById("coinsHubCapFill");
+  const walletLabel = document.getElementById("coinsHubWalletLabel");
   const progFill = document.getElementById("coinsHubProgressFill");
   const progLabel = document.getElementById("coinsHubProgressLabel");
   const trialBan = document.getElementById("coinsHubTrialBanner");
@@ -2760,20 +2782,52 @@ async function refreshCoinsHubUi() {
   const btnDaily = document.getElementById("coinsHubDailyBtn");
   const btnVideo = document.getElementById("coinsHubVideoBtn");
   const btnRedeem = document.getElementById("coinsHubRedeemBtn");
+  const dailyLbl = document.getElementById("coinsHubDailyBtnLabel");
+  const videoLbl = document.getElementById("coinsHubVideoBtnLabel");
+  const redeemLbl = document.getElementById("coinsHubRedeemBtnLabel");
   const codeEl = document.getElementById("coinsHubReferralCode");
+  const linkInput = document.getElementById("coinsHubInviteLinkInput");
+  const friendsLine = document.getElementById("coinsHubInviteFriendsLine");
+  const coinsFromInvitesEl = document.getElementById("coinsHubInviteCoinsLine");
   const multEl = document.getElementById("coinsHubEarnMult");
 
   if (!coins || coins.cap == null) return;
 
-  if (balEl) balEl.textContent = String(coins.balance ?? 0);
+  const balance = Number(coins.balance) || 0;
+  const cap = Number(coins.cap) || 1200;
   const cost = coins.standardCoinCost || 600;
-  const pct = cost ? Math.min(100, ((Number(coins.balance) || 0) / cost) * 100) : 0;
-  if (progFill) progFill.style.width = `${pct}%`;
+  const vReward = coins.videoRewards && coins.videoRewards.rewardEach != null ? Number(coins.videoRewards.rewardEach) : 10;
+  const dailyNext =
+    coins.dailyLogin && coins.dailyLogin.nextRewardCoins != null ? Number(coins.dailyLogin.nextRewardCoins) : 10;
+  const codeStr =
+    coins.referralCode && String(coins.referralCode).trim() ? String(coins.referralCode).trim() : "";
+  const inviteUrl = coinsHubBuildInviteUrl(codeStr);
+
+  if (balEl) balEl.textContent = String(balance);
+  if (capDisplay) capDisplay.textContent = String(cap);
+  const capPct = cap ? Math.min(100, (balance / cap) * 100) : 0;
+  if (capFill) capFill.style.width = `${capPct}%`;
+  if (walletLabel && typeof t === "function") {
+    walletLabel.textContent = t("coinsDashWalletProgress").replace("{b}", String(balance)).replace("{cap}", String(cap));
+  }
+
+  const goalPct = cost ? Math.min(100, (balance / cost) * 100) : 0;
+  if (progFill) progFill.style.width = `${goalPct}%`;
   if (progLabel && typeof t === "function") {
-    const b = Number(coins.balance) || 0;
-    progLabel.textContent = t("coinsProgressToStandardShort")
-      .replace("{b}", String(b))
-      .replace("{cost}", String(cost));
+    progLabel.textContent = t("coinsProgressToStandardShort").replace("{b}", String(balance)).replace("{cost}", String(cost));
+  }
+
+  const claimedToday = Boolean(coins.dailyLogin && coins.dailyLogin.claimedToday);
+  if (dailyLbl && typeof t === "function") {
+    dailyLbl.textContent = claimedToday
+      ? t("coinsDailyBtnDone")
+      : t("coinsDailyBtnActive").replace("{n}", String(dailyNext));
+  }
+  if (videoLbl && typeof t === "function") {
+    videoLbl.textContent = t("coinsVideoBtnActive").replace("{n}", String(vReward));
+  }
+  if (redeemLbl && typeof t === "function") {
+    redeemLbl.textContent = t("coinsRedeemBtnActive").replace("{cost}", String(cost));
   }
 
   if (trialBan && trialText) {
@@ -2787,24 +2841,37 @@ async function refreshCoinsHubUi() {
     }
   }
 
-  if (btnDaily) {
-    btnDaily.disabled = Boolean(coins.dailyLogin && coins.dailyLogin.claimedToday);
-  }
+  if (btnDaily) btnDaily.disabled = claimedToday;
   if (btnVideo) {
     btnVideo.disabled = Boolean(
       coins.videoRewards && coins.videoRewards.countToday >= coins.videoRewards.maxToday
     );
   }
   if (btnRedeem) {
-    btnRedeem.disabled = coins.lifecycle === "premium" || Number(coins.balance) < cost;
+    btnRedeem.disabled = coins.lifecycle === "premium" || balance < cost;
   }
 
   if (codeEl) {
-    codeEl.textContent =
-      coins.referralCode && String(coins.referralCode).trim()
-        ? String(coins.referralCode).trim()
-        : "—";
+    codeEl.textContent = codeStr || "—";
   }
+  if (linkInput) {
+    linkInput.value = inviteUrl;
+    linkInput.toggleAttribute("disabled", !inviteUrl);
+  }
+
+  const friendsTotal = coins.inviteFriendsTotal != null ? Number(coins.inviteFriendsTotal) : null;
+  const inviteEarned = coins.inviteCoinsEarnedThisMonth != null ? Number(coins.inviteCoinsEarnedThisMonth) : null;
+  if (friendsLine && typeof t === "function") {
+    friendsLine.textContent =
+      friendsTotal != null ? t("coinsDashFriendsStat").replace("{n}", String(friendsTotal)) : t("coinsDashFriendsStat").replace("{n}", "0");
+  }
+  if (coinsFromInvitesEl && typeof t === "function") {
+    coinsFromInvitesEl.textContent =
+      inviteEarned != null
+        ? t("coinsDashInviteCoinsStat").replace("{n}", String(inviteEarned))
+        : t("coinsDashInviteCoinsStat").replace("{n}", "0");
+  }
+
   if (multEl && typeof t === "function") {
     const nm = coins.earnMultiplierPreview != null ? Number(coins.earnMultiplierPreview) : 1;
     multEl.textContent = nm < 0.995 ? t("coinsEarnReducedNotice") : "";
@@ -2821,6 +2888,7 @@ async function coinsHubClaimDaily() {
     return;
   }
   await refreshCoinsHubUi();
+  coinsHubPulseHero();
 }
 
 async function coinsHubWatchVideoAd() {
@@ -2832,6 +2900,7 @@ async function coinsHubWatchVideoAd() {
     return;
   }
   await refreshCoinsHubUi();
+  coinsHubPulseHero();
 }
 
 async function coinsHubRedeemStandard() {
@@ -2847,22 +2916,38 @@ async function coinsHubRedeemStandard() {
     return;
   }
   await refreshCoinsHubUi();
+  coinsHubPulseHero();
 }
 
 function coinsHubCopyInvite() {
+  const inp = document.getElementById("coinsHubInviteLinkInput");
+  const fromInput = inp && typeof inp.value === "string" && inp.value.trim() ? inp.value.trim() : "";
+  if (fromInput) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard
+        .writeText(fromInput)
+        .then(() => showToast(typeof t === "function" ? t("coinsInviteCopied") : "Link copied"))
+        .catch(() => window.prompt("", fromInput));
+    } else {
+      window.prompt("", fromInput);
+    }
+    return;
+  }
   const raw = document.getElementById("coinsHubReferralCode");
   const code =
     raw &&
     typeof raw.textContent === "string" &&
-    raw.textContent.trim().length > 2 &&
+    raw.textContent.trim().length > 0 &&
     raw.textContent.trim() !== "—"
       ? raw.textContent.trim().toUpperCase()
-      : (currentUser && currentUser.referralCode ? String(currentUser.referralCode).trim().toUpperCase() : "");
+      : currentUser && currentUser.referralCode
+        ? String(currentUser.referralCode).trim().toUpperCase()
+        : "";
   if (!code) {
     showToast(typeof t === "function" ? t("coinsInviteNoCode") : "Invite code unavailable.");
     return;
   }
-  const link = `${window.location.origin}${window.location.pathname}?invite=${encodeURIComponent(code)}`;
+  const link = coinsHubBuildInviteUrl(code);
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard
       .writeText(link)
@@ -2871,6 +2956,25 @@ function coinsHubCopyInvite() {
     return;
   }
   window.prompt("", link);
+}
+
+function coinsHubShareInvite() {
+  const inp = document.getElementById("coinsHubInviteLinkInput");
+  const url = inp && inp.value ? String(inp.value).trim() : "";
+  if (!url) {
+    coinsHubCopyInvite();
+    return;
+  }
+  const payload = {
+    title: typeof t === "function" ? t("coinsDashInviteTitle") : "Notes AI",
+    text: typeof t === "function" ? t("coinsDashShareSubject") : "",
+    url
+  };
+  if (navigator.share) {
+    navigator.share(payload).catch(() => coinsHubCopyInvite());
+  } else {
+    coinsHubCopyInvite();
+  }
 }
 
 function premiumLiteInitPricingUi() {

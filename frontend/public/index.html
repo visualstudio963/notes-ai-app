@@ -1012,71 +1012,118 @@
         </div>
       </section>
 
-      <section id="coins-hub" class="page hidden coins-hub-page" aria-labelledby="coinsHubTitleHeading">
-        <div class="page-shell coins-hub-shell">
-          <div class="page-header coins-hub-page-header">
-            <button type="button" class="back-button" onclick="goHome()">&#x2190; Home</button>
-            <div>
+      <section id="coins-hub" class="page hidden coins-dash-page" aria-labelledby="coinsHubTitleHeading">
+        <div class="page-shell coins-dash-shell">
+          <header class="coins-dash-topbar">
+            <button type="button" class="back-button coins-dash-back" onclick="goHome()">&#x2190; Home</button>
+            <div class="coins-dash-topbar-text">
               <p class="eyebrow" data-t="coinsHubEyebrow">Rewards</p>
-              <h2 id="coinsHubTitleHeading" data-t="coinsHubTitle">Coins & Standard</h2>
+              <h2 id="coinsHubTitleHeading" class="coins-dash-page-title" data-t="coinsHubTitle">Rewards</h2>
             </div>
+          </header>
+
+          <div id="coinsHubTrialBanner" class="coins-dash-alert coins-dash-alert--trial hidden" role="status">
+            <span class="coins-dash-alert-icon" aria-hidden="true">⭐</span>
+            <p id="coinsHubTrialText" class="coins-dash-alert-text"></p>
           </div>
 
-          <div class="coins-hub-guide" aria-labelledby="coinsSystemGuideTitle">
-            <h3 id="coinsSystemGuideTitle" class="coins-hub-guide-title" data-t="coinsSystemGuideTitle">How coins work</h3>
-            <ul class="coins-hub-guide-list coins-hub-muted">
-              <li data-t="coinsGuideLi1"></li>
-              <li data-t="coinsGuideLi2"></li>
-              <li data-t="coinsGuideLi3"></li>
-              <li data-t="coinsGuideLi4"></li>
-              <li data-t="coinsGuideLi5"></li>
-              <li data-t="coinsGuideLi6"></li>
-              <li data-t="coinsGuideLi7"></li>
-              <li data-t="coinsGuideLi8"></li>
-            </ul>
-          </div>
+          <div id="coinsHubEarnMult" class="coins-dash-chip coins-dash-chip--muted hidden"></div>
 
-          <div id="coinsHubTrialBanner" class="coins-hub-trial-banner hidden" role="status">
-            <p id="coinsHubTrialText"></p>
-          </div>
-
-          <div id="coinsHubEarnMult" class="coins-hub-mult-banner hidden"></div>
-
-          <div class="coins-hub-balance-panel">
-            <p class="coins-hub-balance-label" data-t="coinsBalanceCaption">Coins balance</p>
-            <p class="coins-hub-balance-line">
-              <span id="coinsHubBalanceValue" class="coins-hub-balance-value">—</span>
-              <span class="coins-hub-balance-gap"> </span>
-              <span class="coins-hub-balance-cap" data-t="coinsBalanceCapSuffix">/ 1200</span>
-            </p>
-            <div class="coins-hub-progress">
-              <div class="coins-hub-progress__track"><div id="coinsHubProgressFill" class="coins-hub-progress__fill"></div></div>
-              <p id="coinsHubProgressLabel" class="coins-hub-progress-label"></p>
+          <!-- Balance hero -->
+          <article class="coins-dash-card coins-dash-card--hero" aria-labelledby="coinsDashBalanceHeading">
+            <div class="coins-dash-hero-aura" aria-hidden="true"></div>
+            <div class="coins-dash-hero-head">
+              <span class="coins-dash-coin-stack" aria-hidden="true"><span class="coins-dash-coin-3d">🪙</span><span class="coins-dash-coin-3d coins-dash-coin-3d--back">💰</span></span>
+              <div>
+                <p id="coinsDashBalanceHeading" class="coins-dash-balance-caption" data-t="coinsDashYourBalance">Your balance</p>
+                <p class="coins-dash-balance-tagline" data-t="coinsDashEarnSub">Earn coins daily and unlock features</p>
+              </div>
             </div>
-          </div>
+            <div class="coins-dash-balance-digits">
+              <span id="coinsHubBalanceValue" class="coins-dash-balance-num">—</span>
+              <span class="coins-dash-balance-max"><span data-t="coinsDashBalanceSlash">/</span> <span id="coinsHubCapDisplay">1200</span></span>
+            </div>
+            <div class="coins-dash-bar-wrap coins-dash-bar-wrap--wallet" aria-hidden="false">
+              <div class="coins-dash-bar-track coins-dash-bar-track--glow">
+                <div id="coinsHubCapFill" class="coins-dash-bar-fill coins-dash-bar-fill--wallet"></div>
+              </div>
+              <p id="coinsHubWalletLabel" class="coins-dash-bar-label"></p>
+            </div>
+            <div class="coins-dash-divider"></div>
+            <p class="coins-dash-goal-eyebrow" data-t="coinsDashGoalEyebrow">Progress to 30‑day Standard</p>
+            <div class="coins-dash-bar-wrap">
+              <div class="coins-dash-bar-track">
+                <div id="coinsHubProgressFill" class="coins-dash-bar-fill coins-dash-bar-fill--goal"></div>
+              </div>
+              <p id="coinsHubProgressLabel" class="coins-dash-bar-label"></p>
+            </div>
+          </article>
 
-          <div class="coins-hub-actions">
-            <button type="button" id="coinsHubDailyBtn" class="save-button secondary" onclick="coinsHubClaimDaily()" data-t="coinsDailyBtn">
-              Daily reward streak
-            </button>
-            <button type="button" id="coinsHubVideoBtn" class="save-button secondary" onclick="coinsHubWatchVideoAd()" data-t="coinsVideoBtn">
-              Watch rewarded video (+10 coins)
-            </button>
-            <button type="button" id="coinsHubRedeemBtn" class="save-button" onclick="coinsHubRedeemStandard()" data-t="coinsRedeemBtn">
-              Spend 600 coins → 30 days Standard
-            </button>
-            <button type="button" class="save-button secondary" onclick="coinsHubCopyInvite()" data-t="coinsInviteShareBtn">
-              Copy invite link
-            </button>
-          </div>
+          <!-- Quick actions -->
+          <article class="coins-dash-card coins-dash-card--actions">
+            <h3 class="coins-dash-card-title" data-t="coinsDashActionsTitle">Earn &amp; spend</h3>
+            <div class="coins-dash-actions-grid">
+              <button type="button" id="coinsHubDailyBtn" class="coins-dash-action coins-dash-action--gift" onclick="coinsHubClaimDaily()">
+                <span class="coins-dash-action-icon" aria-hidden="true">🎁</span>
+                <span class="coins-dash-action-label" id="coinsHubDailyBtnLabel">Daily reward</span>
+              </button>
+              <button type="button" id="coinsHubVideoBtn" class="coins-dash-action coins-dash-action--video" onclick="coinsHubWatchVideoAd()">
+                <span class="coins-dash-action-icon" aria-hidden="true">▶️</span>
+                <span class="coins-dash-action-label" id="coinsHubVideoBtnLabel">Watch video</span>
+              </button>
+              <button type="button" id="coinsHubRedeemBtn" class="coins-dash-action coins-dash-action--redeem" onclick="coinsHubRedeemStandard()">
+                <span class="coins-dash-action-icon" aria-hidden="true">🔄</span>
+                <span class="coins-dash-action-label" id="coinsHubRedeemBtnLabel">Unlock Standard</span>
+              </button>
+            </div>
+          </article>
 
-          <div class="coins-hub-invite-panel">
-            <p class="coins-hub-invite-label" data-t="coinsInviteCodeLabel">Your invite code</p>
-            <p id="coinsHubReferralCode" class="coins-hub-invite-code" aria-live="polite">—</p>
-            <p class="coins-hub-invite-note coins-hub-muted" data-t="coinsInviteNote"></p>
-          </div>
+          <!-- Invite -->
+          <article class="coins-dash-card coins-dash-card--invite">
+            <div class="coins-dash-invite-header">
+              <span class="coins-dash-invite-emoji" aria-hidden="true">🔗</span>
+              <div>
+                <h3 class="coins-dash-card-title coins-dash-card-title--flush" data-t="coinsDashInviteTitle">Invite &amp; earn</h3>
+                <p class="coins-dash-card-sub" data-t="coinsInviteNote">Share your link — earn when friends join.</p>
+              </div>
+            </div>
+            <label class="sr-only" for="coinsHubInviteLinkInput" data-t="coinsDashInviteLinkLabel">Your referral link</label>
+            <div class="coins-dash-link-box">
+              <input type="text" id="coinsHubInviteLinkInput" class="coins-dash-link-input" readonly tabindex="0" value="" autocomplete="off" />
+            </div>
+            <div class="coins-dash-invite-actions">
+              <button type="button" class="coins-dash-mini-btn coins-dash-mini-btn--blue" onclick="coinsHubCopyInvite()" data-t="coinsDashCopyLink">Copy</button>
+              <button type="button" class="coins-dash-mini-btn coins-dash-mini-btn--purple" onclick="coinsHubShareInvite()" data-t="coinsDashShareLink">Share</button>
+            </div>
+            <div class="coins-dash-invite-stats">
+              <div class="coins-dash-stat-pill coins-dash-stat-pill--green">
+                <span aria-hidden="true">👥</span>
+                <span id="coinsHubInviteFriendsLine">Friends invited: —</span>
+              </div>
+              <div class="coins-dash-stat-pill coins-dash-stat-pill--gold">
+                <span aria-hidden="true">✨</span>
+                <span id="coinsHubInviteCoinsLine">From invites this month: —</span>
+              </div>
+            </div>
+            <p class="coins-dash-code-row"><span data-t="coinsDashCodeLabel">Code</span>: <strong id="coinsHubReferralCode" class="coins-dash-code-strong" aria-live="polite">—</strong></p>
+          </article>
 
-          <p class="coins-hub-footer-note coins-hub-muted" data-t="coinsHubFooterNote"></p>
+          <!-- Learn more accordion -->
+          <details class="coins-dash-details">
+            <summary class="coins-dash-details-summary"><span data-t="coinsDashLearnMore">How coins work</span><span class="coins-dash-chevron">▼</span></summary>
+            <div class="coins-dash-details-body">
+              <ul class="coins-dash-guide-ul">
+                <li data-t="coinsDashGuideShort1"></li>
+                <li data-t="coinsDashGuideShort2"></li>
+                <li data-t="coinsDashGuideShort3"></li>
+                <li data-t="coinsDashGuideShort4"></li>
+                <li data-t="coinsDashGuideShort5"></li>
+                <li data-t="coinsDashGuideShort6"></li>
+              </ul>
+            </div>
+          </details>
+
+          <p class="coins-dash-footer-hint coins-dash-muted" data-t="coinsHubFooterNote"></p>
         </div>
       </section>
 

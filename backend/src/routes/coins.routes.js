@@ -5,6 +5,7 @@ const {
   claimVideoReward,
   redeemStandardWithCoins,
   buildCoinsStatusPayload,
+  enrichCoinsStatusWithInviteStats,
   ensureReferralCode,
   finalizeInviteBonus
 } = require("../features/coins/coinService");
@@ -29,7 +30,9 @@ function createCoinsRouter({ User, authMiddleware }) {
       user = await ensureReferralCode(User, user);
       await finalizeInviteBonus(User, user);
       user = await User.findById(req.userId).lean();
-      res.json(buildCoinsStatusPayload(user));
+      const base = buildCoinsStatusPayload(user);
+      const payload = await enrichCoinsStatusWithInviteStats(User, user, base);
+      res.json(payload);
     } catch (err) {
       console.error("[coins/status]", err && err.message);
       res.status(500).json({ error: "Failed to load coins status" });

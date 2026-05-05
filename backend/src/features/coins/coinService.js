@@ -244,6 +244,30 @@ async function redeemStandardWithCoins(User, userId) {
   return User.findById(userId).lean();
 }
 
+/**
+ * Adds total invited friends + estimated coins from referrals this month (additive fields; safe for older clients).
+ * @param {import("mongoose").Model} User
+ */
+async function enrichCoinsStatusWithInviteStats(User, userLean, basePayload) {
+  let inviteFriendsTotal = 0;
+  try {
+    inviteFriendsTotal = await User.countDocuments({ referredByUserId: userLean._id });
+  } catch (_) {
+    inviteFriendsTotal = 0;
+  }
+  const ymNow = utcTodayString().slice(0, 7);
+  const monthCount =
+    String(userLean.inviteFriendMonthYm || "") === ymNow
+      ? Number(userLean.inviteFriendMonthCount || 0) || 0
+      : 0;
+  const perInvite = scaledReward(INVITE_REWARD, userLean);
+  return {
+    ...basePayload,
+    inviteFriendsTotal,
+    inviteCoinsEarnedThisMonth: monthCount * perInvite
+  };
+}
+
 function buildCoinsStatusPayload(userLean) {
   const today = utcTodayString();
   const videoCountToday =
@@ -299,5 +323,6 @@ module.exports = {
   claimVideoReward,
   redeemStandardWithCoins,
   buildCoinsStatusPayload,
+  enrichCoinsStatusWithInviteStats,
   trialDaysRemainingMs
 };

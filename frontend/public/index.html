@@ -10,7 +10,6 @@
   <link rel="manifest" href="/manifest.json" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="css/style.css" />
-  <link rel="stylesheet" href="css/coins-rewards-page.css" />
   <link rel="stylesheet" href="css/settings-theme.css" />
 </head>
 <body>
@@ -1125,123 +1124,126 @@
         </div>
       </section>
 
-      <section id="coins-hub" class="page hidden coins-dash-page coins-page" aria-labelledby="coinsHubTitleHeading">
-        <div class="page-shell coins-dash-shell coins-page-shell">
-          <header class="coins-rewards-header">
-            <button type="button" class="back-button coins-rewards-back" onclick="goHome()">&#x2190; Home</button>
-            <div class="coins-rewards-header-titles">
-              <p class="eyebrow coins-rewards-eyebrow" data-t="coinsHubEyebrow">Rewards</p>
-              <h2 id="coinsHubTitleHeading" class="coins-rewards-page-title" data-t="coinsHubTitle">Coins Rewards</h2>
-            </div>
-            <div class="coins-rewards-balance-chip" aria-live="polite">
-              <span class="coins-rewards-balance-chip__icon" aria-hidden="true">🪙</span>
-              <span id="coinsHubBalanceValue" class="coins-rewards-balance-chip__num">0</span>
-              <span class="coins-rewards-balance-chip__sep" data-t="coinsDashBalanceSlash">/</span>
-              <span id="coinsHubCapDisplay" class="coins-rewards-balance-chip__cap">1200</span>
+      <section id="coins-hub" class="page hidden coins-dash-page" aria-labelledby="coinsHubTitleHeading">
+        <div class="page-shell coins-dash-shell">
+          <header class="coins-dash-topbar">
+            <button type="button" class="back-button coins-dash-back" onclick="goHome()">&#x2190; Home</button>
+            <div class="coins-dash-topbar-text">
+              <p class="eyebrow" data-t="coinsHubEyebrow">Rewards</p>
+              <h2 id="coinsHubTitleHeading" class="coins-dash-page-title" data-t="coinsHubTitle">Rewards</h2>
             </div>
           </header>
 
-          <div id="coinsHubTrialBanner" class="coins-rewards-banner coins-rewards-banner--trial hidden" role="status">
-            <span class="coins-rewards-banner__icon" aria-hidden="true">⭐</span>
-            <p id="coinsHubTrialText" class="coins-rewards-banner__text"></p>
+          <div id="coinsHubTrialBanner" class="coins-dash-alert coins-dash-alert--trial hidden" role="status">
+            <span class="coins-dash-alert-icon" aria-hidden="true">⭐</span>
+            <p id="coinsHubTrialText" class="coins-dash-alert-text"></p>
           </div>
 
-          <div id="coinsHubEarnMult" class="coins-rewards-chip coins-rewards-chip--muted hidden"></div>
+          <div id="coinsHubEarnMult" class="coins-dash-chip coins-dash-chip--muted hidden"></div>
 
-          <aside class="card coins-rewards-card coins-rewards-intro" aria-labelledby="coinsRewardsIntroHeading">
-            <h2 id="coinsRewardsIntroHeading" class="coins-rewards-intro__title" data-t="coinsDashLearnMore">
-              How coins work
-            </h2>
-            <div class="coins-rewards-intro__rule" aria-hidden="true"></div>
-            <p class="coins-rewards-intro__text" data-t="coinsRewardsInfoBlurbShort">
-              Earn from your streak, watching videos (daily cap), and invites. Redeem for Standard access.
-            </p>
-          </aside>
-
-          <!-- Section 1: Daily login + Watch video -->
-          <section class="card coins-rewards-card coins-rewards-section coins-rewards-section--earn coins-rewards-pulse-target" aria-labelledby="coinsRewardsS1Heading">
-            <div class="coins-rewards-section-title-row">
-              <h2 id="coinsRewardsS1Heading" class="coins-rewards-section-title" data-t="coinsRewardsSectionEarnTitle">Daily login &amp; video</h2>
-            </div>
-
-            <div class="coins-rewards-video-strip coins-rewards-video-wrap">
-              <div class="coins-rewards-video-strip__info">
-                <span class="coins-rewards-video-strip__title">
-                  <span aria-hidden="true">▶️</span>
-                  <span data-t="coinsHubVideoRowTitle">Watch video</span>
-                </span>
-                <span id="coinsHubVideoRewardLine" class="coins-rewards-video-strip__reward"></span>
-                <span id="coinsHubVideoRowMeta" class="coins-rewards-video-strip__meta"></span>
-              </div>
-              <button type="button" id="coinsHubVideoBtn" class="btn coins-rewards-video-strip__go" onclick="coinsHubWatchVideoAd()">
-                <span data-t="coinsHubVideoGo">Watch</span>
-              </button>
-            </div>
-            <p id="coinsHubVideoCooldown" class="coins-rewards-video-strip__foot coins-rewards-muted" role="status"></p>
-
-            <div class="coins-rewards-daily-block">
-              <h3 id="coinsHubStreakTitleHeading" class="coins-rewards-subtitle coins-rewards-daily-heading" data-t="coinsHubStreakTitle">
+          <article
+            class="coins-dash-card coins-hub-streak-card coins-hub-streak-card--simple coins-daily-checkin-card"
+            aria-labelledby="coinsHubStreakTitleHeading"
+          >
+            <div class="coins-daily-checkin-head coins-daily-checkin-head--compact">
+              <h3 id="coinsHubStreakTitleHeading" class="coins-dash-card-title coins-dash-card-title--tight coins-daily-checkin-head__title" data-t="coinsHubStreakTitle">
                 Daily check-in (7 days)
               </h3>
-              <p id="coinsHubStreakProgressText" class="coins-rewards-streak-msg" aria-live="polite"></p>
-              <div class="coins-rewards-mini-track" aria-hidden="true">
-                <div id="coinsHubStreakBarFill" class="coins-rewards-mini-track-fill"></div>
+              <div class="coins-daily-balance-hero" aria-live="polite">
+                <span class="coins-daily-balance-hero__label" data-t="coinsDailyMyBalanceCoin">My balance coin</span>
+                <span id="coinsHubDailyHeaderBalance" class="coins-daily-balance-hero__value">0</span>
               </div>
-              <div id="coinsHubStreakGrid" class="daily-grid coins-rewards-daily-grid" role="list" aria-label="Daily rewards"></div>
+              <p id="coinsHubStreakProgressText" class="coins-daily-checkin-head__streak" aria-live="polite"></p>
             </div>
+            <div class="coins-hub-streak-track" aria-hidden="true">
+              <div id="coinsHubStreakBarFill" class="coins-hub-streak-fill"></div>
+            </div>
+            <div id="coinsHubStreakGrid" class="daily-checkin-coins-row" role="list" aria-label="Daily rewards"></div>
+          </article>
 
-            <div class="coins-rewards-progress-block">
-              <div class="coins-rewards-micro-bar">
-                <div class="coins-rewards-micro-bar__track coins-rewards-micro-bar__track--glow">
-                  <div id="coinsHubCapFill" class="coins-rewards-micro-bar__fill coins-rewards-micro-bar__fill--wallet"></div>
-                </div>
-                <p id="coinsHubWalletLabel" class="coins-rewards-micro-bar__label"></p>
+          <article
+            class="coins-dash-card coins-dash-card--hero coins-dash-card--hero-tight coins-dash-card--balance-compact"
+            aria-labelledby="coinsDashBalanceHeading"
+          >
+            <div class="coins-dash-hero-aura" aria-hidden="true"></div>
+            <div class="coins-dash-hero-head">
+              <span class="coins-dash-coin-stack" aria-hidden="true"
+                ><span class="coins-dash-coin-3d">🪙</span><span class="coins-dash-coin-3d coins-dash-coin-3d--back">💰</span></span
+              >
+              <div>
+                <p id="coinsDashBalanceHeading" class="coins-dash-balance-caption" data-t="coinsDashYourBalance">Your balance</p>
               </div>
-              <p class="coins-rewards-micro-eyebrow" data-t="coinsDashGoalEyebrow">Progress to 30‑day Standard</p>
-              <div class="coins-rewards-micro-bar">
-                <div class="coins-rewards-micro-bar__track">
-                  <div id="coinsHubProgressFill" class="coins-rewards-micro-bar__fill coins-rewards-micro-bar__fill--goal"></div>
-                </div>
-                <p id="coinsHubProgressLabel" class="coins-rewards-micro-bar__label"></p>
+            </div>
+            <div class="coins-dash-balance-digits">
+              <span id="coinsHubBalanceValue" class="coins-dash-balance-num">0</span>
+              <span class="coins-dash-balance-max"
+                ><span data-t="coinsDashBalanceSlash">/</span> <span id="coinsHubCapDisplay">1200</span></span
+              >
+            </div>
+            <div class="coins-dash-bar-wrap coins-dash-bar-wrap--wallet">
+              <div class="coins-dash-bar-track coins-dash-bar-track--glow">
+                <div id="coinsHubCapFill" class="coins-dash-bar-fill coins-dash-bar-fill--wallet"></div>
               </div>
-              <button type="button" id="coinsHubRedeemBtn" class="btn coins-rewards-redeem-btn" onclick="coinsHubRedeemStandard()">
-                <span aria-hidden="true">🎁</span>
-                <span id="coinsHubRedeemBtnLabel">Unlock Standard</span>
+              <p id="coinsHubWalletLabel" class="coins-dash-bar-label"></p>
+            </div>
+            <div class="coins-dash-divider"></div>
+            <p class="coins-dash-goal-eyebrow" data-t="coinsDashGoalEyebrow">Progress to 30‑day Standard</p>
+            <div class="coins-dash-bar-wrap">
+              <div class="coins-dash-bar-track">
+                <div id="coinsHubProgressFill" class="coins-dash-bar-fill coins-dash-bar-fill--goal"></div>
+              </div>
+              <p id="coinsHubProgressLabel" class="coins-dash-bar-label"></p>
+            </div>
+          </article>
+
+          <article class="coins-dash-card coins-hub-task coins-hub-task--video" aria-labelledby="coinsHubVideoTitle">
+            <div class="coins-hub-task__row">
+              <div class="coins-hub-task__icon-slot" aria-hidden="true">
+                <span class="coins-hub-task__icon-glyphs">▶</span>
+              </div>
+              <div class="coins-hub-task__main">
+                <h3 id="coinsHubVideoTitle" class="coins-hub-task__title" data-t="coinsHubVideoRowTitle">Watch video</h3>
+                <p id="coinsHubVideoRowMeta" class="coins-hub-task__meta"></p>
+              </div>
+              <button type="button" id="coinsHubVideoBtn" class="coins-hub-task__go" onclick="coinsHubWatchVideoAd()">
+                <span id="coinsHubVideoBtnLabel">Watch</span>
               </button>
             </div>
-          </section>
+            <p id="coinsHubVideoCooldown" class="coins-hub-task__foot coins-dash-muted"></p>
+            <p class="coins-hub-task__hint coins-dash-muted" data-t="coinsHubVideoPlaceholderNote">
+              Rewarded ads coming soon — still earns coins today.
+            </p>
+          </article>
 
-          <!-- Section 2: Invite friends -->
-          <section class="card coins-rewards-card coins-rewards-section coins-rewards-invite coins-invite-panel" aria-labelledby="coinsRewardsInviteHeading">
-            <h2 id="coinsRewardsInviteHeading" class="coins-rewards-section-title" data-t="coinsDashInviteFriendsTitle">Invite Friends</h2>
-            <p class="coins-rewards-invite-lead coins-rewards-muted" data-t="coinsRewardsInviteHint">
-              Unique link • 100 coins per friend who joins.
+          <article class="coins-dash-card coins-hub-redeem-card">
+            <button type="button" id="coinsHubRedeemBtn" class="coins-hub-redeem-btn" onclick="coinsHubRedeemStandard()">
+              <span class="coins-hub-redeem-icon" aria-hidden="true">🔄</span>
+              <span id="coinsHubRedeemBtnLabel" class="coins-hub-redeem-label">Unlock Standard</span>
+            </button>
+          </article>
+
+          <article class="coins-dash-card coins-dash-card--invite coins-invite-panel">
+            <h3 class="coins-dash-card-title coins-dash-card-title--flush" data-t="coinsDashInviteFriendsTitle">Invite friends &amp; earn coins</h3>
+            <p class="coins-invite-panel__hint coins-dash-muted" data-t="coinsInvitePanelHint">
+              Your personal link invites people to sign up — you earn when they join.
             </p>
             <label class="sr-only" for="coinsHubInviteLinkInput" data-t="coinsDashInviteLinkLabel">Your referral link</label>
-            <input type="text" id="coinsHubInviteLinkInput" class="coins-rewards-invite-input invite-box" readonly tabindex="0" value="" autocomplete="off" />
-            <div class="coins-rewards-invite-actions">
-              <button type="button" class="btn coins-rewards-btn-copy" onclick="coinsHubCopyInvite()">
-                <span aria-hidden="true">🔗</span> <span data-t="coinsDashCopyLink">Copy link</span>
+            <div class="coins-dash-link-box coins-invite-panel__field">
+              <input type="text" id="coinsHubInviteLinkInput" class="coins-dash-link-input" readonly tabindex="0" value="" autocomplete="off" />
+            </div>
+            <div class="coins-dash-invite-actions coins-invite-panel__cta">
+              <button type="button" class="coins-dash-mini-btn coins-dash-mini-btn--blue" onclick="coinsHubCopyInvite()" data-t="coinsDashCopyLink">
+                Copy link
               </button>
-              <button type="button" class="btn coins-rewards-btn-share coins-rewards-btn--alt" onclick="coinsHubShareInvite()">
-                <span data-t="coinsDashShareLink">Share</span>
+              <button type="button" class="coins-dash-mini-btn coins-dash-mini-btn--purple" onclick="coinsHubShareInvite()" data-t="coinsDashShareLink">
+                Share
               </button>
             </div>
-            <div class="coins-rewards-invite-stats" aria-live="polite">
-              <div class="coins-rewards-stat-cell">
-                <span class="coins-rewards-stat-label" data-t="coinsRewardsStatFriendsInvited">Friends invited</span>
-                <strong id="coinsHubInviteFriendsValue" class="coins-rewards-stat-val">0</strong>
-              </div>
-              <div class="coins-rewards-stat-cell">
-                <span class="coins-rewards-stat-label" data-t="coinsRewardsStatCoinsEarned">Coins earned (month)</span>
-                <strong id="coinsHubInviteCoinsValue" class="coins-rewards-stat-val">0</strong>
-              </div>
-            </div>
-            <p class="coins-rewards-invite-code coins-rewards-muted">
-              <span data-t="coinsDashCodeLabel">Code</span>: <strong id="coinsHubReferralCode">—</strong>
+            <p id="coinsHubInviteStatsLine" class="coins-invite-panel__stats" aria-live="polite"></p>
+            <p class="coins-dash-code-row coins-invite-panel__code">
+              <span data-t="coinsDashCodeLabel">Code</span>: <strong id="coinsHubReferralCode" class="coins-dash-code-strong" aria-live="polite">—</strong>
             </p>
-            <p id="coinsHubInviteStatsLine" class="sr-only"></p>
-          </section>
+          </article>
         </div>
       </section>
 

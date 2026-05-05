@@ -22,11 +22,21 @@
   /** Hydrate inputs + cache from GET/PUT payloads (includes tiktok & youtube). */
   function applyDiscordConfigToInputs(data) {
     if (!data || typeof data !== "object") return;
+    const prev = discordConfigCache;
+    const own = Object.prototype.hasOwnProperty;
     discordConfigCache = {
-      discordInviteUrl: String(data.discordInviteUrl != null ? data.discordInviteUrl : "").trim(),
-      discordUpdatesCount: Math.max(0, Number(data.discordUpdatesCount || 0)),
-      tiktokUrl: String(data.tiktokUrl != null ? data.tiktokUrl : "").trim(),
-      youtubeUrl: String(data.youtubeUrl != null ? data.youtubeUrl : "").trim()
+      discordInviteUrl: own.call(data, "discordInviteUrl")
+        ? String(data.discordInviteUrl != null ? data.discordInviteUrl : "").trim()
+        : String(prev.discordInviteUrl || "").trim(),
+      discordUpdatesCount: own.call(data, "discordUpdatesCount")
+        ? Math.max(0, Number(data.discordUpdatesCount || 0))
+        : Math.max(0, Number(prev.discordUpdatesCount || 0)),
+      tiktokUrl: own.call(data, "tiktokUrl")
+        ? String(data.tiktokUrl != null ? data.tiktokUrl : "").trim()
+        : String(prev.tiktokUrl || "").trim(),
+      youtubeUrl: own.call(data, "youtubeUrl")
+        ? String(data.youtubeUrl != null ? data.youtubeUrl : "").trim()
+        : String(prev.youtubeUrl || "").trim()
     };
     const urlInput = document.getElementById("adminDiscordInviteUrl");
     if (urlInput) urlInput.value = discordConfigCache.discordInviteUrl;

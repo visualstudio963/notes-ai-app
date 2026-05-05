@@ -13534,9 +13534,9 @@ body.note-rich-editor-open #dailyPlannerFab {
   padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
 }
 
-/* Coins rewards: tighter layout under global topbar — balance reads first */
+/* Coins rewards: tighter layout under global topbar */
 body.coins-hub-open #coins-hub .coins-dash-shell {
-  margin-top: -6px;
+  margin-top: -8px;
 }
 
 @media (max-width: 560px) {
@@ -15084,9 +15084,19 @@ body.trial-gift-modal-open {
 .onboarding-tutorial__block {
   position: fixed;
   inset: 0;
-  background: rgba(5, 10, 24, 0.52);
-  backdrop-filter: blur(2px);
+  /* Light dim only — keep background readable so users see where they are */
+  background: rgba(5, 10, 24, 0.38);
+  backdrop-filter: blur(0.5px);
+  -webkit-backdrop-filter: blur(0.5px);
   pointer-events: auto;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .onboarding-tutorial__block {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(5, 10, 24, 0.45);
+  }
 }
 
 .onboarding-tutorial__spotlight {
@@ -15139,8 +15149,12 @@ body.trial-gift-modal-open {
 .onboarding-tutorial__tip {
   position: fixed;
   z-index: 4;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   min-width: min(18rem, calc(100vw - 2.5rem));
   max-width: min(22rem, calc(100vw - 2.5rem));
+  max-height: min(72vh, 520px);
   padding: 1rem 1.1rem 0.95rem;
   border-radius: 16px;
   background: rgba(14, 20, 35, 0.97);
@@ -15150,6 +15164,7 @@ body.trial-gift-modal-open {
     0 0 0 1px rgba(56, 189, 248, 0.12);
   color: #e2e8f0;
   pointer-events: auto;
+  overflow: hidden;
 }
 
 .onboarding-tutorial__close {
@@ -15181,6 +15196,7 @@ body.trial-gift-modal-open {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #64748b;
+  flex-shrink: 0;
 }
 
 .onboarding-tutorial__title {
@@ -15190,13 +15206,23 @@ body.trial-gift-modal-open {
   font-weight: 700;
   line-height: 1.35;
   color: #f8fafc;
+  flex-shrink: 0;
 }
 
 .onboarding-tutorial__body {
-  margin: 0 0 0.95rem;
+  margin: 0 0 0.65rem;
   font-size: 0.92rem;
   line-height: 1.52;
   color: #cbd5e1;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  -webkit-hyphens: auto;
 }
 
 .onboarding-tutorial__footer {
@@ -15205,6 +15231,9 @@ body.trial-gift-modal-open {
   align-items: center;
   justify-content: flex-end;
   gap: 0.55rem;
+  flex-shrink: 0;
+  margin-top: auto;
+  padding-top: 0.25rem;
 }
 
 .onboarding-tutorial__ghost {
@@ -15227,6 +15256,8 @@ body.trial-gift-modal-open {
   border: none;
   border-radius: 11px;
   padding: 0.55rem 1.05rem;
+  min-width: 0;
+  max-width: 100%;
   font-size: 0.9rem;
   font-weight: 700;
   cursor: pointer;

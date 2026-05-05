@@ -101,6 +101,21 @@
     return id ? `aiNotesTutorialDone_${id}` : "aiNotesTutorialDone_guest";
   }
 
+  /** Sync tutorial flag from server without running full settings / premium merge (avoids duplicate work on startup). */
+  async function hydrateTutorialFlagFromServer() {
+    if (typeof apiFetch !== "function" || typeof accessToken === "undefined" || !accessToken) return;
+    if (typeof currentUser === "undefined" || !currentUser || currentUser.id == null) return;
+    try {
+      const data = await apiFetch("/api/user/settings");
+      if (data.settings && typeof data.settings.hasSeenTutorial === "boolean") {
+        currentUser.hasSeenTutorial = data.settings.hasSeenTutorial;
+        if (typeof persistCurrentUserToStorage === "function") persistCurrentUserToStorage();
+      }
+    } catch {
+      /* offline — rely on currentUser + local done key */
+    }
+  }
+
   function clientMarkedDoneLocally() {
     try {
       if (typeof currentUser !== "undefined" && currentUser && currentUser.id != null) {
@@ -112,12 +127,16 @@
     return false;
   }
 
-  /** Show only when the server/client user flag is explicitly false — not undefined (stale cached user). */
+  /**
+   * One-time walkthrough for brand-new accounts only.
+   * 1) Local "done" flag wins (survives failed server sync, cleared site data still needs server true).
+   * 2) Server must explicitly say not seen yet (`hasSeenTutorial === false`).
+   */
   function shouldOfferFirstTimeTutorial() {
     if (typeof currentUser === "undefined" || !currentUser || !currentUser.id) return false;
     if (typeof accessToken === "undefined" || !accessToken) return false;
-    if (currentUser.hasSeenTutorial !== false) return false;
     if (clientMarkedDoneLocally()) return false;
+    if (currentUser.hasSeenTutorial !== false) return false;
     return true;
   }
 
@@ -392,7 +411,7 @@
         });
       }
     } catch {
-      /* non-fatal */
+      /* non-fatal — local flag already prevents repeat prompts */
     }
   }
 
@@ -508,7 +527,10 @@
     if (tourLock) return;
     opts = opts || {};
     forceRun = Boolean(opts.force);
-    if (!forceRun && !shouldOfferFirstTimeTutorial()) return;
+    if (!forceRun) {
+      await hydrateTutorialFlagFromServer();
+      if (!shouldOfferFirstTimeTutorial()) return;
+    }
     if (typeof currentUser === "undefined" || !currentUser || !currentUser.id) return;
 
     tourLock = true;
@@ -552,7 +574,6 @@
     scheduleTimer = setTimeout(() => {
       scheduleTimer = null;
       if (tourLock || active) return;
-      if (!shouldOfferFirstTimeTutorial()) return;
       void internalStart({ force: false });
     }, 700);
   }

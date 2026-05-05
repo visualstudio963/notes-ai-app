@@ -2969,13 +2969,9 @@ async function refreshCoinsHubUi() {
   const multEl = document.getElementById("coinsHubEarnMult");
   const videoMeta = document.getElementById("coinsHubVideoCooldown");
   const videoRowMeta = document.getElementById("coinsHubVideoRowMeta");
-  const topBalChip = document.getElementById("coinsHubTopBalance");
-  const topCapChip = document.getElementById("coinsHubTopCap");
 
   if (!coins || coins.cap == null) {
     clearStreakGrid();
-    if (topBalChip) topBalChip.textContent = "0";
-    if (topCapChip) topCapChip.textContent = "1200";
     if (balEl) balEl.textContent = "0";
     if (!premiumOk) {
       showToast(typeof t === "function" ? t("coinsHubUpdateFailed") : "Could not refresh your plan.");
@@ -3935,16 +3931,23 @@ function scanCamDocPickFromFilesDevice() {
   }
 }
 
-/**
- * Opens the system document picker without MIME filtering (accept all) so mobile OS
- * can show storage, Downloads, Drive, etc., when supported.
- */
+/** Opens Google Drive in a new tab so the user can locate cloud files (upload still uses device picker). */
 function scanCamDocPickFromDriversAndCloud() {
   scanCamCloseDocSourceSheet();
-  const inp = document.getElementById("scanCamUploadInputDocAll");
-  if (inp) {
-    inp.value = "";
-    inp.click();
+  const driveUrl = "https://drive.google.com/drive/my-drive";
+  let opened = false;
+  try {
+    const w = window.open(driveUrl, "_blank", "noopener,noreferrer");
+    opened = Boolean(w);
+  } catch {
+    opened = false;
+  }
+  if (typeof showToast === "function" && typeof t === "function") {
+    if (opened) {
+      showToast(t("scanCamDriveOpenHint"));
+    } else {
+      showToast(t("scanCamDrivePopupBlocked"));
+    }
   }
 }
 

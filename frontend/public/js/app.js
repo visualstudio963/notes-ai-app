@@ -716,7 +716,17 @@ function initDepthRevealSystem() {
   refreshDepthRevealObservers();
 }
 
+let depthRevealRefreshRaf = 0;
+
 function refreshDepthRevealObservers() {
+  if (depthRevealRefreshRaf) return;
+  depthRevealRefreshRaf = requestAnimationFrame(() => {
+    depthRevealRefreshRaf = 0;
+    refreshDepthRevealObserversNow();
+  });
+}
+
+function refreshDepthRevealObserversNow() {
   const targets =
     ".note-card, .home-stats-panel, .hex-card, .home-reminders-shell, .settings-section, .home-intro, .web-chat-messenger";
   if (!depthRevealObserver) {
@@ -4751,17 +4761,33 @@ async function updateHomeDashboardStats() {
 
   try {
     const [notesData, remData] = await Promise.all([
-      apiFetch("/api/notes"),
-      apiFetch("/api/reminders/web")
+      apiFetch("/api/notes?count=1"),
+      fetchWebRemindersListDeduped()
     ]);
-    const notes = notesData.notes || [];
+    const n = notesData && notesData.count;
+    const notesCount = typeof n === "number" ? n : parseInt(String(n || 0), 10) || 0;
     const reminders = remData.reminders || [];
-    notesEl.textContent = String(notes.length);
+    notesEl.textContent = String(notesCount);
     remEl.textContent = String(reminders.length);
   } catch {
     notesEl.textContent = "—";
     remEl.textContent = "—";
   }
+}
+
+/** Shares one GET /api/reminders/web promise while concurrent callers await (hub + reminders panel + polling overlap). */
+let webRemindersListFetchPromise = null;
+
+function fetchWebRemindersListDeduped() {
+  if (!currentUser || !accessToken) {
+    return Promise.resolve({ reminders: [] });
+  }
+  if (!webRemindersListFetchPromise) {
+    webRemindersListFetchPromise = apiFetch("/api/reminders/web").finally(() => {
+      webRemindersListFetchPromise = null;
+    });
+  }
+  return webRemindersListFetchPromise;
 }
 
 // ============ WEB REMINDERS (FREE) ============
@@ -4876,7 +4902,7 @@ async function loadWebRemindersIntoList(containerId) {
   }
 
   try {
-    const data = await apiFetch("/api/reminders/web");
+    const data = await fetchWebRemindersListDeduped();
     const reminders = data.reminders || [];
     void syncReminderLocalNotifications(reminders);
     container.innerHTML = "";
@@ -4981,7 +5007,7 @@ function requestNotificationPermission() {
       showToast(t("notificationsEnabledToast"));
       void syncPlannerLocalNotifications();
       if (currentUser && accessToken) {
-        void apiFetch("/api/reminders/web")
+        void fetchWebRemindersListDeduped()
           .then((data) => syncReminderLocalNotifications((data && data.reminders) || []))
           .catch(() => {});
       }
@@ -5057,7 +5083,7 @@ async function loadWebReminders() {
   if (!container || !containerParent) return;
 
   try {
-    const data = await apiFetch("/api/reminders/web");
+    const data = await fetchWebRemindersListDeduped();
     const reminders = data.reminders || [];
     void syncReminderLocalNotifications(reminders);
 
@@ -5108,18 +5134,27 @@ async function loadWebReminders() {
 
 // ============ WEB NOTIFICATION SCHEDULER ============
 
+let webNotificationSchedulerStarted = false;
+let webNotificationSchedulerIntervalId = null;
+let webNotificationVisibilityHooked = false;
+
 function startWebNotificationScheduler() {
+  if (webNotificationSchedulerStarted) return;
+  webNotificationSchedulerStarted = true;
   if (isNativeLocalNotificationsAvailable()) {
     void syncPlannerLocalNotifications();
     return;
   }
   const intervalMs = 15000;
-  setInterval(checkForDueReminders, intervalMs);
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && currentUser && accessToken) {
-      checkForDueReminders();
-    }
-  });
+  webNotificationSchedulerIntervalId = window.setInterval(checkForDueReminders, intervalMs);
+  if (!webNotificationVisibilityHooked) {
+    webNotificationVisibilityHooked = true;
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible" && currentUser && accessToken) {
+        checkForDueReminders();
+      }
+    });
+  }
   checkForDueReminders();
 }
 
@@ -5128,7 +5163,7 @@ async function checkForDueReminders() {
   if (!currentUser || !accessToken) return;
   
   try {
-    const data = await apiFetch("/api/reminders/web");
+    const data = await fetchWebRemindersListDeduped();
     const reminders = data.reminders || [];
     
     const now = new Date();
@@ -6166,6 +6201,11 @@ function getOrCreateDeviceId() {
 }
 
 function logoutUser() {
+  if (webNotificationSchedulerIntervalId != null) {
+    clearInterval(webNotificationSchedulerIntervalId);
+    webNotificationSchedulerIntervalId = null;
+  }
+  webNotificationSchedulerStarted = false;
   webChatSessionTurns = [];
   webChatLastReminderUserRaw = null;
   clearCurrentUser();
@@ -6957,32 +6997,30 @@ window.addEventListener("DOMContentLoaded", async () => {
   syncMobileHeaderActionUi();
 });
 
-// Socket event listeners
-socket.on('noteCreated', (data) => {
-  if (data.note.category === currentCategory) {
-    loadNotes();
-  }
-  if (!document.getElementById("notes-all")?.classList.contains("hidden")) {
-    loadMyNotes();
-  }
+// Socket event listeners (debounced: multi-tab bursts coalesce into one refetch)
+let socketNotesResyncTimer = null;
+
+function scheduleSocketNotesResync() {
+  clearTimeout(socketNotesResyncTimer);
+  socketNotesResyncTimer = setTimeout(() => {
+    socketNotesResyncTimer = null;
+    if (currentCategory) void loadNotes();
+    if (!document.getElementById("notes-all")?.classList.contains("hidden")) {
+      void loadMyNotes();
+    }
+  }, 120);
+}
+
+socket.on("noteCreated", () => {
+  scheduleSocketNotesResync();
 });
 
-socket.on('noteUpdated', (data) => {
-  if (data.note.category === currentCategory) {
-    loadNotes();
-  }
-  if (!document.getElementById("notes-all")?.classList.contains("hidden")) {
-    loadMyNotes();
-  }
+socket.on("noteUpdated", () => {
+  scheduleSocketNotesResync();
 });
 
-socket.on('noteDeleted', (data) => {
-  if (currentCategory) {
-    loadNotes();
-  }
-  if (!document.getElementById("notes-all")?.classList.contains("hidden")) {
-    loadMyNotes();
-  }
+socket.on("noteDeleted", () => {
+  scheduleSocketNotesResync();
 });
 
 // Register service worker for PWA

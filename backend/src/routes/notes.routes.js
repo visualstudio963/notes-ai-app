@@ -102,6 +102,10 @@ function createNotesRouter({ User, Note, authMiddleware, sendWhatsAppMessage, ge
 
   router.get("/notes", authMiddleware, async (req, res) => {
     try {
+      if (String(req.query.count || "") === "1") {
+        const count = await Note.countDocuments({ userId: req.userId }).exec();
+        return res.json({ count });
+      }
       const notes = await Note.find({ userId: req.userId }).sort({ category: 1, createdAt: -1 }).lean();
       res.json({ notes: notes.map((doc) => serializeNote(doc)) });
     } catch {

@@ -23364,6 +23364,7 @@ ${prefix}
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
   var editor = null;
+  var wordCountRaf = 0;
   var rootPersistNoteId = null;
   var rootMode = "create";
   var rootOrigin = "category";
@@ -23398,6 +23399,18 @@ ${prefix}
     const text = ed.getText().trim();
     const n = text.length ? text.split(/\s+/).filter(Boolean).length : 0;
     el.textContent = n === 1 ? "1 word" : `${n} words`;
+  }
+  function scheduleWordCountUpdate(ed) {
+    if (wordCountRaf) cancelAnimationFrame(wordCountRaf);
+    if (!ed) {
+      wordCountRaf = 0;
+      updateWordCount(null);
+      return;
+    }
+    wordCountRaf = requestAnimationFrame(() => {
+      wordCountRaf = 0;
+      updateWordCount(ed);
+    });
   }
   function setTitleFieldError(message) {
     const titleEl = document.getElementById("noteRichEditorTitle");
@@ -23596,11 +23609,15 @@ ${prefix}
   }
   function wireEditorHooks(ed) {
     ed.on("update", () => {
-      updateWordCount(ed);
+      scheduleWordCountUpdate(ed);
       syncDirty();
     });
   }
   function destroyEditor() {
+    if (wordCountRaf) {
+      cancelAnimationFrame(wordCountRaf);
+      wordCountRaf = 0;
+    }
     if (editor) {
       editor.destroy();
       editor = null;

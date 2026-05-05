@@ -12612,10 +12612,12 @@ body.note-rich-editor-open #dailyPlannerFab {
 }
 
 .note-rich-toolbar-btn.is-active {
-  background: linear-gradient(165deg, rgba(0, 245, 212, 0.22), rgba(0, 198, 255, 0.1));
-  border-color: rgba(0, 245, 212, 0.5);
-  color: #ecfeff;
-  animation: note-rich-toolbar-active-glow 2.4s ease-in-out infinite;
+  background: rgba(14, 116, 144, 0.25);
+  border-color: rgba(56, 189, 248, 0.45);
+  color: #f8fafc;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 0 0 1px rgba(56, 189, 248, 0.2);
 }
 
 .note-rich-toolbar-icon {
@@ -12627,11 +12629,9 @@ body.note-rich-editor-open #dailyPlannerFab {
 
 @media (prefers-reduced-motion: reduce) {
   .note-rich-toolbar-btn.is-active {
-    animation: none;
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.18),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.18),
-      0 0 22px rgba(0, 245, 212, 0.42);
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      0 0 0 1px rgba(56, 189, 248, 0.25);
   }
 
   .note-rich-toolbar-btn:hover {
@@ -12902,6 +12902,200 @@ body.note-rich-editor-open #dailyPlannerFab {
 .note-rich-editor-mount .ProseMirror li[data-type="taskItem"] > label {
   flex-shrink: 0;
   margin-top: 4px;
+}
+
+/* Mobile / narrow: prioritize writing area — compact chrome, calm palette, lighter GPU load */
+@media (max-width: 768px) {
+  .note-rich-editor-gradient {
+    animation: none;
+    background: #0f1419;
+  }
+
+  .note-rich-editor-gradient::after {
+    opacity: 0.65;
+    background: radial-gradient(ellipse 80% 55% at 50% -10%, rgba(30, 58, 138, 0.18), transparent 55%);
+  }
+
+  .note-rich-editor-rain {
+    display: none;
+  }
+
+  .note-rich-editor-layout {
+    padding: max(4px, env(safe-area-inset-top)) max(0px, env(safe-area-inset-right)) env(safe-area-inset-bottom)
+      max(0px, env(safe-area-inset-left));
+    align-items: stretch;
+  }
+
+  .note-rich-editor-glass {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(15, 23, 42, 0.92);
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: none;
+  }
+
+  .note-rich-editor-main-card {
+    border-radius: 0;
+    max-width: none;
+  }
+
+  .note-rich-editor-main-inner {
+    gap: 6px;
+    padding: 8px 10px 10px;
+  }
+
+  .note-rich-editor-row--header {
+    gap: 8px;
+    padding-top: 2px;
+  }
+
+  .note-rich-editor-back {
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 999px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(51, 65, 85, 0.9);
+    border-color: rgba(148, 163, 184, 0.25);
+    transform: none;
+  }
+
+  .note-rich-editor-back:hover {
+    transform: none;
+    filter: brightness(1.06);
+    border-color: rgba(148, 163, 184, 0.4);
+  }
+
+  .note-rich-editor-back-icon {
+    font-size: 0.95rem;
+    line-height: 1;
+  }
+
+  .note-rich-editor-save {
+    padding: 6px 14px;
+    font-size: 0.76rem;
+    font-weight: 650;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #0f766e, #115e59);
+    border-color: rgba(45, 212, 191, 0.35);
+    color: #ecfdf5;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.35);
+    transform: none;
+  }
+
+  .note-rich-editor-save:hover:not(:disabled) {
+    transform: none;
+    filter: brightness(1.06);
+    border-color: rgba(94, 234, 212, 0.45);
+  }
+
+  .note-rich-editor-title-block {
+    gap: 2px;
+  }
+
+  .note-rich-editor-title-input {
+    padding: 6px 2px 8px;
+    font-size: 1.05rem;
+    font-weight: 650;
+    border-bottom-color: rgba(148, 163, 184, 0.28);
+  }
+
+  .note-rich-editor-title-input:focus {
+    border-bottom-color: rgba(45, 212, 191, 0.55);
+    box-shadow: none;
+  }
+
+  .note-rich-editor-toolbar {
+    padding: 2px 0 4px;
+  }
+
+  .note-rich-toolbar-row--single {
+    gap: 6px 8px;
+    justify-content: flex-start;
+    row-gap: 6px;
+  }
+
+  .note-rich-toolbar-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(30, 41, 59, 0.85);
+    border-color: rgba(71, 85, 105, 0.45);
+    box-shadow: none;
+    transform: none;
+  }
+
+  .note-rich-toolbar-btn:hover {
+    transform: none;
+    background: rgba(51, 65, 85, 0.95);
+    border-color: rgba(100, 116, 139, 0.55);
+    box-shadow: none;
+  }
+
+  .note-rich-toolbar-btn:active {
+    transform: scale(0.96);
+  }
+
+  .note-rich-toolbar-icon svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .note-rich-editor-content-shell {
+    flex: 1 1 auto;
+    min-height: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    background: rgba(15, 23, 42, 0.45);
+  }
+
+  .note-rich-editor-mount {
+    padding: 8px 6px 10px;
+  }
+
+  .note-rich-editor-mount .note-rich-editor-content {
+    max-width: none;
+    margin: 0;
+    min-height: 0;
+  }
+
+  .note-rich-editor-mount .ProseMirror {
+    min-height: 48vh;
+    padding: 4px 2px 12px;
+    font-size: 1.02rem;
+    line-height: 1.65;
+    color: #e2e8f0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .note-rich-editor-content-footer {
+    padding: 8px 8px 10px;
+    border-top-color: rgba(51, 65, 85, 0.6);
+  }
+
+  .note-rich-editor-wordcount {
+    font-size: 0.65rem;
+    color: rgba(148, 163, 184, 0.75);
+  }
+
+  .note-rich-editor-screen:not(.hidden) {
+    animation: none;
+    opacity: 1;
+  }
+
+  .note-rich-editor-screen:not(.hidden) .note-rich-editor-main-card--enter {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .note-view-prose {

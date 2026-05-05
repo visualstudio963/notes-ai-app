@@ -101,6 +101,8 @@ function escapeHtml(s) {
 }
 
 let editor = null;
+/** @type {number} */
+let wordCountRaf = 0;
 let rootPersistNoteId = null;
 let rootMode = "create";
 let rootOrigin = "category";
@@ -141,6 +143,19 @@ function updateWordCount(ed) {
   const text = ed.getText().trim();
   const n = text.length ? text.split(/\s+/).filter(Boolean).length : 0;
   el.textContent = n === 1 ? "1 word" : `${n} words`;
+}
+
+function scheduleWordCountUpdate(ed) {
+  if (wordCountRaf) cancelAnimationFrame(wordCountRaf);
+  if (!ed) {
+    wordCountRaf = 0;
+    updateWordCount(null);
+    return;
+  }
+  wordCountRaf = requestAnimationFrame(() => {
+    wordCountRaf = 0;
+    updateWordCount(ed);
+  });
 }
 
 function setTitleFieldError(message) {
@@ -359,12 +374,16 @@ async function runPersist(opts = {}) {
 
 function wireEditorHooks(ed) {
   ed.on("update", () => {
-    updateWordCount(ed);
+    scheduleWordCountUpdate(ed);
     syncDirty();
   });
 }
 
 function destroyEditor() {
+  if (wordCountRaf) {
+    cancelAnimationFrame(wordCountRaf);
+    wordCountRaf = 0;
+  }
   if (editor) {
     editor.destroy();
     editor = null;

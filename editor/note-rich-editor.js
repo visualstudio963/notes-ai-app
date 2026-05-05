@@ -185,7 +185,8 @@ function buildPersistSnapshot() {
 }
 
 function getToolbarButtons(editorInstance) {
-  const chain = () => editorInstance.chain().focus();
+  /** No `.focus()` — avoids scroll + keyboard churn on mobile when tapping the bar; selection kept via pointerdown preventDefault below. */
+  const chain = () => editorInstance.chain();
   const is = (name, attrs = {}) => editorInstance.isActive(name, attrs);
 
   const btn = (label, iconSvg, onClick, activeCheck) => {
@@ -194,7 +195,16 @@ function getToolbarButtons(editorInstance) {
     b.className = "note-rich-toolbar-btn";
     b.title = label;
     b.setAttribute("aria-label", label);
+    b.setAttribute("tabindex", "-1");
     b.innerHTML = `<span class="note-rich-toolbar-icon">${iconSvg}</span>`;
+    b.addEventListener(
+      "pointerdown",
+      (e) => {
+        if (!editorInstance || editorInstance.isDestroyed) return;
+        e.preventDefault();
+      },
+      { passive: false }
+    );
     if (activeCheck) {
       const sync = () => b.classList.toggle("is-active", !!activeCheck());
       b.addEventListener("click", () => {
@@ -214,92 +224,32 @@ function getToolbarButtons(editorInstance) {
     bold: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M15.6 10.79c.97-.67 1.65-1.77 1.65-2.79 0-2.26-1.75-4-4-4H7v14h7.04c2.09 0 3.71-1.7 3.71-3.79 0-1.52-.86-2.82-2.15-3.42zM10 6.5h3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-3v-3zm3.5 9H10v-3h3.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5z"/></svg>`,
     italic: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4z"/></svg>`,
     underline: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z"/></svg>`,
-    h1: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M5 4v3h5.5v12h3V7H19V4z"/></svg>`,
+    strike: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M7.24 8.75c-.26-.48-.39-1.03-.39-1.67 0-.61.13-1.16.4-1.67.26-.5.63-.93 1.11-1.29a5.73 5.73 0 0 1 1.7-.83c.66-.2 1.37-.3 2.11-.3.95 0 1.81.16 2.58.48.77.32 1.41.78 1.91 1.38.5.59.85 1.29 1.05 2.09h-3.64c-.11-.31-.27-.58-.48-.81s-.51-.43-.85-.55c-.34-.13-.73-.19-1.18-.19-.52 0-.97.07-1.35.21-.39.13-.71.34-.93.61-.23.29-.34.61-.34.98 0 .26.06.52.17.74.11.22.31.43.61.61l-.01-.01zm6.375 6.086c-.14-.43-.339-.836-.596-1.198a3.579 3.579 0 0 0-1.154-.864c-.499-.239-1.095-.396-1.788-.478V11h10v1.076c-.57.086-1.062.239-1.477.459-.417.217-.759.489-1.027.817-.267.331-.478.744-.627 1.242h3.097v2H11v-.93c-.001 0-.001 0-.001-.001zm-4.743-8.086c-.34-.6-.738-1.15-1.193-1.65L5 5.06c1.073 1.25 2.494 2.214 4.264 2.914h-.001z"/></svg>`,
     h2: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M5 4v3h4v13h3V7h4V4zm14 16h-3v-7h3z"/></svg>`,
-    h3: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M5 4v3h4v13h3V7h4V4zm14 18l-4-7 4-7h-3l-2.5 4.5L12 4h-3l4 7-4 7h3l2.5-4.5L16 22z"/></svg>`,
     bullet: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5S3.17 7.5 4 7.5 5.5 6.83 5.5 6 4.83 4.5 4 4.5zm0 12c-.83 0-1.5.68-1.5 1.5s.68 1.5 1.5 1.5 1.5-.68 1.5-1.5-.67-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z"/></svg>`,
     number: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2 17h2v.5H3v1h1v.5H2v1h3v-4H2v1zm1-9h1V4H2v1h1v3zm-1 3h1.8L2 13.1v.9h3v-1H3.2L5 10.9V10H2v1zm5-6v2h14V5H7zm0 14h14v-2H7v2zm0-6h14v-2H7v2z"/></svg>`,
     quote: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/></svg>`,
-    code: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>`,
-    link: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>`,
-    image: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>`,
-    check: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>`,
-    emoji: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>`
+    check: `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>`
   };
 
-  const rowEl = () => {
-    const r = document.createElement("div");
-    r.className = "note-rich-toolbar-row note-rich-toolbar-row--single";
-    return r;
-  };
+  const rowEl = document.createElement("div");
+  rowEl.className = "note-rich-toolbar-row note-rich-toolbar-row--single";
 
-  const row1 = rowEl();
-
-  row1.appendChild(btn("Bold", svg.bold, () => chain().toggleBold().run(), () => is("bold")));
-  row1.appendChild(btn("Italic", svg.italic, () => chain().toggleItalic().run(), () => is("italic")));
-  row1.appendChild(btn("Underline", svg.underline, () => chain().toggleUnderline().run(), () => is("underline")));
-  row1.appendChild(
-    btn("Heading 1", svg.h1, () => chain().toggleHeading({ level: 1 }).run(), () => is("heading", { level: 1 }))
+  rowEl.appendChild(btn("Bold", svg.bold, () => chain().toggleBold().run(), () => is("bold")));
+  rowEl.appendChild(btn("Italic", svg.italic, () => chain().toggleItalic().run(), () => is("italic")));
+  rowEl.appendChild(btn("Underline", svg.underline, () => chain().toggleUnderline().run(), () => is("underline")));
+  rowEl.appendChild(btn("Strikethrough", svg.strike, () => chain().toggleStrike().run(), () => is("strike")));
+  rowEl.appendChild(
+    btn("Heading", svg.h2, () => chain().toggleHeading({ level: 2 }).run(), () => is("heading", { level: 2 }))
   );
-  row1.appendChild(
-    btn("Heading 2", svg.h2, () => chain().toggleHeading({ level: 2 }).run(), () => is("heading", { level: 2 }))
-  );
-  row1.appendChild(
-    btn("Heading 3", svg.h3, () => chain().toggleHeading({ level: 3 }).run(), () => is("heading", { level: 3 }))
-  );
-  row1.appendChild(btn("Bullet list", svg.bullet, () => chain().toggleBulletList().run(), () => is("bulletList")));
-  row1.appendChild(btn("Numbered list", svg.number, () => chain().toggleOrderedList().run(), () => is("orderedList")));
-  row1.appendChild(btn("Task list", svg.check, () => chain().toggleTaskList().run(), () => is("taskList")));
-
-  row1.appendChild(btn("Quote", svg.quote, () => chain().toggleBlockquote().run(), () => is("blockquote")));
-  row1.appendChild(btn("Code block", svg.code, () => chain().toggleCodeBlock().run(), () => is("codeBlock")));
-  row1.appendChild(
-    btn("Link", svg.link, () => {
-      const prev = editorInstance.getAttributes("link").href;
-      const url = window.prompt("Link URL", prev || "https://");
-      if (url === null) return;
-      if (url === "") {
-        chain().unsetLink().run();
-        return;
-      }
-      chain().extendMarkRange("link").setLink({ href: url }).run();
-    })
-  );
-  row1.appendChild(
-    btn("Image", svg.image, () => {
-      const input = document.createElement("input");
-      input.type = "file";
-      input.accept = "image/*";
-      input.style.display = "none";
-      document.body.appendChild(input);
-      input.addEventListener("change", () => {
-        const file = input.files && input.files[0];
-        document.body.removeChild(input);
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const src = e.target && e.target.result;
-          if (typeof src === "string") {
-            chain().setImage({ src }).run();
-          }
-        };
-        reader.readAsDataURL(file);
-      });
-      input.click();
-    })
-  );
-  row1.appendChild(
-    btn("Insert emoji", svg.emoji, () => {
-      const c = window.prompt("Emoji", "✨");
-      if (c == null) return;
-      const t = String(c).trim();
-      if (t) chain().insertContent(t).run();
-    })
-  );
+  rowEl.appendChild(btn("Bullet list", svg.bullet, () => chain().toggleBulletList().run(), () => is("bulletList")));
+  rowEl.appendChild(btn("Numbered list", svg.number, () => chain().toggleOrderedList().run(), () => is("orderedList")));
+  rowEl.appendChild(btn("Task list", svg.check, () => chain().toggleTaskList().run(), () => is("taskList")));
+  rowEl.appendChild(btn("Quote", svg.quote, () => chain().toggleBlockquote().run(), () => is("blockquote")));
 
   const wrap = document.createElement("div");
-  wrap.className = "note-rich-toolbar-inner";
-  wrap.appendChild(row1);
+  wrap.className = "note-rich-toolbar-inner note-rich-toolbar-inner--single-row";
+  wrap.appendChild(rowEl);
   return wrap;
 }
 
@@ -311,9 +261,7 @@ async function runPersist(opts = {}) {
 
   const snapshot = buildPersistSnapshot();
   if (force && snapshot === baselineSnapshot) {
-    if (typeof window.showToast === "function") {
-      window.showToast(tKey("noteRichEditorNoChanges", "No changes to save"));
-    }
+    close();
     return;
   }
 
@@ -321,10 +269,6 @@ async function runPersist(opts = {}) {
   const titleEl = document.getElementById("noteRichEditorTitle");
   const title = titleEl ? String(titleEl.value || "").trim() : "";
 
-  if (!title) {
-    setTitleFieldError(tKey("noteRichEditorTitleRequired", "Title is required"));
-    return;
-  }
   clearTitleFieldError();
 
   if (!plainText && rootMode === "create" && !rootPersistNoteId) {
@@ -364,6 +308,7 @@ async function runPersist(opts = {}) {
     if (typeof window.showToast === "function") {
       window.showToast(tKey("noteRichEditorSaved", "Saved"));
     }
+    close();
   } catch (err) {
     const msg = (err && err.message) || tKey("saveFailed", "Save failed");
     if (typeof window.showToast === "function") window.showToast(msg);
@@ -451,7 +396,8 @@ function open(opts = {}) {
     editorProps: {
       attributes: {
         class: "note-rich-editor-content ProseMirror-focused-note"
-      }
+      },
+      scrollMargin: { top: 0, right: 0, bottom: 0, left: 0 }
     }
   });
 
@@ -478,7 +424,9 @@ function open(opts = {}) {
   screen.setAttribute("aria-hidden", "false");
   document.body.classList.add("note-rich-editor-open");
 
-  window.setTimeout(() => editor.commands.focus("end"), 50);
+  window.setTimeout(() => {
+    editor.commands.focus("end", { scrollIntoView: false });
+  }, 50);
 }
 
 function requestClose() {

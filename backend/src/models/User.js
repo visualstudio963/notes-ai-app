@@ -72,7 +72,9 @@ const userSchema = new mongoose.Schema(
     referredByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     inviteBonusCreditedAt: { type: Date, default: null },
     inviteFriendMonthYm: { type: String, default: "" },
-    inviteFriendMonthCount: { type: Number, default: 0 }
+    inviteFriendMonthCount: { type: Number, default: 0 },
+    /** False = show first-time onboarding; missing on legacy users is treated as “seen” in serializers */
+    hasSeenTutorial: { type: Boolean, default: false }
   },
   { timestamps: true }
 );

@@ -195,6 +195,7 @@ async function upsertGoogleUserFromIdTokenPayload(User, payload, cleanDeviceId) 
       isPremium: false,
       premiumExpires: null,
       needsUsername: true,
+      hasSeenTutorial: false,
       trialEndsAt: new Date(Date.now() + TRIAL_DURATION_MS)
     });
   }
@@ -360,6 +361,7 @@ function createAuthRouter({
         premiumExpires: null,
         needsUsername: false,
         usernameLastChangedAt: new Date(),
+        hasSeenTutorial: false,
         trialEndsAt: new Date(Date.now() + TRIAL_DURATION_MS)
       });
 

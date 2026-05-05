@@ -32,7 +32,9 @@ function publicUser(user) {
     needsUsername: Boolean(user.needsUsername),
     usernameLastChangedAt: user.usernameLastChangedAt
       ? new Date(user.usernameLastChangedAt).toISOString()
-      : null
+      : null,
+    // Legacy docs without this field must not suddenly see onboarding.
+    hasSeenTutorial: user.hasSeenTutorial !== false
   };
 }
 

@@ -1119,6 +1119,35 @@
           <div id="coinsHubEarnMult" class="coins-dash-chip coins-dash-chip--muted hidden"></div>
 
           <article
+            class="coins-dash-card coins-hub-streak-card coins-hub-streak-card--simple coins-daily-checkin-card"
+            aria-labelledby="coinsHubStreakTitleHeading"
+          >
+            <div class="coins-daily-checkin-head">
+              <div class="coins-daily-checkin-head__main">
+                <h3 id="coinsHubStreakTitleHeading" class="coins-dash-card-title coins-dash-card-title--tight coins-daily-checkin-head__title" data-t="coinsHubStreakTitle">
+                  Daily check-in (7 days)
+                </h3>
+                <p id="coinsHubStreakProgressText" class="coins-daily-checkin-head__streak" aria-live="polite"></p>
+              </div>
+              <div class="coins-daily-checkin-balance">
+                <span class="coins-daily-checkin-balance__icon" aria-hidden="true">🪙</span>
+                <div class="coins-daily-checkin-balance__text">
+                  <span class="coins-daily-checkin-balance__label" data-t="coinsDailyMyBalanceCoin">My balance coin</span>
+                  <strong id="coinsHubDailyHeaderBalance" class="coins-daily-checkin-balance__value" aria-live="polite">—</strong>
+                </div>
+              </div>
+            </div>
+            <div class="coins-hub-streak-track" aria-hidden="true">
+              <div id="coinsHubStreakBarFill" class="coins-hub-streak-fill"></div>
+            </div>
+            <div id="coinsHubStreakGrid" class="daily-checkin-grid" role="list"></div>
+            <button type="button" id="coinsHubDailyBtn" class="coins-hub-claim-btn coins-daily-checkin-cta" onclick="coinsHubClaimDaily()">
+              <span class="coins-hub-claim-icon" aria-hidden="true">🎁</span>
+              <span class="coins-hub-claim-text" id="coinsHubDailyBtnLabel">Daily reward</span>
+            </button>
+          </article>
+
+          <article
             class="coins-dash-card coins-dash-card--hero coins-dash-card--hero-tight coins-dash-card--balance-compact"
             aria-labelledby="coinsDashBalanceHeading"
           >
@@ -1170,23 +1199,6 @@
             <p class="coins-hub-task__hint coins-dash-muted" data-t="coinsHubVideoPlaceholderNote">
               Rewarded ads coming soon — still earns coins today.
             </p>
-          </article>
-
-          <article class="coins-dash-card coins-hub-streak-card coins-hub-streak-card--simple" aria-labelledby="coinsHubStreakTitleHeading">
-            <div class="coins-hub-streak-top coins-hub-streak-top--flush">
-              <h3 id="coinsHubStreakTitleHeading" class="coins-dash-card-title coins-dash-card-title--tight" data-t="coinsHubStreakTitle">
-                Daily login rewards
-              </h3>
-              <p id="coinsHubStreakProgressText" class="coins-hub-streak-progress coins-hub-streak-progress--solo">—</p>
-            </div>
-            <div class="coins-hub-streak-track" aria-hidden="true">
-              <div id="coinsHubStreakBarFill" class="coins-hub-streak-fill"></div>
-            </div>
-            <div id="coinsHubStreakGrid" class="coins-hub-streak-list" role="list"></div>
-            <button type="button" id="coinsHubDailyBtn" class="coins-hub-claim-btn" onclick="coinsHubClaimDaily()">
-              <span class="coins-hub-claim-icon" aria-hidden="true">🎁</span>
-              <span class="coins-hub-claim-text" id="coinsHubDailyBtnLabel">Daily reward</span>
-            </button>
           </article>
 
           <article class="coins-dash-card coins-hub-redeem-card">
@@ -1529,6 +1541,13 @@
                   </button>
                 </div>
               </div>
+              <div class="preference-item">
+                <label data-t="onboardingReplayTitle">Guided tour</label>
+                <button type="button" class="save-button secondary" onclick="replayOnboardingTutorial()">
+                  <span data-t="onboardingReplayBtn">Replay tutorial</span>
+                </button>
+                <p class="preference-desc" data-t="onboardingReplayDesc">Show the welcome walkthrough again.</p>
+              </div>
             </section>
 
             <section id="settingsSection-security" class="settings-section settings-section-pane hidden" data-settings-pane="security">
@@ -1866,5 +1885,6 @@
   <script src="js/components/toast.js"></script>
   <script src="js/note-rich-editor.bundle.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/onboarding-tutorial.js"></script>
 </body>
 </html>

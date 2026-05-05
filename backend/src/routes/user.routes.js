@@ -127,14 +127,15 @@ function createUserRouter({ User, authMiddleware }) {
 
   router.get("/user/settings", authMiddleware, async (req, res) => {
     try {
-      const user = await User.findById(req.userId).select("theme language");
+      const user = await User.findById(req.userId).select("theme language hasSeenTutorial");
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
       res.json({
         settings: {
           theme: user.theme || "classic",
-          language: user.language || "en"
+          language: user.language || "en",
+          hasSeenTutorial: user.hasSeenTutorial !== false
         }
       });
     } catch {
@@ -144,7 +145,7 @@ function createUserRouter({ User, authMiddleware }) {
 
   router.put("/user/settings", authMiddleware, async (req, res) => {
     try {
-      const { theme, language } = req.body;
+      const { theme, language, hasSeenTutorial } = req.body || {};
       const updates = {};
       if (theme && ["classic", "normal", "advanced"].includes(theme)) {
         updates.theme = theme;
@@ -152,12 +153,15 @@ function createUserRouter({ User, authMiddleware }) {
       if (language) {
         updates.language = language;
       }
+      if (typeof hasSeenTutorial === "boolean") {
+        updates.hasSeenTutorial = hasSeenTutorial;
+      }
       if (Object.keys(updates).length === 0) {
         return res.status(400).json({ error: "No valid settings to update" });
       }
 
       const user = await User.findByIdAndUpdate(req.userId, updates, { new: true }).select(
-        "theme language"
+        "theme language hasSeenTutorial"
       );
 
       if (!user) {
@@ -168,7 +172,8 @@ function createUserRouter({ User, authMiddleware }) {
         success: true,
         settings: {
           theme: user.theme,
-          language: user.language
+          language: user.language,
+          hasSeenTutorial: user.hasSeenTutorial !== false
         }
       });
     } catch {

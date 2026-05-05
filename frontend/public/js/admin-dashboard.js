@@ -191,6 +191,7 @@
     const tiktokUrl = document.getElementById("adminTiktokUrl");
     const youtubeUrl = document.getElementById("adminYoutubeUrl");
     const discordSaveBtn = document.querySelector('[data-act="save-discord-config"]');
+    const discordNotice = document.getElementById("adminDiscordLinksNotice");
     if (discordUrl) discordUrl.toggleAttribute("disabled", !canEditDiscord);
     if (discordCount) discordCount.toggleAttribute("disabled", !canEditDiscord);
     if (tiktokUrl) tiktokUrl.toggleAttribute("disabled", !canEditDiscord);
@@ -198,6 +199,16 @@
     if (discordSaveBtn) {
       discordSaveBtn.hidden = !canEditDiscord;
       discordSaveBtn.disabled = !canEditDiscord;
+    }
+    if (discordNotice) {
+      if (canEditDiscord) {
+        discordNotice.textContent = "";
+        discordNotice.classList.add("hidden");
+      } else {
+        discordNotice.classList.remove("hidden");
+        discordNotice.textContent =
+          "Community links are read-only for Support. Sign in as a Moderator or Admin to edit fields and save.";
+      }
     }
 
     const grantBlock = document.getElementById("adminDetailGrantBlock");
@@ -826,12 +837,18 @@
     const data = await apiJson("/api/admin/config/discord", { method: "GET" });
     discordConfigCache = {
       discordInviteUrl: String((data && data.discordInviteUrl) || ""),
-      discordUpdatesCount: Math.max(0, Number((data && data.discordUpdatesCount) || 0))
+      discordUpdatesCount: Math.max(0, Number((data && data.discordUpdatesCount) || 0)),
+      tiktokUrl: String((data && data.tiktokUrl) || ""),
+      youtubeUrl: String((data && data.youtubeUrl) || "")
     };
     const urlInput = document.getElementById("adminDiscordInviteUrl");
     if (urlInput) urlInput.value = discordConfigCache.discordInviteUrl;
     const countInput = document.getElementById("adminDiscordUpdatesCount");
     if (countInput) countInput.value = String(discordConfigCache.discordUpdatesCount || 0);
+    const tiktokInput = document.getElementById("adminTiktokUrl");
+    if (tiktokInput) tiktokInput.value = discordConfigCache.tiktokUrl;
+    const youtubeInput = document.getElementById("adminYoutubeUrl");
+    if (youtubeInput) youtubeInput.value = discordConfigCache.youtubeUrl;
   }
 
   function setNavActive(panel) {

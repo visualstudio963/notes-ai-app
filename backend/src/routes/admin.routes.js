@@ -134,7 +134,7 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
         canDeleteContactMessages: rank >= STAFF_RANK.MODERATOR,
         canDeleteUsers: rank >= STAFF_RANK.ADMIN,
         canChangeStaffRoles: rank >= STAFF_RANK.ADMIN,
-        canEditDiscord: rank >= STAFF_RANK.ADMIN
+        canEditDiscord: rank >= STAFF_RANK.MODERATOR
       },
       activeWithinMinutes: ACTIVE_WINDOW_MS / 60000
     });
@@ -731,7 +731,7 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
     }
   });
 
-  router.put("/config/discord", requireStaffMin(STAFF_RANK.ADMIN), async (req, res) => {
+  router.put("/config/discord", requireStaffMin(STAFF_RANK.MODERATOR), async (req, res) => {
     try {
       const rawUrl = String((req.body && req.body.discordInviteUrl) || "").trim();
       const rawTiktok = String((req.body && req.body.tiktokUrl) || "").trim();

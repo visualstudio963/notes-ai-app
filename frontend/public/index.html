@@ -704,6 +704,7 @@
                       </div>
                       <input id="scanCamUploadInput" type="file" accept="image/*" class="hidden" onchange="scanCamHandlePhotoUpload(this)" />
                       <input id="scanCamUploadInputDoc" type="file" accept=".pdf,application/pdf" class="hidden" onchange="scanCamHandleDocumentUpload(this)" />
+                      <input id="scanCamUploadInputDocAll" type="file" accept="*/*" class="hidden" onchange="scanCamHandleDocumentUpload(this)" />
                     </div>
 
                     <div id="scanCamStageBlock" class="scan-cam-stage-block hidden">
@@ -814,17 +815,39 @@
             aria-modal="true"
             aria-labelledby="scanCamDocSheetTitle"
           >
-            <button type="button" class="scan-cam-doc-sheet__backdrop" onclick="scanCamCloseDocSourceSheet()" aria-label="Close"></button>
+            <button
+              type="button"
+              class="scan-cam-doc-sheet__backdrop"
+              onclick="scanCamCloseDocSourceSheet()"
+              data-t-title="scanCamCloseResultTitle"
+              aria-label="Close"
+            ></button>
             <div class="scan-cam-doc-sheet__panel">
-              <p id="scanCamDocSheetTitle" class="scan-cam-doc-sheet__title" data-t="scanCamDocSheetTitle">Where is your document?</p>
-              <button type="button" class="scan-cam-doc-sheet__option" onclick="scanCamDocPickFromPhone()">
-                <span class="scan-cam-doc-sheet__option-title" data-t="scanCamDocFromPhone">Phone files</span>
-                <span class="scan-cam-doc-sheet__option-sub" data-t="scanCamDocFromPhoneSub">PDF from this device</span>
-              </button>
-              <button type="button" class="scan-cam-doc-sheet__option" onclick="scanCamDocPickFromGoogleDrive()">
-                <span class="scan-cam-doc-sheet__option-title" data-t="scanCamDocFromDrive">Google Drive</span>
-                <span class="scan-cam-doc-sheet__option-sub" data-t="scanCamDocDriveHint">Open Drive · download PDF · then tap Phone files</span>
-              </button>
+              <div class="scan-cam-doc-sheet__handle" aria-hidden="true"></div>
+              <p id="scanCamDocSheetTitle" class="scan-cam-doc-sheet__title scan-cam-doc-sheet__title--leading" data-t="scanCamDocSheetTitle">
+                Choose an action
+              </p>
+              <div class="scan-cam-doc-sheet__tiles">
+                <button type="button" class="scan-cam-doc-sheet__tile" onclick="scanCamDocPickFromFilesDevice()">
+                  <span class="scan-cam-doc-sheet__tile-icon" aria-hidden="true">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                      <path d="M4 6h16v14H4V6z M4 12h16" stroke-linecap="round" />
+                      <path d="M8 12V8h8v4" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </span>
+                  <span class="scan-cam-doc-sheet__tile-label" data-t="scanCamDocPickFilesLabel">Files</span>
+                  <span class="scan-cam-doc-sheet__tile-hint" data-t="scanCamDocPickFilesHint">PDF on device</span>
+                </button>
+                <button type="button" class="scan-cam-doc-sheet__tile" onclick="scanCamDocPickFromDriversAndCloud()">
+                  <span class="scan-cam-doc-sheet__tile-icon" aria-hidden="true">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                      <path d="M6 17h12l-6-13-6 13z M6 17l3 4h6l3-4" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </span>
+                  <span class="scan-cam-doc-sheet__tile-label" data-t="scanCamDocPickDriversLabel">Storage &amp; cloud</span>
+                  <span class="scan-cam-doc-sheet__tile-hint" data-t="scanCamDocPickDriversHint">All providers</span>
+                </button>
+              </div>
               <button type="button" class="scan-cam-doc-sheet__cancel" onclick="scanCamCloseDocSourceSheet()" data-t="scanCamDocCancel">
                 Cancel
               </button>

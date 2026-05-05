@@ -1008,6 +1008,47 @@ body {
   max-width: 100%;
 }
 
+/* Discord form uses full-width text fields — not search boxes (avoid extra left gutter). */
+.admin-discord-form .admin-discord-input {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  min-height: 44px;
+  padding: 11px 14px !important;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.9);
+  color: #f1f5f9;
+  font-size: 0.9rem;
+}
+
+.admin-discord-form .admin-discord-input:focus {
+  outline: none;
+  border-color: rgba(56, 189, 248, 0.5);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
+}
+
+.admin-discord-form .admin-discord-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  border-style: dashed;
+}
+
+.admin-discord-notice {
+  margin: 0 0 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(120, 53, 15, 0.2);
+  color: #fcd34d;
+}
+
+.admin-discord-notice.hidden {
+  display: none !important;
+}
+
 .admin-discord-actions {
   display: flex;
   justify-content: flex-start;
@@ -1032,6 +1073,12 @@ body {
   background: rgba(127, 29, 29, 0.35);
   border: 1px solid rgba(248, 113, 113, 0.35);
   color: #fecaca;
+}
+
+.admin-banner--warn {
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(120, 53, 15, 0.25);
+  color: #fcd34d;
 }
 
 .admin-banner--info {

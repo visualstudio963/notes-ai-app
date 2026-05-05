@@ -3853,25 +3853,26 @@ function scanCamUploadDocument() {
   scanCamOpenDocSourceSheet();
 }
 
-function scanCamDocPickFromPhone() {
+/** PDF-focused picker (downloads / Files app on mobile). */
+function scanCamDocPickFromFilesDevice() {
   scanCamCloseDocSourceSheet();
   const inp = document.getElementById("scanCamUploadInputDoc");
-  if (inp) inp.click();
+  if (inp) {
+    inp.value = "";
+    inp.click();
+  }
 }
 
-function scanCamDocPickFromGoogleDrive() {
+/**
+ * Opens the system document picker without MIME filtering (accept all) so mobile OS
+ * can show storage, Downloads, Drive, etc., when supported.
+ */
+function scanCamDocPickFromDriversAndCloud() {
   scanCamCloseDocSourceSheet();
-  const url = "https://drive.google.com/drive/";
-  try {
-    const w = window.open(url, "_blank", "noopener,noreferrer");
-    if (!w || typeof w.closed === "undefined") {
-      window.location.href = url;
-    }
-  } catch {
-    window.location.href = url;
-  }
-  if (typeof showToast === "function" && typeof t === "function") {
-    showToast(t("scanCamDocDriveToast"));
+  const inp = document.getElementById("scanCamUploadInputDocAll");
+  if (inp) {
+    inp.value = "";
+    inp.click();
   }
 }
 

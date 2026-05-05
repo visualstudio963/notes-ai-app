@@ -2378,7 +2378,7 @@ body.modal-open {
   background: rgba(30, 41, 59, 0.75);
 }
 
-/* Scan Cam — document source chooser (phone vs Drive) */
+/* Scan Cam — document source chooser bottom sheet (“choose an action”) */
 .scan-cam-doc-sheet {
   position: fixed;
   inset: 0;
@@ -2413,67 +2413,105 @@ body.modal-open {
   width: 100%;
   max-width: 520px;
   margin: 0 auto;
-  padding: 18px 18px calc(20px + env(safe-area-inset-bottom, 0px));
-  border-radius: 20px 20px 0 0;
+  padding: 10px 18px calc(20px + env(safe-area-inset-bottom, 0px));
+  border-radius: 22px 22px 0 0;
   background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
   border: 1px solid rgba(56, 189, 248, 0.22);
   border-bottom: none;
   box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
 }
 
-.scan-cam-doc-sheet__title {
-  margin: 0 0 14px;
-  font-size: 0.95rem;
-  font-weight: 750;
-  color: #f1f5f9;
-  text-align: center;
+.scan-cam-doc-sheet__handle {
+  width: 40px;
+  height: 5px;
+  margin: 0 auto 14px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.35);
 }
 
-.scan-cam-doc-sheet__option {
-  width: 100%;
+.scan-cam-doc-sheet__title {
+  margin: 0 0 16px;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #f8fafc;
+}
+
+.scan-cam-doc-sheet__title--leading {
+  text-align: left;
+}
+
+.scan-cam-doc-sheet__tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.scan-cam-doc-sheet__tile {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  margin-bottom: 10px;
-  padding: 14px 16px;
-  border-radius: 14px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 16px 10px;
+  border-radius: 16px;
   cursor: pointer;
   font-family: inherit;
-  text-align: left;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  background: rgba(15, 23, 42, 0.65);
+  text-align: center;
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  background: rgba(15, 23, 42, 0.55);
   color: inherit;
   transition:
     border-color 0.15s ease,
     background 0.15s ease,
-    transform 0.12s ease;
+    transform 0.12s ease,
+    box-shadow 0.15s ease;
 }
 
-.scan-cam-doc-sheet__option:hover {
+.scan-cam-doc-sheet__tile:hover {
   border-color: rgba(56, 189, 248, 0.45);
-  background: rgba(30, 41, 59, 0.75);
+  background: rgba(30, 41, 59, 0.7);
 }
 
-.scan-cam-doc-sheet__option:active {
-  transform: scale(0.99);
+.scan-cam-doc-sheet__tile:active {
+  transform: scale(0.98);
 }
 
-.scan-cam-doc-sheet__option-title {
-  font-size: 0.95rem;
+.scan-cam-doc-sheet__tile-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: rgba(71, 85, 105, 0.45);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.scan-cam-doc-sheet__tile:focus-visible {
+  outline: none;
+  border-color: rgba(56, 189, 248, 0.75);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+}
+
+.scan-cam-doc-sheet__tile-label {
+  font-size: 0.86rem;
   font-weight: 750;
-  color: #f8fafc;
+  color: #f1f5f9;
+  line-height: 1.25;
 }
 
-.scan-cam-doc-sheet__option-sub {
-  font-size: 0.76rem;
-  line-height: 1.4;
+.scan-cam-doc-sheet__tile-hint {
+  font-size: 0.67rem;
+  font-weight: 600;
+  line-height: 1.35;
   color: #94a3b8;
+  padding: 0 4px;
 }
 
 .scan-cam-doc-sheet__cancel {
   width: 100%;
-  margin-top: 6px;
+  margin-top: 14px;
   padding: 12px;
   border-radius: 12px;
   border: none;

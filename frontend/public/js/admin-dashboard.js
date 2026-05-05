@@ -167,6 +167,17 @@
     return "user";
   }
 
+  /** Prefer server caps; fallback to stored user so inputs stay editable if `/api/admin/me` failed silently. */
+  function canEditCommunityLinks() {
+    const c = caps && caps.capabilities ? caps.capabilities : {};
+    if (typeof c.canEditDiscord === "boolean") return c.canEditDiscord;
+    const role =
+      caps && caps.staffRole
+        ? String(caps.staffRole).toLowerCase().trim()
+        : effectiveStaffRole(getStoredUser());
+    return role === "admin" || role === "moderator" || role === "support";
+  }
+
   function stashUser(u) {
     if (!u || !u.id) return;
     usersByIdCache.set(String(u.id), {
@@ -179,7 +190,7 @@
 
   function mergeCapabilityUi() {
     const c = caps && caps.capabilities ? caps.capabilities : {};
-    const canEditDiscord = Boolean(c.canEditDiscord);
+    const canEditDiscord = canEditCommunityLinks();
     const canDeleteMsgs = Boolean(c.canDeleteContactMessages);
     const canDeleteUsers = Boolean(c.canDeleteUsers);
     const canWritePlans = Boolean(c.canWritePlans);
@@ -191,7 +202,6 @@
     const tiktokUrl = document.getElementById("adminTiktokUrl");
     const youtubeUrl = document.getElementById("adminYoutubeUrl");
     const discordSaveBtn = document.querySelector('[data-act="save-discord-config"]');
-    const discordNotice = document.getElementById("adminDiscordLinksNotice");
     if (discordUrl) discordUrl.toggleAttribute("disabled", !canEditDiscord);
     if (discordCount) discordCount.toggleAttribute("disabled", !canEditDiscord);
     if (tiktokUrl) tiktokUrl.toggleAttribute("disabled", !canEditDiscord);
@@ -199,16 +209,6 @@
     if (discordSaveBtn) {
       discordSaveBtn.hidden = !canEditDiscord;
       discordSaveBtn.disabled = !canEditDiscord;
-    }
-    if (discordNotice) {
-      if (canEditDiscord) {
-        discordNotice.textContent = "";
-        discordNotice.classList.add("hidden");
-      } else {
-        discordNotice.classList.remove("hidden");
-        discordNotice.textContent =
-          "You don't have permission to edit community links. Sign in with a staff role that includes panel access.";
-      }
     }
 
     const grantBlock = document.getElementById("adminDetailGrantBlock");
@@ -890,7 +890,15 @@
           caps.staffRole.replace(/[^a-z]/gi, "").toLowerCase();
       }
     } catch {
-      caps = null;
+      const fallbackRole = effectiveStaffRole(getStoredUser());
+      caps = { staffRole: fallbackRole, capabilities: {} };
+      const chip = document.getElementById("adminStaffBadge");
+      if (chip && fallbackRole !== "user") {
+        chip.textContent = fallbackRole;
+        chip.className =
+          "admin-staff-chip admin-staff-chip--foot admin-staff-chip--" +
+          fallbackRole.replace(/[^a-z]/gi, "").toLowerCase();
+      }
     }
     mergeCapabilityUi();
   }
@@ -973,7 +981,7 @@
       return;
     }
     if (act === "save-discord-config") {
-      if (!(caps && caps.capabilities && caps.capabilities.canEditDiscord)) return;
+      if (!canEditCommunityLinks()) return;
       const urlInput = document.getElementById("adminDiscordInviteUrl");
       const countInput = document.getElementById("adminDiscordUpdatesCount");
       const tiktokInput = document.getElementById("adminTiktokUrl");

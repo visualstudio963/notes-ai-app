@@ -280,6 +280,7 @@ function buildCoinsStatusPayload(userLean) {
   const nextStreakRewardIndex = Number(userLean.loginStreakNextIndex) || 1;
   let nextDailyBase = DAILY_STREAK_REWARDS[Math.min(7, Math.max(1, nextStreakRewardIndex)) - 1];
   nextDailyBase = scaledReward(nextDailyBase, userLean);
+  const streakStepCoins = DAILY_STREAK_REWARDS.map((base) => scaledReward(base, userLean));
 
   return {
     balance: clampCoins(Number(userLean.coins) || 0),
@@ -296,7 +297,8 @@ function buildCoinsStatusPayload(userLean) {
     dailyLogin: {
       claimedToday: dailyClaimedToday,
       nextStreakIndex: Math.min(7, Math.max(1, nextStreakRewardIndex)),
-      nextRewardCoins: nextDailyBase
+      nextRewardCoins: nextDailyBase,
+      streakStepCoins
     },
     videoRewards: {
       countToday: videoCountToday,

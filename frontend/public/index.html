@@ -53,6 +53,12 @@
               autocomplete="current-password"
               placeholder="••••••••"
             />
+            <div class="auth-shell__remember-row">
+              <label class="auth-shell__remember" for="authLoginRemember">
+                <input type="checkbox" id="authLoginRemember" name="remember" checked />
+                <span data-t="loginRememberMe">Stay signed in on this device</span>
+              </label>
+            </div>
             <p class="auth-shell__error hidden" id="authLoginError" role="alert"></p>
             <button type="submit" class="auth-shell__btn-primary" id="authLoginSubmit">Continue</button>
           </form>
@@ -697,7 +703,7 @@
                         </button>
                       </div>
                       <input id="scanCamUploadInput" type="file" accept="image/*" class="hidden" onchange="scanCamHandlePhotoUpload(this)" />
-                      <input id="scanCamUploadInputDoc" type="file" accept="image/*,application/pdf,.pdf" class="hidden" onchange="scanCamHandleDocumentUpload(this)" />
+                      <input id="scanCamUploadInputDoc" type="file" accept=".pdf,application/pdf" class="hidden" onchange="scanCamHandleDocumentUpload(this)" />
                     </div>
 
                     <div id="scanCamStageBlock" class="scan-cam-stage-block hidden">
@@ -1088,21 +1094,23 @@
 
           <div id="coinsHubEarnMult" class="coins-dash-chip coins-dash-chip--muted hidden"></div>
 
-          <!-- Balance hero -->
-          <article class="coins-dash-card coins-dash-card--hero" aria-labelledby="coinsDashBalanceHeading">
+          <article class="coins-dash-card coins-dash-card--hero coins-dash-card--hero-tight" aria-labelledby="coinsDashBalanceHeading">
             <div class="coins-dash-hero-aura" aria-hidden="true"></div>
             <div class="coins-dash-hero-head">
-              <span class="coins-dash-coin-stack" aria-hidden="true"><span class="coins-dash-coin-3d">🪙</span><span class="coins-dash-coin-3d coins-dash-coin-3d--back">💰</span></span>
+              <span class="coins-dash-coin-stack" aria-hidden="true"
+                ><span class="coins-dash-coin-3d">🪙</span><span class="coins-dash-coin-3d coins-dash-coin-3d--back">💰</span></span
+              >
               <div>
                 <p id="coinsDashBalanceHeading" class="coins-dash-balance-caption" data-t="coinsDashYourBalance">Your balance</p>
-                <p class="coins-dash-balance-tagline" data-t="coinsDashEarnSub">Earn coins daily and unlock features</p>
               </div>
             </div>
             <div class="coins-dash-balance-digits">
               <span id="coinsHubBalanceValue" class="coins-dash-balance-num">—</span>
-              <span class="coins-dash-balance-max"><span data-t="coinsDashBalanceSlash">/</span> <span id="coinsHubCapDisplay">1200</span></span>
+              <span class="coins-dash-balance-max"
+                ><span data-t="coinsDashBalanceSlash">/</span> <span id="coinsHubCapDisplay">1200</span></span
+              >
             </div>
-            <div class="coins-dash-bar-wrap coins-dash-bar-wrap--wallet" aria-hidden="false">
+            <div class="coins-dash-bar-wrap coins-dash-bar-wrap--wallet">
               <div class="coins-dash-bar-track coins-dash-bar-track--glow">
                 <div id="coinsHubCapFill" class="coins-dash-bar-fill coins-dash-bar-fill--wallet"></div>
               </div>
@@ -1118,32 +1126,51 @@
             </div>
           </article>
 
-          <!-- Quick actions -->
-          <article class="coins-dash-card coins-dash-card--actions">
-            <h3 class="coins-dash-card-title" data-t="coinsDashActionsTitle">Earn &amp; spend</h3>
-            <div class="coins-dash-actions-grid">
-              <button type="button" id="coinsHubDailyBtn" class="coins-dash-action coins-dash-action--gift" onclick="coinsHubClaimDaily()">
-                <span class="coins-dash-action-icon" aria-hidden="true">🎁</span>
-                <span class="coins-dash-action-label" id="coinsHubDailyBtnLabel">Daily reward</span>
+          <div class="coins-hub-main-split">
+            <article class="coins-dash-card coins-hub-streak-card" aria-labelledby="coinsHubStreakTitleHeading">
+              <div class="coins-hub-streak-top">
+                <div>
+                  <h3 id="coinsHubStreakTitleHeading" class="coins-dash-card-title coins-dash-card-title--tight" data-t="coinsHubStreakTitle">
+                    Daily login rewards
+                  </h3>
+                  <p id="coinsHubStreakProgressText" class="coins-hub-streak-progress">—</p>
+                </div>
+              </div>
+              <div class="coins-hub-streak-track" aria-hidden="true">
+                <div id="coinsHubStreakBarFill" class="coins-hub-streak-fill"></div>
+              </div>
+              <div id="coinsHubStreakGrid" class="coins-hub-streak-grid" role="list"></div>
+              <button type="button" id="coinsHubDailyBtn" class="coins-hub-claim-btn" onclick="coinsHubClaimDaily()">
+                <span class="coins-hub-claim-icon" aria-hidden="true">🎁</span>
+                <span class="coins-hub-claim-text" id="coinsHubDailyBtnLabel">Daily reward</span>
               </button>
-              <button type="button" id="coinsHubVideoBtn" class="coins-dash-action coins-dash-action--video" onclick="coinsHubWatchVideoAd()">
-                <span class="coins-dash-action-icon" aria-hidden="true">▶️</span>
-                <span class="coins-dash-action-label" id="coinsHubVideoBtnLabel">Watch video</span>
+            </article>
+
+            <aside class="coins-hub-video-card coins-dash-card" aria-labelledby="coinsHubVideoTitle">
+              <h3 id="coinsHubVideoTitle" class="coins-dash-card-title coins-dash-card-title--tight" data-t="coinsHubVideoAsideTitle">
+                Extra coins
+              </h3>
+              <button type="button" id="coinsHubVideoBtn" class="coins-hub-video-cta" onclick="coinsHubWatchVideoAd()">
+                <span class="coins-hub-video-play" aria-hidden="true">▶️</span>
+                <span class="coins-hub-video-cta-label" id="coinsHubVideoBtnLabel">Watch video (+10 coins)</span>
               </button>
-              <button type="button" id="coinsHubRedeemBtn" class="coins-dash-action coins-dash-action--redeem" onclick="coinsHubRedeemStandard()">
-                <span class="coins-dash-action-icon" aria-hidden="true">🔄</span>
-                <span class="coins-dash-action-label" id="coinsHubRedeemBtnLabel">Unlock Standard</span>
-              </button>
-            </div>
+              <p id="coinsHubVideoCooldown" class="coins-hub-video-limit coins-dash-muted"></p>
+              <p class="coins-hub-video-note coins-dash-muted" data-t="coinsHubVideoPlaceholderNote">Rewarded ads coming soon — still earns coins today.</p>
+            </aside>
+          </div>
+
+          <article class="coins-dash-card coins-hub-redeem-card">
+            <button type="button" id="coinsHubRedeemBtn" class="coins-hub-redeem-btn" onclick="coinsHubRedeemStandard()">
+              <span class="coins-hub-redeem-icon" aria-hidden="true">🔄</span>
+              <span id="coinsHubRedeemBtnLabel" class="coins-hub-redeem-label">Unlock Standard</span>
+            </button>
           </article>
 
-          <!-- Invite -->
           <article class="coins-dash-card coins-dash-card--invite">
             <div class="coins-dash-invite-header">
               <span class="coins-dash-invite-emoji" aria-hidden="true">🔗</span>
               <div>
-                <h3 class="coins-dash-card-title coins-dash-card-title--flush" data-t="coinsDashInviteTitle">Invite &amp; earn</h3>
-                <p class="coins-dash-card-sub" data-t="coinsInviteNote">Share your link — earn when friends join.</p>
+                <h3 class="coins-dash-card-title coins-dash-card-title--flush" data-t="coinsDashInviteFriendsTitle">Invite friends &amp; earn coins</h3>
               </div>
             </div>
             <label class="sr-only" for="coinsHubInviteLinkInput" data-t="coinsDashInviteLinkLabel">Your referral link</label>
@@ -1151,8 +1178,12 @@
               <input type="text" id="coinsHubInviteLinkInput" class="coins-dash-link-input" readonly tabindex="0" value="" autocomplete="off" />
             </div>
             <div class="coins-dash-invite-actions">
-              <button type="button" class="coins-dash-mini-btn coins-dash-mini-btn--blue" onclick="coinsHubCopyInvite()" data-t="coinsDashCopyLink">Copy</button>
-              <button type="button" class="coins-dash-mini-btn coins-dash-mini-btn--purple" onclick="coinsHubShareInvite()" data-t="coinsDashShareLink">Share</button>
+              <button type="button" class="coins-dash-mini-btn coins-dash-mini-btn--blue" onclick="coinsHubCopyInvite()" data-t="coinsDashCopyLink">
+                Copy link
+              </button>
+              <button type="button" class="coins-dash-mini-btn coins-dash-mini-btn--purple" onclick="coinsHubShareInvite()" data-t="coinsDashShareLink">
+                Share
+              </button>
             </div>
             <div class="coins-dash-invite-stats">
               <div class="coins-dash-stat-pill coins-dash-stat-pill--green">
@@ -1160,29 +1191,14 @@
                 <span id="coinsHubInviteFriendsLine">Friends invited: —</span>
               </div>
               <div class="coins-dash-stat-pill coins-dash-stat-pill--gold">
-                <span aria-hidden="true">✨</span>
-                <span id="coinsHubInviteCoinsLine">From invites this month: —</span>
+                <span aria-hidden="true">🪙</span>
+                <span id="coinsHubInviteCoinsLine">Coins from invites: —</span>
               </div>
             </div>
-            <p class="coins-dash-code-row"><span data-t="coinsDashCodeLabel">Code</span>: <strong id="coinsHubReferralCode" class="coins-dash-code-strong" aria-live="polite">—</strong></p>
+            <p class="coins-dash-code-row">
+              <span data-t="coinsDashCodeLabel">Code</span>: <strong id="coinsHubReferralCode" class="coins-dash-code-strong" aria-live="polite">—</strong>
+            </p>
           </article>
-
-          <!-- Learn more accordion -->
-          <details class="coins-dash-details">
-            <summary class="coins-dash-details-summary"><span data-t="coinsDashLearnMore">How coins work</span><span class="coins-dash-chevron">▼</span></summary>
-            <div class="coins-dash-details-body">
-              <ul class="coins-dash-guide-ul">
-                <li data-t="coinsDashGuideShort1"></li>
-                <li data-t="coinsDashGuideShort2"></li>
-                <li data-t="coinsDashGuideShort3"></li>
-                <li data-t="coinsDashGuideShort4"></li>
-                <li data-t="coinsDashGuideShort5"></li>
-                <li data-t="coinsDashGuideShort6"></li>
-              </ul>
-            </div>
-          </details>
-
-          <p class="coins-dash-footer-hint coins-dash-muted" data-t="coinsHubFooterNote"></p>
         </div>
       </section>
 

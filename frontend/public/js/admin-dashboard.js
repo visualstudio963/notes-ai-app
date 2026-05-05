@@ -868,7 +868,9 @@
       const chip = document.getElementById("adminStaffBadge");
       if (chip && caps.staffRole) {
         chip.textContent = caps.staffRole;
-        chip.className = "admin-staff-chip admin-staff-chip--" + caps.staffRole.replace(/[^a-z]/gi, "").toLowerCase();
+        chip.className =
+          "admin-staff-chip admin-staff-chip--foot admin-staff-chip--" +
+          caps.staffRole.replace(/[^a-z]/gi, "").toLowerCase();
       }
     } catch {
       caps = null;

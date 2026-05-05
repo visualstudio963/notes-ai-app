@@ -23,6 +23,10 @@
     {
       "source": "/dashboard/",
       "destination": "/index.html"
+    },
+    {
+      "source": "/invite/:code*",
+      "destination": "/index.html"
     }
   ]
 }

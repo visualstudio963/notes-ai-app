@@ -17,6 +17,7 @@ const { configurePassport, passport } = require("./config/passport");
 const session = require("express-session");
 const { createStripeWebhookHandler } = require("./features/premium/stripeWebhook");
 const { createReminderChecker } = require("./jobs/reminderScheduler");
+const { createPurgePastReminders } = require("./jobs/purgePastReminders");
 
 const User = require("./models/User");
 const { publicUser } = require("./utils/serializers");
@@ -212,6 +213,16 @@ app.get("/dashboard", (_req, res) => {
   res.sendFile(path.join(FRONTEND_PUBLIC, "index.html"));
 });
 
+/** Pretty invite URLs → SPA handles `?invite=` and sessionStorage (see `captureInviteCodeFromLocation`). */
+app.get("/invite/:code", (req, res) => {
+  const raw = String((req.params && req.params.code) || "").trim();
+  const code = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (!code || code.length < 4) {
+    return res.redirect(302, "/");
+  }
+  return res.redirect(302, `/?invite=${encodeURIComponent(code)}`);
+});
+
 /**
  * Google OAuth (Passport + passport-google-oauth20).
  * GOOGLE_CALLBACK_URL must match Google Cloud Console "Authorized redirect URI" exactly.
@@ -342,8 +353,15 @@ const checkReminders = createReminderChecker({
   aiMemoryService
 });
 
+const purgePastReminders = createPurgePastReminders({ Reminder, retentionDays: 7 });
+
 cron.schedule("* * * * *", () => {
   checkReminders().catch(() => {});
+});
+
+/** Past reminders only; hourly to stay within ~1h of the 7-day policy */
+cron.schedule("0 * * * *", () => {
+  purgePastReminders().catch(() => {});
 });
 
 mongoose
@@ -351,6 +369,7 @@ mongoose
   .then(() => {
     server.listen(config.port, () => {
       console.log(`Server listening on port ${config.port}`);
+      purgePastReminders().catch(() => {});
     });
   })
   .catch((err) => {

@@ -1566,6 +1566,19 @@ function persistCurrentUserToStorage() {
 
 function captureInviteCodeFromLocation() {
   try {
+    const path = window.location.pathname || "";
+    const pathMatch = path.match(/\/invite\/([A-Za-z0-9]{4,})\/?$/i);
+    if (pathMatch) {
+      const code = pathMatch[1].toUpperCase();
+      sessionStorage.setItem("aiNotesPendingInvite", code);
+      const u = new URL(window.location.href);
+      u.pathname = "/";
+      u.searchParams.delete("invite");
+      u.searchParams.delete("ref");
+      u.searchParams.delete("referralCode");
+      window.history.replaceState({}, document.title, `${u.pathname}${u.search}${u.hash}`);
+      return;
+    }
     const u = new URL(window.location.href);
     let code =
       u.searchParams.get("invite") || u.searchParams.get("ref") || u.searchParams.get("referralCode") || "";
@@ -2455,8 +2468,16 @@ function switchAuthTab(mode) {
   }
 }
 
-function authPostLoginShellSuccess(data) {
-  storeCurrentUser(data.user, data.accessToken, data.refreshToken, true);
+const AUTH_REMEMBER_PREF_KEY = "aiNotesAuthRememberMe";
+
+function authPostLoginShellSuccess(data, rememberMe) {
+  const remember = rememberMe !== false;
+  storeCurrentUser(data.user, data.accessToken, data.refreshToken, remember);
+  try {
+    localStorage.setItem(AUTH_REMEMBER_PREF_KEY, remember ? "1" : "0");
+  } catch {
+    /* ignore quota / private mode */
+  }
   syncAuthShellVisibility();
   syncMobileHeaderActionUi();
   showToast(`Welcome, ${data.user.username}`);
@@ -2490,12 +2511,14 @@ async function submitAuthLogin(ev) {
     }
     return;
   }
+  const rememberEl = document.getElementById("authLoginRemember");
+  const rememberMe = rememberEl ? Boolean(rememberEl.checked) : true;
   try {
     const data = await apiFetch("/api/login", {
       method: "POST",
       body: JSON.stringify({ username, password })
     });
-    authPostLoginShellSuccess(data);
+    authPostLoginShellSuccess(data, rememberMe);
   } catch (e) {
     if (errEl) {
       errEl.textContent = e.message || "Login failed.";
@@ -2505,6 +2528,22 @@ async function submitAuthLogin(ev) {
 }
 
 function initAuthLandingUi() {
+  const rememberCb = document.getElementById("authLoginRemember");
+  if (rememberCb) {
+    try {
+      rememberCb.checked = localStorage.getItem(AUTH_REMEMBER_PREF_KEY) !== "0";
+    } catch {
+      rememberCb.checked = true;
+    }
+    rememberCb.addEventListener("change", () => {
+      try {
+        localStorage.setItem(AUTH_REMEMBER_PREF_KEY, rememberCb.checked ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+    });
+  }
+
   document.getElementById("authTabLogin")?.addEventListener("click", () => switchAuthTab("login"));
   document.getElementById("authTabSignup")?.addEventListener("click", () => switchAuthTab("signup"));
   document.getElementById("authLoginForm")?.addEventListener("submit", (ev) => void submitAuthLogin(ev));
@@ -2747,10 +2786,68 @@ async function openCoinsRewards() {
 function coinsHubBuildInviteUrl(codeRaw) {
   const code =
     typeof codeRaw === "string" && codeRaw.trim().length > 0 && codeRaw.trim() !== "—"
-      ? codeRaw.trim().toUpperCase()
+      ? codeRaw
+          .trim()
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, "")
       : "";
-  if (!code) return "";
-  return `${window.location.origin}${window.location.pathname}?invite=${encodeURIComponent(code)}`;
+  if (!code || code.length < 4) return "";
+  return `${window.location.origin}/invite/${encodeURIComponent(code)}`;
+}
+
+function coinsHubApplyStreakUi(coins) {
+  const grid = document.getElementById("coinsHubStreakGrid");
+  const progressEl = document.getElementById("coinsHubStreakProgressText");
+  const barFill = document.getElementById("coinsHubStreakBarFill");
+  if (!grid) return;
+
+  const dl = coins && coins.dailyLogin ? coins.dailyLogin : {};
+  const nextIdx = Math.min(7, Math.max(1, Number(dl.nextStreakIndex) || 1));
+  const claimedToday = Boolean(dl.claimedToday);
+  const amounts =
+    Array.isArray(dl.streakStepCoins) && dl.streakStepCoins.length === 7
+      ? dl.streakStepCoins.map((x) => Math.max(0, Math.floor(Number(x) || 0)))
+      : [10, 15, 20, 25, 30, 40, 60];
+
+  const completed = Math.max(
+    0,
+    Math.min(7, claimedToday ? (nextIdx === 1 ? 7 : nextIdx - 1) : nextIdx - 1)
+  );
+
+  if (progressEl && typeof t === "function") {
+    progressEl.textContent = claimedToday ? t("coinsHubStreakDoneShort") : t("coinsHubStreakDayProgress").replace("{n}", String(nextIdx));
+  }
+
+  const pct = (completed / 7) * 100;
+  if (barFill) barFill.style.width = `${pct}%`;
+
+  grid.innerHTML = "";
+  for (let d = 1; d <= 7; d += 1) {
+    const done = d <= completed;
+    const current = !claimedToday && d === nextIdx;
+    const locked = !done && !current;
+    const cell = document.createElement("div");
+    cell.className = "coins-hub-day";
+    cell.setAttribute("role", "listitem");
+    cell.setAttribute("data-day", String(d));
+    if (done) cell.classList.add("coins-hub-day--done");
+    if (current) cell.classList.add("coins-hub-day--current");
+    if (locked) cell.classList.add("coins-hub-day--locked");
+    const icon = done ? "🪙" : "🎁";
+    cell.innerHTML = `<span class="coins-hub-day-label">${d}/7</span><span class="coins-hub-day-icon" aria-hidden="true">${icon}</span><span class="coins-hub-day-amt">+${amounts[d - 1]}</span>`;
+    grid.appendChild(cell);
+  }
+}
+
+function coinsHubAnimateClaimedDay(dayNum) {
+  const d = Number(dayNum);
+  if (!Number.isFinite(d) || d < 1 || d > 7) return;
+  const el = document.querySelector(`#coinsHubStreakGrid .coins-hub-day[data-day="${d}"]`);
+  if (!el) return;
+  el.classList.remove("coins-hub-day--pop");
+  void el.offsetWidth;
+  el.classList.add("coins-hub-day--pop");
+  window.setTimeout(() => el.classList.remove("coins-hub-day--pop"), 750);
 }
 
 function coinsHubPulseHero() {
@@ -2795,6 +2892,7 @@ async function refreshCoinsHubUi() {
   const friendsLine = document.getElementById("coinsHubInviteFriendsLine");
   const coinsFromInvitesEl = document.getElementById("coinsHubInviteCoinsLine");
   const multEl = document.getElementById("coinsHubEarnMult");
+  const videoMeta = document.getElementById("coinsHubVideoCooldown");
 
   if (!coins || coins.cap == null) return;
 
@@ -2807,6 +2905,8 @@ async function refreshCoinsHubUi() {
   const codeStr =
     coins.referralCode && String(coins.referralCode).trim() ? String(coins.referralCode).trim() : "";
   const inviteUrl = coinsHubBuildInviteUrl(codeStr);
+
+  coinsHubApplyStreakUi(coins);
 
   if (balEl) balEl.textContent = String(balance);
   if (capDisplay) capDisplay.textContent = String(cap);
@@ -2848,9 +2948,14 @@ async function refreshCoinsHubUi() {
 
   if (btnDaily) btnDaily.disabled = claimedToday;
   if (btnVideo) {
-    btnVideo.disabled = Boolean(
-      coins.videoRewards && coins.videoRewards.countToday >= coins.videoRewards.maxToday
-    );
+    const vCap = Boolean(coins.videoRewards && coins.videoRewards.countToday >= coins.videoRewards.maxToday);
+    btnVideo.disabled = vCap;
+    btnVideo.classList.toggle("coins-hub-video-cta--disabled", vCap);
+  }
+  if (videoMeta && typeof t === "function" && coins.videoRewards) {
+    const c = Number(coins.videoRewards.countToday) || 0;
+    const m = Number(coins.videoRewards.maxToday) || 0;
+    videoMeta.textContent = t("coinsHubVideoLimitLine").replace("{n}", String(c)).replace("{max}", String(m));
   }
   if (btnRedeem) {
     btnRedeem.disabled = coins.lifecycle === "premium" || balance < cost;
@@ -2886,6 +2991,8 @@ async function refreshCoinsHubUi() {
 
 async function coinsHubClaimDaily() {
   if (!requireAuth("collect rewards")) return;
+  const cur = document.querySelector("#coinsHubStreakGrid .coins-hub-day--current");
+  const claimedDay = cur ? Number(cur.getAttribute("data-day")) : null;
   try {
     await apiFetch("/api/coins/daily-login", { method: "POST", body: JSON.stringify({}) });
   } catch (e) {
@@ -2894,15 +3001,23 @@ async function coinsHubClaimDaily() {
   }
   await refreshCoinsHubUi();
   coinsHubPulseHero();
+  if (claimedDay != null && Number.isFinite(claimedDay)) coinsHubAnimateClaimedDay(claimedDay);
 }
 
 async function coinsHubWatchVideoAd() {
   if (!requireAuth("watch rewarded ads")) return;
+  const vidCard = document.querySelector(".coins-hub-video-card");
   try {
     await apiFetch("/api/coins/rewarded-ad", { method: "POST", body: JSON.stringify({}) });
   } catch (e) {
     showToast(e && e.message ? e.message : t("coinsActionFailed"));
     return;
+  }
+  if (vidCard) {
+    vidCard.classList.remove("coins-hub-video-card--burst");
+    void vidCard.offsetWidth;
+    vidCard.classList.add("coins-hub-video-card--burst");
+    window.setTimeout(() => vidCard.classList.remove("coins-hub-video-card--burst"), 600);
   }
   await refreshCoinsHubUi();
   coinsHubPulseHero();
@@ -2971,7 +3086,7 @@ function coinsHubShareInvite() {
     return;
   }
   const payload = {
-    title: typeof t === "function" ? t("coinsDashInviteTitle") : "Notes AI",
+    title: typeof t === "function" ? t("coinsDashInviteFriendsTitle") : "Notes AI",
     text: typeof t === "function" ? t("coinsDashShareSubject") : "",
     url
   };
@@ -3194,27 +3309,49 @@ function normalizeSocialInviteUrl(raw) {
   return /^https?:\/\//i.test(s) ? s : "";
 }
 
-function syncSocialLinkPair(sidebarId, homeId, url) {
+function syncCommunitySocialLink(sidebarId, homeId, url, rowVisible) {
   const href = normalizeSocialInviteUrl(url);
-  const show = Boolean(href);
+  const active = Boolean(href);
   for (const id of [sidebarId, homeId]) {
     const el = document.getElementById(id);
     if (!el) continue;
-    el.classList.toggle("hidden", !show);
-    if (show) el.setAttribute("href", href);
-    else el.removeAttribute("href");
+    if (!rowVisible) {
+      el.classList.add("hidden");
+      el.removeAttribute("href");
+      el.classList.remove("social-community-link--inactive");
+      el.removeAttribute("aria-disabled");
+      el.removeAttribute("tabindex");
+      continue;
+    }
+    el.classList.remove("hidden");
+    if (active) {
+      el.setAttribute("href", href);
+      el.classList.remove("social-community-link--inactive");
+      el.removeAttribute("aria-disabled");
+      el.removeAttribute("tabindex");
+    } else {
+      el.removeAttribute("href");
+      el.classList.add("social-community-link--inactive");
+      el.setAttribute("aria-disabled", "true");
+      el.setAttribute("tabindex", "-1");
+    }
   }
-  return show;
+  return active;
 }
 
 function applyDiscordCommunityUi() {
-  const dOk = syncSocialLinkPair("sidebarSocialDiscord", "homeSocialDiscord", discordCommunityUrl);
-  syncSocialLinkPair("sidebarSocialTiktok", "homeSocialTiktok", tiktokCommunityUrl);
-  syncSocialLinkPair("sidebarSocialYoutube", "homeSocialYoutube", youtubeCommunityUrl);
   const hasAny =
     normalizeSocialInviteUrl(discordCommunityUrl) ||
     normalizeSocialInviteUrl(tiktokCommunityUrl) ||
     normalizeSocialInviteUrl(youtubeCommunityUrl);
+  const dOk = syncCommunitySocialLink(
+    "sidebarSocialDiscord",
+    "homeSocialDiscord",
+    discordCommunityUrl,
+    hasAny
+  );
+  syncCommunitySocialLink("sidebarSocialTiktok", "homeSocialTiktok", tiktokCommunityUrl, hasAny);
+  syncCommunitySocialLink("sidebarSocialYoutube", "homeSocialYoutube", youtubeCommunityUrl, hasAny);
   const block = document.getElementById("sidebarSocialBlock");
   const card = document.getElementById("homeSocialCard");
   if (block) block.classList.toggle("hidden", !hasAny);
@@ -3237,8 +3374,11 @@ function applyDiscordCommunityUi() {
     for (const [id, key] of ariaPairs) {
       const el = document.getElementById(id);
       if (!el) continue;
-      if (el.classList.contains("hidden")) el.removeAttribute("aria-label");
-      else el.setAttribute("aria-label", t(key));
+      if (!hasAny || el.classList.contains("hidden") || el.classList.contains("social-community-link--inactive")) {
+        el.removeAttribute("aria-label");
+      } else {
+        el.setAttribute("aria-label", t(key));
+      }
     }
   }
 }

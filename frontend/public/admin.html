@@ -76,11 +76,21 @@
       </nav>
 
       <div class="admin-sidebar-foot">
-        <a class="admin-sidebar-link" href="index.html">Open main app</a>
-        <p class="admin-sidebar-user">
-          <span class="admin-sidebar-role-line">Role <span id="adminStaffBadge" class="admin-staff-chip">—</span></span><br />
-          Signed in as <strong id="adminUsername">—</strong>
-        </p>
+        <div class="admin-sidebar-foot-card">
+          <a class="admin-sidebar-foot-app" href="index.html">
+            <span class="admin-sidebar-foot-app-icon" aria-hidden="true">↗</span>
+            <span>Open main app</span>
+          </a>
+          <div class="admin-sidebar-foot-divider"></div>
+          <div class="admin-sidebar-foot-row">
+            <span class="admin-sidebar-foot-label">Role</span>
+            <span id="adminStaffBadge" class="admin-staff-chip admin-staff-chip--foot">—</span>
+          </div>
+          <div class="admin-sidebar-foot-user">
+            <span class="admin-sidebar-foot-label">Signed in as</span>
+            <strong id="adminUsername" class="admin-sidebar-foot-name">—</strong>
+          </div>
+        </div>
       </div>
     </aside>
 
@@ -214,8 +224,20 @@
             <button type="button" class="admin-btn admin-btn--ghost" data-act="reload-users">Reload</button>
           </div>
         </header>
-        <div class="admin-table-wrap admin-table-wrap--scroll-x">
-          <table class="admin-table" id="adminUsersTable">
+        <div class="admin-table-wrap admin-table-wrap--scroll-x admin-table-wrap--users">
+          <table class="admin-table admin-table--users" id="adminUsersTable">
+            <colgroup>
+              <col class="admin-col-user" span="1" />
+              <col class="admin-col-email" span="1" />
+              <col class="admin-col-badge" span="1" />
+              <col class="admin-col-badge" span="1" />
+              <col class="admin-col-badge" span="1" />
+              <col class="admin-col-num" span="1" />
+              <col class="admin-col-num" span="1" />
+              <col class="admin-col-num" span="1" />
+              <col class="admin-col-date" span="1" />
+              <col class="admin-col-action" span="1" />
+            </colgroup>
             <thead>
               <tr>
                 <th>Username</th>
@@ -251,8 +273,16 @@
         <div class="admin-card admin-card--wide admin-card--pad">
           <p class="admin-muted admin-card-lead">Use <strong>Grant Premium</strong> in user details for precise comps: <code>1m</code>, <code>3m</code>, <code>6m</code>, or <code>lifetime</code>.</p>
         </div>
-        <div class="admin-table-wrap admin-table-wrap--scroll-x">
-          <table class="admin-table" id="adminSubsTable">
+        <div class="admin-table-wrap admin-table-wrap--scroll-x admin-table-wrap--subs">
+          <table class="admin-table admin-table--subs" id="adminSubsTable">
+            <colgroup>
+              <col class="admin-col-user" span="1" />
+              <col class="admin-col-email" span="1" />
+              <col class="admin-col-badge" span="1" />
+              <col class="admin-col-badge" span="1" />
+              <col class="admin-col-date" span="1" />
+              <col class="admin-col-action" span="1" />
+            </colgroup>
             <thead>
               <tr>
                 <th>Username</th>

@@ -179,31 +179,92 @@ body {
 
 .admin-sidebar-foot {
   margin-top: auto;
-  padding: 16px 8px 4px;
+  padding: 18px 4px 6px;
   border-top: 1px solid rgba(148, 163, 184, 0.1);
-  font-size: 0.82rem;
-  color: #94a3b8;
 }
 
-.admin-sidebar-link {
-  display: inline-block;
-  color: #38bdf8;
+.admin-sidebar-foot-card {
+  padding: 14px 14px 16px;
+  border-radius: 16px;
+  background: linear-gradient(155deg, rgba(30, 41, 59, 0.82), rgba(15, 23, 42, 0.92));
+  border: 1px solid rgba(129, 140, 248, 0.18);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.admin-sidebar-foot-app {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
   text-decoration: none;
-  font-weight: 600;
-  margin-bottom: 8px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #e0f2fe;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(99, 102, 241, 0.12));
+  border: 1px solid rgba(125, 211, 252, 0.28);
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.admin-sidebar-link:hover {
-  text-decoration: underline;
+.admin-sidebar-foot-app:hover {
+  transform: translateY(-1px);
+  border-color: rgba(125, 211, 252, 0.45);
+  box-shadow: 0 8px 20px rgba(56, 189, 248, 0.15);
 }
 
-.admin-sidebar-user {
-  margin: 0;
-  line-height: 1.45;
+.admin-sidebar-foot-app-icon {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(125, 211, 252, 0.2);
 }
 
-.admin-sidebar-user strong {
-  color: #e2e8f0;
+.admin-sidebar-foot-divider {
+  height: 1px;
+  margin: 14px 0 12px;
+  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.25), transparent);
+}
+
+.admin-sidebar-foot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.admin-sidebar-foot-user {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-sidebar-foot-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #64748b;
+}
+
+.admin-sidebar-foot-name {
+  font-size: 0.94rem;
+  font-weight: 750;
+  color: #f1f5f9;
+  letter-spacing: -0.01em;
+  word-break: break-word;
+}
+
+.admin-staff-chip--foot {
+  margin-left: 0;
+  flex-shrink: 0;
 }
 
 /* ——— Main ——— */
@@ -618,10 +679,52 @@ body {
   background: rgba(15, 23, 42, 0.75);
 }
 
+.admin-table-wrap--users,
+.admin-table-wrap--subs {
+  background: linear-gradient(165deg, rgba(30, 41, 59, 0.45), rgba(15, 23, 42, 0.88));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 16px 40px rgba(0, 0, 0, 0.2);
+}
+
 .admin-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.88rem;
+}
+
+.admin-table--users {
+  min-width: 1120px;
+  table-layout: fixed;
+}
+
+.admin-table--subs {
+  min-width: 860px;
+  table-layout: fixed;
+}
+
+.admin-col-user {
+  width: 12%;
+}
+
+.admin-col-email {
+  width: 26%;
+}
+
+.admin-col-badge {
+  width: 9%;
+}
+
+.admin-col-num {
+  width: 7%;
+}
+
+.admin-col-date {
+  width: 14%;
+}
+
+.admin-col-action {
+  width: 76px;
 }
 
 .admin-table th,
@@ -645,7 +748,23 @@ body {
 
 .admin-table td {
   color: #e2e8f0;
-  word-break: break-word;
+  overflow-wrap: break-word;
+  word-break: normal;
+  vertical-align: middle;
+}
+
+.admin-table--users td:nth-child(3),
+.admin-table--users td:nth-child(4),
+.admin-table--users td:nth-child(5),
+.admin-table--subs td:nth-child(3),
+.admin-table--subs td:nth-child(4) {
+  white-space: nowrap;
+}
+
+.admin-table--users .admin-num-cell,
+.admin-table--subs .admin-num-cell {
+  text-align: right;
+  font-weight: 600;
 }
 
 .admin-user-row {
@@ -663,11 +782,17 @@ body {
 }
 
 .admin-badge {
-  display: inline-block;
-  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
   border-radius: 999px;
   font-size: 0.72rem;
   font-weight: 600;
+  white-space: nowrap;
+  line-height: 1.2;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .admin-badge--yes {

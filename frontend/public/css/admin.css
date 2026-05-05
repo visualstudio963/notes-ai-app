@@ -915,6 +915,224 @@ body {
   color: #dbeafe;
 }
 
+.admin-sidebar-role-line {
+  font-size: 0.8rem;
+  color: #cbd5e1;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.admin-staff-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-left: 4px;
+  background: rgba(56, 189, 248, 0.16);
+  border: 1px solid rgba(125, 211, 252, 0.35);
+  color: #bae6fd;
+}
+
+.admin-staff-chip--support {
+  background: rgba(52, 211, 153, 0.12);
+  border-color: rgba(52, 211, 153, 0.35);
+  color: #86efac;
+}
+
+.admin-staff-chip--moderator {
+  background: rgba(250, 204, 21, 0.14);
+  border-color: rgba(250, 204, 21, 0.38);
+  color: #fde68a;
+}
+
+.admin-staff-chip--admin {
+  background: rgba(248, 113, 113, 0.14);
+  border-color: rgba(248, 113, 113, 0.35);
+  color: #fecaca;
+}
+
+.admin-badge--offline {
+  background: rgba(148, 163, 184, 0.12);
+  color: #94a3b8;
+}
+
+.admin-badge--muted {
+  background: rgba(100, 116, 139, 0.2);
+  color: #cbd5e1;
+}
+
+.admin-badge--staff-admin {
+  background: rgba(248, 113, 113, 0.16);
+  color: #fecaca;
+}
+
+.admin-badge--staff-mod {
+  background: rgba(250, 204, 21, 0.15);
+  color: #fde047;
+}
+
+.admin-badge--staff-support {
+  background: rgba(52, 211, 153, 0.14);
+  color: #bbf7d0;
+}
+
+.admin-num-cell {
+  font-variant-numeric: tabular-nums;
+  color: #cbd5e1;
+}
+
+.admin-table-wrap--scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-pagination {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.admin-pagination-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-pagination-meta {
+  font-size: 0.82rem;
+  color: #94a3b8;
+}
+
+.admin-toolbar--wrap {
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+
+.admin-filter-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: #94a3b8;
+}
+
+.admin-filter-label-text {
+  white-space: nowrap;
+}
+
+.admin-select--compact {
+  min-width: 0;
+  padding: 6px 8px;
+}
+
+.admin-analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.admin-analytics-stack {
+  display: grid;
+  gap: 16px;
+}
+
+@media (min-width: 900px) {
+  .admin-analytics-stack {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+.admin-analytics-body {
+  font-size: 0.9rem;
+  color: #e2e8f0;
+}
+
+.admin-analytics-muted {
+  margin: 0 0 10px;
+  color: #64748b;
+  font-size: 0.86rem;
+}
+
+.admin-analytics-status-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-analytics-status-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  text-transform: capitalize;
+}
+
+.admin-analytics-num {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #7dd3fc;
+}
+
+.admin-settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.admin-card--pad {
+  padding: 16px 18px;
+}
+
+.admin-card-lead {
+  margin: 0;
+  line-height: 1.55;
+  color: #cbd5e1;
+}
+
+.admin-toolbar--inbox {
+  margin-bottom: 12px;
+}
+
+.admin-user-detail-grid--wide {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.admin-user-detail-row--span {
+  grid-column: 1 / -1;
+}
+
+.admin-grant-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-hint-muted {
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.admin-role-editor--grant {
+  border-style: dashed;
+}
+
 @media (max-width: 900px) {
   .admin-root {
     flex-direction: column;
@@ -977,88 +1195,11 @@ body {
     align-items: stretch;
   }
 
-  /* Users table: mobile card layout for readability */
-  #adminUsersTable thead {
-    display: none;
+  .admin-user-detail-grid--wide {
+    grid-template-columns: 1fr;
   }
 
-  #adminUsersTable,
-  #adminUsersTable tbody,
-  #adminUsersTable tr,
-  #adminUsersTable td {
-    display: block;
-    width: 100%;
-  }
-
-  #adminUsersTable tbody {
-    padding: 8px;
-  }
-
-  #adminUsersTable .admin-user-row {
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    border-radius: 14px;
-    background: rgba(15, 23, 42, 0.62);
-    margin-bottom: 10px;
-    padding: 10px 10px 8px;
-  }
-
-  #adminUsersTable .admin-user-row td {
-    border: none;
-    padding: 6px 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    color: #e2e8f0;
-    word-break: break-word;
-  }
-
-  #adminUsersTable .admin-user-row td::before {
-    flex: 0 0 auto;
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #94a3b8;
-  }
-
-  #adminUsersTable .admin-user-row td:nth-child(1)::before {
-    content: "Username";
-  }
-
-  #adminUsersTable .admin-user-row td:nth-child(2)::before {
-    content: "Email";
-  }
-
-  #adminUsersTable .admin-user-row td:nth-child(3)::before {
-    content: "Phone";
-  }
-
-  #adminUsersTable .admin-user-row td:nth-child(4)::before {
-    content: "Plan";
-  }
-
-  #adminUsersTable .admin-user-row td:nth-child(5)::before {
-    content: "Active";
-  }
-
-  #adminUsersTable .admin-user-row td:nth-child(6)::before {
-    content: "Joined";
-  }
-
-  #adminUsersTable .admin-user-row td:nth-child(7)::before {
-    content: "Details";
-  }
-
-  #adminUsersTable .admin-user-row td:nth-child(2),
-  #adminUsersTable .admin-user-row td:nth-child(6),
-  #adminUsersTable .admin-user-row td:nth-child(7) {
-    align-items: flex-start;
-  }
-
-  #adminUsersTable .admin-user-row td:nth-child(2)::before,
-  #adminUsersTable .admin-user-row td:nth-child(6)::before,
-  #adminUsersTable .admin-user-row td:nth-child(7)::before {
-    margin-top: 3px;
+  .admin-table-wrap--scroll-x {
+    max-width: 100%;
   }
 }

@@ -511,7 +511,39 @@ async function revokePremium(User, userId) {
 
 }
 
+/**
+ * Extend Premium from current expiry (or now) by N calendar months — admin / moderator comps.
+ * @param {import("mongoose").Model} User
+ * @param {string} userId
+ * @param {number} months 1–120
+ */
+async function adminGrantPremiumMonths(User, userId, months) {
+  const m = Math.floor(Number(months) || 0);
+  if (!Number.isFinite(m) || m <= 0 || m > 120) {
+    throw new Error("Invalid months");
+  }
+  const u = await User.findById(userId).select("premiumExpires isPremium").lean();
+  if (!u) throw new Error("User not found");
 
+  const nowMs = Date.now();
+  let baseMs = nowMs;
+  if (u.isPremium === true && u.premiumExpires) {
+    const t = new Date(u.premiumExpires).getTime();
+    if (Number.isFinite(t) && t > nowMs) baseMs = t;
+  }
+  const d = new Date(baseMs);
+  d.setUTCMonth(d.getUTCMonth() + m);
+  return grantPremium(User, userId, { expiresAt: d });
+}
+
+/**
+ * Lifetime Premium (no expiry) — admin / moderator comps.
+ * @param {import("mongoose").Model} User
+ * @param {string} userId
+ */
+async function adminGrantPremiumLifetime(User, userId) {
+  return grantPremium(User, userId, { expiresAt: null });
+}
 
 /**
 
@@ -598,6 +630,10 @@ module.exports = {
   revokePremium,
 
   applyProductPlan,
+
+  adminGrantPremiumMonths,
+
+  adminGrantPremiumLifetime,
 
   OPENAI_WEB_CHAT_MONTHLY_LIMIT,
 

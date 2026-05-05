@@ -44,7 +44,8 @@ const userSchema = new mongoose.Schema(
     stripeSubscriptionId: { type: String, default: null },
     /** @deprecated Use plan — still written in sync for older code paths */
     membershipRole: { type: String, enum: ["free", "standard", "premium"], default: "free" },
-    role: { type: String, enum: ["user", "admin"], default: "user" },
+    /** Staff: user = normal customer; admin / moderator / support = admin panel login */
+    role: { type: String, enum: ["user", "admin", "moderator", "support"], default: "user" },
     lastActive: { type: Date, default: null },
     /** UTC year-month (YYYY-MM) for monthly OpenAI Web Chat usage counter */
     webChatOpenAiPeriod: { type: String, default: "" },

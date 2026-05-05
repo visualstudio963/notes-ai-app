@@ -749,6 +749,7 @@ const translations = {
     activeRemindersDesc: "Scheduled and waiting",
     pastReminders: "Past reminders",
     pastRemindersDesc: "Completed or expired",
+    pastRemindersAutoDeleteHint: "Past reminders are automatically deleted after 7 days.",
     
     // Auth
     login: "Login",
@@ -1534,6 +1535,7 @@ const translations = {
     activeRemindersDesc: "Të planifikuara dhe në pritje",
     pastReminders: "Kujtesa të kaluara",
     pastRemindersDesc: "Të përfunduara ose të skaduara",
+    pastRemindersAutoDeleteHint: "Kujtesat e kaluara fshihen automatikisht pas 7 ditësh.",
     
     // Auth
     login: "Hyj",

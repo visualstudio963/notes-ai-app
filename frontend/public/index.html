@@ -260,7 +260,7 @@
           <div class="sidebar-social__row">
             <a
               id="sidebarSocialDiscord"
-              class="sidebar-social__link hidden"
+              class="sidebar-social__link sidebar-social__link--discord hidden"
               href="#"
               target="_blank"
               rel="noopener noreferrer"
@@ -274,7 +274,7 @@
             </a>
             <a
               id="sidebarSocialTiktok"
-              class="sidebar-social__link hidden"
+              class="sidebar-social__link sidebar-social__link--tiktok hidden"
               href="#"
               target="_blank"
               rel="noopener noreferrer"
@@ -287,7 +287,7 @@
             </a>
             <a
               id="sidebarSocialYoutube"
-              class="sidebar-social__link hidden"
+              class="sidebar-social__link sidebar-social__link--youtube hidden"
               href="#"
               target="_blank"
               rel="noopener noreferrer"
@@ -479,7 +479,7 @@
                 <div class="home-social-card__row">
                   <a
                     id="homeSocialDiscord"
-                    class="home-social-card__link hidden"
+                    class="home-social-card__link home-social-card__link--discord hidden"
                     href="#"
                     target="_blank"
                     rel="noopener noreferrer"
@@ -492,7 +492,7 @@
                   </a>
                   <a
                     id="homeSocialTiktok"
-                    class="home-social-card__link hidden"
+                    class="home-social-card__link home-social-card__link--tiktok hidden"
                     href="#"
                     target="_blank"
                     rel="noopener noreferrer"
@@ -505,7 +505,7 @@
                   </a>
                   <a
                     id="homeSocialYoutube"
-                    class="home-social-card__link hidden"
+                    class="home-social-card__link home-social-card__link--youtube hidden"
                     href="#"
                     target="_blank"
                     rel="noopener noreferrer"
@@ -1275,6 +1275,9 @@
                 <div class="column-header">
                   <h3 data-t="pastReminders">Past reminders</h3>
                   <p data-t="pastRemindersDesc">Completed or expired</p>
+                  <p class="column-header__hint" data-t="pastRemindersAutoDeleteHint">
+                    Past reminders are automatically deleted after 7 days.
+                  </p>
                 </div>
                 <div id="pastReminders" class="history-reminder-list"></div>
               </div>

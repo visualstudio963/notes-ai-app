@@ -3973,7 +3973,116 @@ function scanCamCapturePhoto() {
   scanCamSyncActionUi();
 }
 
-function scanCamCanvasFromImgElement(img, maxSide = 2400) {
+function scanCamLineBBox(ln) {
+  const b = ln && ln.bbox ? ln.bbox : {};
+  const x0 = Number(b.x0 ?? 0);
+  const y0 = Number(b.y0 ?? 0);
+  const x1 = Number(b.x1 ?? x0);
+  const y1 = Number(b.y1 ?? y0);
+  const rawH = Math.abs(y1 - y0);
+  const h = rawH > 0 ? Math.max(10, rawH) : Math.max(12, Number(ln && ln.height) || 14);
+  return { x0, y0, x1, y1, h };
+}
+
+/**
+ * Merges OCR line boxes that sit on the same visual row (fewer words cut in the middle).
+ */
+function scanCamJoinOcrLines(rawLines) {
+  if (!Array.isArray(rawLines) || !rawLines.length) return "";
+  const items = rawLines
+    .map((ln) => {
+      const bbox = scanCamLineBBox(ln);
+      const text = String(ln.text || "")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (!text) return null;
+      return { ...bbox, text };
+    })
+    .filter(Boolean);
+  if (!items.length) return "";
+  items.sort((a, b) => {
+    const rowDiff = a.y0 - b.y0;
+    const thr = Math.min(a.h, b.h) * 0.55;
+    if (Math.abs(rowDiff) < thr) return a.x0 - b.x0;
+    return rowDiff;
+  });
+  const rows = [];
+  for (const it of items) {
+    const last = rows[rows.length - 1];
+    if (last && Math.abs(it.y0 - last.y0) < Math.min(it.h, last.h) * 0.52) {
+      last.parts.push(it);
+    } else {
+      rows.push({ y0: it.y0, h: it.h, parts: [it] });
+    }
+  }
+  return rows
+    .map((r) =>
+      r.parts
+        .sort((a, b) => a.x0 - b.x0)
+        .map((p) => p.text)
+        .join(" ")
+    )
+    .join("\n");
+}
+
+function scanCamCollectLinesFromOcrData(ocrData) {
+  if (!ocrData) return [];
+  if (Array.isArray(ocrData.lines) && ocrData.lines.length) return ocrData.lines;
+  const out = [];
+  if (Array.isArray(ocrData.blocks)) {
+    for (const bl of ocrData.blocks) {
+      const pars = bl && Array.isArray(bl.paragraphs) ? bl.paragraphs : [];
+      for (const p of pars) {
+        if (p && Array.isArray(p.lines)) out.push(...p.lines);
+      }
+    }
+  }
+  return out;
+}
+
+/** Prefer Tesseract layout (blocks / paragraphs / lines) instead of flattened text. */
+function scanCamExtractStructuredText(ocrData) {
+  if (!ocrData) return "";
+  try {
+    if (Array.isArray(ocrData.blocks) && ocrData.blocks.length) {
+      const paras = [];
+      for (const bl of ocrData.blocks) {
+        if (!bl) continue;
+        const plist = Array.isArray(bl.paragraphs) ? bl.paragraphs : [];
+        for (const p of plist) {
+          const piece = scanCamJoinOcrLines(p.lines || []);
+          if (piece) paras.push(piece);
+        }
+      }
+      const joined = paras.join("\n\n").trim();
+      if (joined) return scanCamNormalizeOcrOutput(joined);
+    }
+    const flat = scanCamCollectLinesFromOcrData(ocrData);
+    if (flat.length) {
+      const fromLines = scanCamJoinOcrLines(flat);
+      if (fromLines) return scanCamNormalizeOcrOutput(fromLines);
+    }
+  } catch (e) {
+    console.warn("[Scan Cam] structured OCR", e);
+  }
+  return scanCamNormalizeOcrOutput(String(ocrData.text || "").trim());
+}
+
+function scanCamNormalizeOcrOutput(s) {
+  let t = String(s || "").replace(/\r\n/g, "\n");
+  /* Latin + Albanian letters; join " fjalë-\nçelësi" style breaks */
+  t = t.replace(/([A-Za-z\u00c0-\u024f])-\s*\n\s*([A-Za-z\u00c0-\u024f0-9])/g, "$1$2");
+  const lines = t.split("\n").map((ln) =>
+    ln
+      .replace(/\u00a0/g, " ")
+      .replace(/[ \t]+/g, " ")
+      .trimEnd()
+  );
+  t = lines.join("\n").replace(/\n{3,}/g, "\n\n");
+  return t.trim();
+}
+
+function scanCamCanvasFromImgElement(img, maxSide = 2800) {
   const w0 = img.naturalWidth || img.width;
   const h0 = img.naturalHeight || img.height;
   if (!w0 || !h0) return null;
@@ -4000,6 +4109,14 @@ async function scanCamEnsureTesseractWorker() {
       for (const lang of tryLangs) {
         try {
           scanCamTesseractWorker = await Tesseract.createWorker(lang, undefined, { logger: () => {} });
+          try {
+            await scanCamTesseractWorker.setParameters({
+              tessedit_pageseg_mode: "3",
+              preserve_interword_spaces: "1"
+            });
+          } catch (e) {
+            console.warn("[Scan Cam] Tesseract setParameters", e && e.message);
+          }
           return scanCamTesseractWorker;
         } catch (e) {
           console.warn("[Scan Cam] Tesseract init", lang, e && e.message);
@@ -4043,7 +4160,7 @@ async function scanCamRecognizeFromPdfUrl(pdfUrl) {
     const renderTask = page.render({ canvasContext: ctx, viewport });
     await renderTask.promise;
     const { data } = await worker.recognize(canvas);
-    const raw = data && data.text ? String(data.text).trim() : "";
+    const raw = data ? scanCamExtractStructuredText(data) : "";
     if (raw) parts.push(raw);
   }
   let out = parts.join("\n\n").trim();
@@ -4099,7 +4216,7 @@ async function scanCamRunOcr() {
       const { data } = canvas
         ? await worker.recognize(canvas)
         : await worker.recognize(preview.src);
-      text = data && data.text ? String(data.text) : "";
+      text = data ? scanCamExtractStructuredText(data) : "";
     } else if (hasPdf) {
       if (typeof Tesseract === "undefined" || typeof pdfjsLib === "undefined") {
         showToast(t("scanCamTesseractMissing"));

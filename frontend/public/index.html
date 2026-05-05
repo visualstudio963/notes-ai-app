@@ -1145,29 +1145,20 @@
             class="coins-dash-card coins-hub-streak-card coins-hub-streak-card--simple coins-daily-checkin-card"
             aria-labelledby="coinsHubStreakTitleHeading"
           >
-            <div class="coins-daily-checkin-head">
-              <div class="coins-daily-checkin-head__main">
-                <h3 id="coinsHubStreakTitleHeading" class="coins-dash-card-title coins-dash-card-title--tight coins-daily-checkin-head__title" data-t="coinsHubStreakTitle">
-                  Daily check-in (7 days)
-                </h3>
-                <p id="coinsHubStreakProgressText" class="coins-daily-checkin-head__streak" aria-live="polite"></p>
+            <div class="coins-daily-checkin-head coins-daily-checkin-head--compact">
+              <h3 id="coinsHubStreakTitleHeading" class="coins-dash-card-title coins-dash-card-title--tight coins-daily-checkin-head__title" data-t="coinsHubStreakTitle">
+                Daily check-in (7 days)
+              </h3>
+              <div class="coins-daily-balance-hero" aria-live="polite">
+                <span class="coins-daily-balance-hero__label" data-t="coinsDailyMyBalanceCoin">My balance coin</span>
+                <span id="coinsHubDailyHeaderBalance" class="coins-daily-balance-hero__value">0</span>
               </div>
-              <div class="coins-daily-checkin-balance">
-                <span class="coins-daily-checkin-balance__icon" aria-hidden="true">🪙</span>
-                <div class="coins-daily-checkin-balance__text">
-                  <span class="coins-daily-checkin-balance__label" data-t="coinsDailyMyBalanceCoin">My balance coin</span>
-                  <strong id="coinsHubDailyHeaderBalance" class="coins-daily-checkin-balance__value" aria-live="polite">—</strong>
-                </div>
-              </div>
+              <p id="coinsHubStreakProgressText" class="coins-daily-checkin-head__streak" aria-live="polite"></p>
             </div>
             <div class="coins-hub-streak-track" aria-hidden="true">
               <div id="coinsHubStreakBarFill" class="coins-hub-streak-fill"></div>
             </div>
-            <div id="coinsHubStreakGrid" class="daily-checkin-grid" role="list"></div>
-            <button type="button" id="coinsHubDailyBtn" class="coins-hub-claim-btn coins-daily-checkin-cta" onclick="coinsHubClaimDaily()">
-              <span class="coins-hub-claim-icon" aria-hidden="true">🎁</span>
-              <span class="coins-hub-claim-text" id="coinsHubDailyBtnLabel">Daily reward</span>
-            </button>
+            <div id="coinsHubStreakGrid" class="daily-checkin-coins-row" role="list" aria-label="Daily rewards"></div>
           </article>
 
           <article
@@ -1184,7 +1175,7 @@
               </div>
             </div>
             <div class="coins-dash-balance-digits">
-              <span id="coinsHubBalanceValue" class="coins-dash-balance-num">—</span>
+              <span id="coinsHubBalanceValue" class="coins-dash-balance-num">0</span>
               <span class="coins-dash-balance-max"
                 ><span data-t="coinsDashBalanceSlash">/</span> <span id="coinsHubCapDisplay">1200</span></span
               >

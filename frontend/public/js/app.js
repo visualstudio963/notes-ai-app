@@ -2836,78 +2836,69 @@ function coinsHubApplyStreakUi(coins) {
   if (barFill) barFill.style.width = `${pct}%`;
 
   grid.innerHTML = "";
+  const dayOnly =
+    typeof t === "function" ? (n) => t("coinsHubStreakDayOnly").replace("{d}", String(n)) : (n) => `Day ${n}`;
+  const todayTag = typeof t === "function" ? t("coinsHubStreakTodayTag") : "Today";
+
   for (let d = 1; d <= 7; d += 1) {
-    const done = d <= completed;
-    const current = !claimedToday && d === nextIdx;
-    const locked = !done && !current;
-    const showTodayLabel =
-      (!claimedToday && current) || (claimedToday && completed > 0 && d === completed);
-
-    const cell = document.createElement("div");
-    cell.className = "daily-checkin-day";
-    cell.setAttribute("role", "listitem");
-    cell.setAttribute("data-day", String(d));
-    if (done) cell.classList.add("daily-checkin-day--done");
-    if (current) cell.classList.add("daily-checkin-day--next");
-    if (locked) cell.classList.add("daily-checkin-day--locked");
-    if (d === 7) cell.classList.add("daily-checkin-day--mega");
-
     const amt = amounts[d - 1];
-    let midHtml = "";
-    if (done) {
-      midHtml =
-        `<div class="daily-checkin-day__mid daily-checkin-day__mid--done">` +
-        `<span class="daily-checkin-day__coin" aria-hidden="true">🪙</span>` +
-        `<span class="daily-checkin-day__check" aria-hidden="true">✓</span>` +
-        `</div>`;
-    } else if (current) {
-      midHtml =
-        `<div class="daily-checkin-day__mid daily-checkin-day__mid--soon">` +
-        `<span class="daily-checkin-day__coin" aria-hidden="true">🪙</span>` +
-        `<span class="daily-checkin-day__coin daily-checkin-day__coin--ghost" aria-hidden="true">🪙</span>` +
-        `</div>`;
-    } else if (d === 7) {
-      midHtml =
-        `<div class="daily-checkin-day__mid daily-checkin-day__mid--pile">` +
-        `<span class="daily-checkin-day__pile" aria-hidden="true">🪙💰</span>` +
-        `</div>`;
-    } else {
-      midHtml =
-        `<div class="daily-checkin-day__mid">` +
-        `<span class="daily-checkin-day__coin daily-checkin-day__coin--muted" aria-hidden="true">🪙</span>` +
-        `</div>`;
+    const done = d <= completed;
+    const claimable = !claimedToday && d === nextIdx;
+    const locked = !done && !claimable;
+
+    const labelHint = `${dayOnly(d)} · +${amt}`;
+
+    if (claimable) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className =
+        `daily-checkin-slot daily-checkin-slot--claim${d === 7 ? " daily-checkin-slot--finale" : ""}`.trim();
+      btn.setAttribute("data-day", String(d));
+      btn.setAttribute("role", "listitem");
+      btn.setAttribute("aria-label", `${todayTag}: +${amt}`);
+      btn.innerHTML =
+        `<span class="daily-checkin-slot__coin-ring" aria-hidden="true"><span class="daily-checkin-slot__coin">🪙</span></span>` +
+        `<span class="daily-checkin-slot__amt">+${amt}</span>` +
+        `<span class="daily-checkin-slot__meta">${escapeHtml(todayTag)}</span>`;
+      btn.onclick = () => void coinsHubClaimDaily();
+      grid.appendChild(btn);
+      continue;
     }
 
-    const labelRaw = showTodayLabel
-      ? typeof t === "function"
-        ? t("coinsHubStreakTodayTag")
-        : "Today"
-      : typeof t === "function"
-        ? t("coinsHubStreakDayOnly").replace("{d}", String(d))
-        : `Day ${d}`;
-    const flameHtml =
-      d === 7
-        ? `<span class="daily-checkin-day__flame" aria-hidden="true"><span class="daily-checkin-day__flame-inner">+${amt}</span></span>`
-        : "";
+    const box = document.createElement("div");
+    box.className =
+      `daily-checkin-slot${done ? " daily-checkin-slot--done" : " daily-checkin-slot--locked"}${
+        d === 7 ? " daily-checkin-slot--finale" : ""
+      }`.trim();
+    box.setAttribute("data-day", String(d));
+    box.setAttribute("role", "listitem");
+    box.setAttribute(
+      "aria-label",
+      done ? `${labelHint} (${typeof t === "function" ? t("coinsHubStreakRowDone") : "Done"})` : labelHint
+    );
 
-    cell.innerHTML =
-      `<span class="daily-checkin-day__amt">+${amt}</span>` +
-      `${midHtml}` +
-      `<span class="daily-checkin-day__label">${escapeHtml(labelRaw)}</span>` +
-      flameHtml;
-    grid.appendChild(cell);
+    const coinMarkup = done
+      ? `<span class="daily-checkin-slot__coin-ring" aria-hidden="true"><span class="daily-checkin-slot__coin">🪙</span><span class="daily-checkin-slot__tick">✓</span></span>` +
+        `<span class="daily-checkin-slot__amt daily-checkin-slot__amt--muted">+${amt}</span>` +
+        `<span class="daily-checkin-slot__meta daily-checkin-slot__meta--done">${escapeHtml(dayOnly(d))}</span>`
+      : `<span class="daily-checkin-slot__coin-ring" aria-hidden="true"><span class="daily-checkin-slot__coin daily-checkin-slot__coin--muted">🪙</span></span>` +
+        `<span class="daily-checkin-slot__amt daily-checkin-slot__amt--locked">+${amt}</span>` +
+        `<span class="daily-checkin-slot__meta daily-checkin-slot__meta--locked">${escapeHtml(dayOnly(d))}</span>`;
+
+    box.innerHTML = coinMarkup;
+    grid.appendChild(box);
   }
 }
 
 function coinsHubAnimateClaimedDay(dayNum) {
   const d = Number(dayNum);
   if (!Number.isFinite(d) || d < 1 || d > 7) return;
-  const el = document.querySelector(`#coinsHubStreakGrid .daily-checkin-day[data-day="${d}"]`);
+  const el = document.querySelector(`#coinsHubStreakGrid .daily-checkin-slot[data-day="${d}"]`);
   if (!el) return;
-  el.classList.remove("daily-checkin-day--pop");
+  el.classList.remove("daily-checkin-slot--pop");
   void el.offsetWidth;
-  el.classList.add("daily-checkin-day--pop");
-  window.setTimeout(() => el.classList.remove("daily-checkin-day--pop"), 750);
+  el.classList.add("daily-checkin-slot--pop");
+  window.setTimeout(() => el.classList.remove("daily-checkin-slot--pop"), 720);
 }
 
 function coinsHubPulseHero() {
@@ -2942,10 +2933,8 @@ async function refreshCoinsHubUi() {
   const progLabel = document.getElementById("coinsHubProgressLabel");
   const trialBan = document.getElementById("coinsHubTrialBanner");
   const trialText = document.getElementById("coinsHubTrialText");
-  const btnDaily = document.getElementById("coinsHubDailyBtn");
   const btnVideo = document.getElementById("coinsHubVideoBtn");
   const btnRedeem = document.getElementById("coinsHubRedeemBtn");
-  const dailyLbl = document.getElementById("coinsHubDailyBtnLabel");
   const videoLbl = document.getElementById("coinsHubVideoBtnLabel");
   const redeemLbl = document.getElementById("coinsHubRedeemBtnLabel");
   const codeEl = document.getElementById("coinsHubReferralCode");
@@ -2956,14 +2945,16 @@ async function refreshCoinsHubUi() {
   const videoRowMeta = document.getElementById("coinsHubVideoRowMeta");
   const dailyHeaderBal = document.getElementById("coinsHubDailyHeaderBalance");
 
-  if (!coins || coins.cap == null) return;
+  if (!coins || coins.cap == null) {
+    if (dailyHeaderBal) dailyHeaderBal.textContent = "0";
+    if (balEl) balEl.textContent = "0";
+    return;
+  }
 
   const balance = Number(coins.balance) || 0;
   const cap = Number(coins.cap) || 1200;
   const cost = coins.standardCoinCost || 600;
   const vReward = coins.videoRewards && coins.videoRewards.rewardEach != null ? Number(coins.videoRewards.rewardEach) : 10;
-  const dailyNext =
-    coins.dailyLogin && coins.dailyLogin.nextRewardCoins != null ? Number(coins.dailyLogin.nextRewardCoins) : 10;
   const codeStr =
     coins.referralCode && String(coins.referralCode).trim() ? String(coins.referralCode).trim() : "";
   const inviteUrl = coinsHubBuildInviteUrl(codeStr);
@@ -2986,11 +2977,6 @@ async function refreshCoinsHubUi() {
   }
 
   const claimedToday = Boolean(coins.dailyLogin && coins.dailyLogin.claimedToday);
-  if (dailyLbl && typeof t === "function") {
-    dailyLbl.textContent = claimedToday
-      ? t("coinsDailyReturnTomorrow")
-      : t("coinsDailyBtnActive").replace("{n}", String(dailyNext));
-  }
   if (videoLbl && typeof t === "function") {
     videoLbl.textContent = t("coinsHubVideoGo");
   }
@@ -3019,7 +3005,6 @@ async function refreshCoinsHubUi() {
     }
   }
 
-  if (btnDaily) btnDaily.disabled = claimedToday;
   if (btnVideo) {
     const vCap = Boolean(coins.videoRewards && coins.videoRewards.countToday >= coins.videoRewards.maxToday);
     btnVideo.disabled = vCap;
@@ -3059,7 +3044,7 @@ async function refreshCoinsHubUi() {
 
 async function coinsHubClaimDaily() {
   if (!requireAuth("collect rewards")) return;
-  const cur = document.querySelector("#coinsHubStreakGrid .daily-checkin-day--next");
+  const cur = document.querySelector("#coinsHubStreakGrid .daily-checkin-slot--claim");
   const claimedDay = cur ? Number(cur.getAttribute("data-day")) : null;
   try {
     await apiFetch("/api/coins/daily-login", { method: "POST", body: JSON.stringify({}) });

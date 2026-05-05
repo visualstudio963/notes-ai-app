@@ -13688,267 +13688,286 @@ body.note-rich-editor-open #dailyPlannerFab {
   );
 }
 
-/* Daily check-in — first card on Rewards (reference: vertical 7-day grid + header balance) */
+/* Daily check-in — compact header + 7-day coin row */
 .coins-daily-checkin-card {
   position: relative;
   overflow: hidden;
-  border-color: rgba(52, 211, 153, 0.28);
+  border-color: rgba(250, 204, 21, 0.2);
   background:
-    radial-gradient(circle at 14% 0%, rgba(52, 211, 153, 0.12) 0%, transparent 45%),
-    linear-gradient(168deg, rgba(15, 23, 42, 0.98) 0%, rgba(15, 23, 42, 0.94) 100%);
+    radial-gradient(ellipse 90% 55% at 50% -18%, rgba(250, 204, 21, 0.09) 0%, transparent 52%),
+    radial-gradient(circle at 10% 100%, rgba(52, 211, 153, 0.06) 0%, transparent 40%),
+    linear-gradient(168deg, rgba(15, 23, 42, 0.99) 0%, rgba(15, 23, 42, 0.92) 100%);
 }
 
 .coins-daily-checkin-head {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px 18px;
+  flex-direction: column;
+  gap: 10px;
   margin-bottom: 12px;
 }
 
-.coins-daily-checkin-head__main {
-  flex: 1 1 12rem;
-  min-width: 0;
+.coins-daily-checkin-head--compact {
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
 .coins-daily-checkin-head__title {
-  margin: 0 0 6px;
+  margin: 0;
 }
 
 .coins-daily-checkin-head__streak {
   margin: 0;
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   font-weight: 600;
   line-height: 1.45;
-  color: #e2e8f0;
+  color: #cbd5e1;
 }
 
 .coins-daily-checkin-head__accent {
-  color: #4ade80;
+  color: #fde68a;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
 
-.coins-daily-checkin-balance {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 14px;
-  background: rgba(2, 6, 23, 0.5);
-  border: 1px solid rgba(250, 204, 21, 0.24);
-}
-
-.coins-daily-checkin-balance__icon {
-  font-size: 1.35rem;
-  line-height: 1;
-}
-
-.coins-daily-checkin-balance__text {
+.coins-daily-balance-hero {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  align-items: flex-end;
-  text-align: right;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 6px 0 4px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
 }
 
-.coins-daily-checkin-balance__label {
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
+.coins-daily-balance-hero__label {
+  font-size: 0.62rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #94a3b8;
 }
 
-.coins-daily-checkin-balance__value {
-  font-size: 1.12rem;
+.coins-daily-balance-hero__value {
+  font-size: clamp(1.35rem, 3.4vw, 1.65rem);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
-  color: #fde68a;
+  letter-spacing: -0.02em;
+  color: #fde047;
+  text-shadow: 0 0 28px rgba(250, 204, 21, 0.2);
 }
 
-.daily-checkin-grid {
+.daily-checkin-coins-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 6px;
+  margin: 0;
+  padding: 12px 0 2px;
+}
+
+.daily-checkin-slot {
+  box-sizing: border-box;
+  flex: 1 1 2.65rem;
+  min-width: 2.65rem;
+  max-width: 4.85rem;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-bottom: 14px;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  margin: 0;
+  border-radius: 14px;
+  border: 1px solid rgba(71, 85, 105, 0.45);
+  background: rgba(2, 6, 23, 0.45);
+  font: inherit;
+  color: inherit;
+  text-decoration: none;
+  cursor: default;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.daily-checkin-day {
+button.daily-checkin-slot {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.daily-checkin-slot--locked {
+  opacity: 0.56;
+}
+
+.daily-checkin-slot__coin-ring {
   position: relative;
   display: grid;
-  grid-template-columns: 3rem 1fr minmax(4.25rem, auto);
-  align-items: center;
-  gap: 10px 12px;
-  padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(51, 65, 85, 0.55);
-  background: rgba(2, 6, 23, 0.55);
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 35% 28%, rgba(250, 250, 250, 0.1), transparent 46%),
+    linear-gradient(160deg, rgba(51, 65, 85, 0.5), rgba(15, 23, 42, 0.92));
+  border: 1px solid rgba(100, 116, 139, 0.42);
 }
 
-.daily-checkin-day--done {
-  background: rgba(0, 0, 0, 0.38);
-  border-color: rgba(52, 211, 153, 0.22);
-}
-
-.daily-checkin-day--next {
-  border-color: rgba(74, 222, 128, 0.78);
-  box-shadow:
-    0 0 0 1px rgba(34, 197, 94, 0.12),
-    0 10px 26px rgba(34, 197, 94, 0.12);
-}
-
-.daily-checkin-day--locked {
-  opacity: 0.52;
-}
-
-.daily-checkin-day--mega {
-  min-height: 76px;
-}
-
-.daily-checkin-day__amt {
-  font-size: 0.92rem;
-  font-weight: 800;
-  color: #fcd34d;
-  font-variant-numeric: tabular-nums;
-}
-
-.daily-checkin-day__mid {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  min-height: 42px;
-  position: relative;
-}
-
-.daily-checkin-day__mid--soon {
-  gap: 2px;
-}
-
-.daily-checkin-day__mid--pile .daily-checkin-day__pile {
-  font-size: 1.85rem;
+.daily-checkin-slot__coin {
+  font-size: 1.28rem;
   line-height: 1;
-  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.35));
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.38));
 }
 
-.daily-checkin-day__coin {
-  font-size: 1.65rem;
-  line-height: 1;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+.daily-checkin-slot__coin--muted {
+  opacity: 0.4;
+  filter: grayscale(0.5) brightness(0.82);
 }
 
-.daily-checkin-day__coin--ghost {
-  opacity: 0.42;
-}
-
-.daily-checkin-day__coin--muted {
-  opacity: 0.32;
-  filter: grayscale(0.4);
-}
-
-.daily-checkin-day__mid--done {
-  justify-content: center;
-  gap: 2px;
-}
-
-.daily-checkin-day__check {
-  flex-shrink: 0;
-  width: 22px;
-  height: 22px;
-  margin-left: -8px;
-  margin-top: 10px;
+.daily-checkin-slot__tick {
+  position: absolute;
+  right: -3px;
+  bottom: -2px;
+  width: 18px;
+  height: 18px;
   border-radius: 999px;
   display: grid;
   place-items: center;
-  font-size: 0.7rem;
+  font-size: 0.58rem;
   font-weight: 900;
   color: #ecfdf5;
-  background: #22c55e;
-  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.45);
+  background: linear-gradient(145deg, #22c55e, #15803d);
+  border: 1px solid rgba(187, 247, 208, 0.45);
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.38);
 }
 
-.daily-checkin-day__label {
-  text-align: right;
-  font-size: 0.82rem;
-  font-weight: 750;
-  color: #cbd5e1;
+.daily-checkin-slot__amt {
+  font-size: 0.72rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #fcd34d;
 }
 
-.daily-checkin-day--next .daily-checkin-day__label {
-  color: #fef08a;
+.daily-checkin-slot__amt--muted {
+  color: #9ca8bc;
 }
 
-.daily-checkin-day__flame {
-  position: absolute;
-  right: 6px;
-  bottom: 6px;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
+.daily-checkin-slot__amt--locked {
+  color: rgba(148, 163, 184, 0.78);
 }
 
-.daily-checkin-day__flame-inner {
-  display: inline-block;
-  padding: 3px 7px;
-  border-radius: 10px;
-  font-size: 0.68rem;
-  font-weight: 900;
-  color: #fef2f2;
-  background: linear-gradient(135deg, #ef4444, #b91c1c);
-  border: 1px solid rgba(254, 202, 202, 0.35);
+.daily-checkin-slot__meta {
+  font-size: 0.59rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #64748b;
+  max-width: 100%;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.daily-checkin-day--pop {
-  animation: daily-checkin-day-pop 0.65s ease;
+.daily-checkin-slot__meta--done {
+  color: #86efac;
 }
 
-@keyframes daily-checkin-day-pop {
+.daily-checkin-slot__meta--locked {
+  color: rgba(100, 116, 139, 0.72);
+}
+
+.daily-checkin-slot--claim {
+  border-color: rgba(250, 204, 21, 0.52);
+  background: rgba(253, 230, 138, 0.06);
+  box-shadow:
+    0 0 0 1px rgba(250, 204, 21, 0.1),
+    0 10px 26px rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+  opacity: 1;
+}
+
+.daily-checkin-slot--claim .daily-checkin-slot__coin-ring {
+  border-color: rgba(250, 204, 21, 0.42);
+  background:
+    radial-gradient(circle at 35% 24%, rgba(254, 240, 138, 0.24), transparent 48%),
+    linear-gradient(160deg, rgba(66, 32, 6, 0.32), rgba(15, 23, 42, 0.96));
+}
+
+.daily-checkin-slot--claim:hover {
+  transform: translateY(-1px);
+}
+
+.daily-checkin-slot--claim:focus-visible {
+  outline: 2px solid rgba(250, 204, 21, 0.75);
+  outline-offset: 2px;
+}
+
+.daily-checkin-slot--done {
+  border-color: rgba(52, 211, 153, 0.26);
+  background: rgba(6, 78, 59, 0.1);
+  opacity: 0.93;
+}
+
+.daily-checkin-slot--finale .daily-checkin-slot__coin-ring {
+  border-color: rgba(251, 191, 36, 0.48);
+}
+
+.daily-checkin-slot--pop {
+  animation: daily-checkin-slot-pop 0.72s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes daily-checkin-slot-pop {
   0% {
     transform: scale(1);
   }
-  40% {
-    transform: scale(1.015);
-    box-shadow: 0 0 28px rgba(52, 211, 153, 0.28);
+  45% {
+    transform: scale(1.065);
+    box-shadow:
+      0 0 0 1px rgba(250, 204, 21, 0.35),
+      0 14px 38px rgba(250, 204, 21, 0.16);
   }
   100% {
     transform: scale(1);
   }
 }
 
-.coins-hub-claim-btn.coins-daily-checkin-cta:disabled {
-  background: linear-gradient(180deg, rgba(71, 85, 105, 0.65), rgba(51, 65, 85, 0.5));
-  color: #f1f5f9;
-  box-shadow: none;
-  opacity: 1;
-  filter: none;
-}
-
 .theme-normal body .coins-daily-checkin-card {
-  border-color: rgba(100, 116, 139, 0.28);
-  background: linear-gradient(168deg, rgba(255, 255, 255, 0.98) 0%, rgba(241, 245, 249, 0.95) 100%);
+  border-color: rgba(251, 191, 36, 0.24);
+  background: linear-gradient(168deg, rgba(255, 255, 255, 0.99) 0%, rgba(248, 250, 252, 0.96) 100%);
 }
 
 .theme-normal body .coins-daily-checkin-head__streak {
-  color: #334155;
+  color: #475569;
 }
 
-.theme-normal body .coins-daily-checkin-balance {
-  background: rgba(255, 255, 255, 0.9);
-  border-color: rgba(251, 191, 36, 0.45);
+.theme-normal body .coins-daily-balance-hero {
+  border-bottom-color: rgba(148, 163, 184, 0.22);
 }
 
-.theme-normal body .coins-daily-checkin-balance__value {
+.theme-normal body .coins-daily-balance-hero__label {
+  color: #64748b;
+}
+
+.theme-normal body .coins-daily-balance-hero__value {
   color: #b45309;
+  text-shadow: none;
 }
 
-.theme-normal body .daily-checkin-day {
-  background: rgba(248, 250, 252, 0.94);
-  border-color: rgba(148, 163, 184, 0.45);
+.theme-normal body .daily-checkin-slot {
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba(148, 163, 184, 0.36);
 }
 
-.theme-normal body .daily-checkin-day--done {
-  background: rgba(241, 245, 249, 0.95);
+.theme-normal body .daily-checkin-slot--locked {
+  opacity: 0.58;
+}
+
+.theme-normal body .daily-checkin-slot__coin-ring {
+  background: linear-gradient(160deg, rgba(248, 250, 252, 0.98), rgba(226, 232, 240, 0.88));
+  border-color: rgba(148, 163, 184, 0.42);
+}
+
+.theme-normal body .daily-checkin-slot--claim {
+  background: rgba(254, 252, 232, 0.88);
+}
+
+.theme-normal body .daily-checkin-slot--done {
+  background: rgba(236, 253, 245, 0.72);
 }
 
 .coins-hub-streak-top {

@@ -207,7 +207,7 @@
       } else {
         discordNotice.classList.remove("hidden");
         discordNotice.textContent =
-          "Community links are read-only for Support. Sign in as a Moderator or Admin to edit fields and save.";
+          "You don't have permission to edit community links. Sign in with a staff role that includes panel access.";
       }
     }
 

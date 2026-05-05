@@ -6,7 +6,12 @@
   let messagesCache = [];
   let messagesFilterTimer = null;
   let selectedUserId = "";
-  let discordConfigCache = { discordInviteUrl: "", discordUpdatesCount: 0 };
+  let discordConfigCache = {
+    discordInviteUrl: "",
+    discordUpdatesCount: 0,
+    tiktokUrl: "",
+    youtubeUrl: ""
+  };
 
   /** @type {Map<string, object>} */
   const usersByIdCache = new Map();
@@ -183,9 +188,13 @@
 
     const discordUrl = document.getElementById("adminDiscordInviteUrl");
     const discordCount = document.getElementById("adminDiscordUpdatesCount");
+    const tiktokUrl = document.getElementById("adminTiktokUrl");
+    const youtubeUrl = document.getElementById("adminYoutubeUrl");
     const discordSaveBtn = document.querySelector('[data-act="save-discord-config"]');
     if (discordUrl) discordUrl.toggleAttribute("disabled", !canEditDiscord);
     if (discordCount) discordCount.toggleAttribute("disabled", !canEditDiscord);
+    if (tiktokUrl) tiktokUrl.toggleAttribute("disabled", !canEditDiscord);
+    if (youtubeUrl) youtubeUrl.toggleAttribute("disabled", !canEditDiscord);
     if (discordSaveBtn) {
       discordSaveBtn.hidden = !canEditDiscord;
       discordSaveBtn.disabled = !canEditDiscord;
@@ -938,7 +947,7 @@
     if (act === "reload-discord-config") {
       try {
         await loadDiscordConfig();
-        setAlert("Discord settings reloaded.", "info");
+        setAlert("Community links reloaded.", "info");
       } catch (err) {
         setAlert(err.message, "error");
       }
@@ -948,14 +957,18 @@
       if (!(caps && caps.capabilities && caps.capabilities.canEditDiscord)) return;
       const urlInput = document.getElementById("adminDiscordInviteUrl");
       const countInput = document.getElementById("adminDiscordUpdatesCount");
+      const tiktokInput = document.getElementById("adminTiktokUrl");
+      const youtubeInput = document.getElementById("adminYoutubeUrl");
       const discordInviteUrl = urlInput ? String(urlInput.value || "").trim() : "";
       const discordUpdatesCount = countInput ? Math.max(0, Number(countInput.value || 0)) : 0;
+      const tiktokUrl = tiktokInput ? String(tiktokInput.value || "").trim() : "";
+      const youtubeUrl = youtubeInput ? String(youtubeInput.value || "").trim() : "";
       try {
         await apiJson("/api/admin/config/discord", {
           method: "PUT",
-          body: JSON.stringify({ discordInviteUrl, discordUpdatesCount })
+          body: JSON.stringify({ discordInviteUrl, discordUpdatesCount, tiktokUrl, youtubeUrl })
         });
-        setAlert("Discord config saved.", "info");
+        setAlert("Community links saved.", "info");
         await loadDiscordConfig();
       } catch (err) {
         setAlert(err.message, "error");

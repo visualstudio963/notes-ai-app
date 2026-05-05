@@ -3,6 +3,8 @@ const bcrypt = require("bcrypt");
 const { publicUser } = require("../utils/serializers");
 const { finalizeInviteBonusById, ensureReferralCode } = require("../features/coins/coinService");
 
+const USERNAME_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+
 function createUserRouter({ User, authMiddleware }) {
   const router = express.Router();
 
@@ -83,6 +85,26 @@ function createUserRouter({ User, authMiddleware }) {
         return res.json({ success: true, user: publicUser(user) });
       }
 
+      /* Cooldown after the user has a finalized username (not the first provisional pick). */
+      if (!user.needsUsername) {
+        const last = user.usernameLastChangedAt;
+        if (last) {
+          const lastMs = last instanceof Date ? last.getTime() : new Date(last).getTime();
+          if (!Number.isFinite(lastMs)) {
+            /* invalid date — skip cooldown */
+          } else {
+            const nextMs = lastMs + USERNAME_COOLDOWN_MS;
+            if (Date.now() < nextMs) {
+              return res.status(429).json({
+                error: "You can only change your username once every 7 days",
+                code: "username_cooldown",
+                usernameChangeAvailableAt: new Date(nextMs).toISOString()
+              });
+            }
+          }
+        }
+      }
+
       const taken = await User.findOne({ username: raw, _id: { $ne: req.userId } })
         .select("_id")
         .lean();
@@ -92,6 +114,7 @@ function createUserRouter({ User, authMiddleware }) {
 
       user.username = raw;
       user.needsUsername = false;
+      user.usernameLastChangedAt = new Date();
       await user.save();
       res.json({ success: true, user: publicUser(user) });
     } catch (err) {

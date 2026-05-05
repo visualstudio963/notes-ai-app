@@ -29,7 +29,10 @@ function publicUser(user) {
     googlePicture: user.googlePicture || "",
     provider: user.provider || "local",
     hasLocalPassword: Boolean(user.password),
-    needsUsername: Boolean(user.needsUsername)
+    needsUsername: Boolean(user.needsUsername),
+    usernameLastChangedAt: user.usernameLastChangedAt
+      ? new Date(user.usernameLastChangedAt).toISOString()
+      : null
   };
 }
 

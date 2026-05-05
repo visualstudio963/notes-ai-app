@@ -359,6 +359,9 @@ const translations = {
     homeDiscordTitle: "Community & Updates",
     homeDiscordText: "Join our Discord to get updates, ask questions, and stay connected.",
     homeDiscordBtn: "Join Discord",
+    socialAriaDiscord: "Discord (opens in a new tab)",
+    socialAriaTiktok: "TikTok (opens in a new tab)",
+    socialAriaYoutube: "YouTube (opens in a new tab)",
     homeCardAddNote: "+ Add note",
     shtepia: "Shtepia",
     shtetiaSubtitle: "Personal notes & home tasks",
@@ -618,7 +621,15 @@ const translations = {
     settingsProfileSaved: "Profile updated successfully.",
     settingsProfileSaveFailed: "Could not update profile. Try again.",
     settingsProfileSaveServerHint: "Could not save now. Restart server and try again.",
-    
+    settingsUsernameBannerNeed: "Choose a public username to finish your profile (lowercase letters, numbers, underscores; no spaces).",
+    settingsUsernameCooldownHint: "You can change your username again on {date}.",
+    settingsUsernameErrTooShort: "Username must be at least 3 characters.",
+    settingsUsernameErrTooLong: "Username must be at most 30 characters.",
+    settingsUsernameErrChars: "Use only lowercase letters, numbers, and underscores (no spaces).",
+    settingsUsernameErrTaken: "That username is already taken.",
+    settingsUsernameErrCooldown: "You can only change your username once every 7 days.",
+    settingsUsernameErrGeneric: "Could not update username.",
+
     // Categories
     category: "Category",
     addNote: "+ Add note",
@@ -1121,6 +1132,9 @@ const translations = {
     homeDiscordTitle: "Komuniteti & Njoftime",
     homeDiscordText: "Bashkohu në Discord për përditësime, pyetje dhe komunikim me komunitetin.",
     homeDiscordBtn: "Hap Discord",
+    socialAriaDiscord: "Discord (hapet në një skedë të re)",
+    socialAriaTiktok: "TikTok (hapet në një skedë të re)",
+    socialAriaYoutube: "YouTube (hapet në një skedë të re)",
     homeCardAddNote: "+ Shënim i ri",
     shtepia: "Shtepia",
     shtetiaSubtitle: "Shënime personale dhe detyra të shtëpisë",
@@ -1382,7 +1396,15 @@ const translations = {
     settingsProfileSaved: "Profili u përditësua me sukses.",
     settingsProfileSaveFailed: "Nuk u përditësua profili. Provo përsëri.",
     settingsProfileSaveServerHint: "Nuk u ruajt tani. Rinis serverin dhe provo përsëri.",
-    
+    settingsUsernameBannerNeed: "Zgjidh një emër publik përdoruesi për të përfunduar profilin (shkronja të vogla, numra, nënvizë; jo hapësira).",
+    settingsUsernameCooldownHint: "Mund të ndryshosh emrin e përdoruesit përsëri më {date}.",
+    settingsUsernameErrTooShort: "Emri i përdoruesit duhet të ketë të paktën 3 karaktere.",
+    settingsUsernameErrTooLong: "Emri i përdoruesit mund të ketë së shumti 30 karaktere.",
+    settingsUsernameErrChars: "Lejohen vetëm shkronja të vogla, numra dhe nënvizë (jo hapësira).",
+    settingsUsernameErrTaken: "Ky emër përdoruesi është tashmë i zënë.",
+    settingsUsernameErrCooldown: "Ndryshimin e përdoruesit mund ta bësh vetëm një herë në 7 ditë.",
+    settingsUsernameErrGeneric: "Nuk u përditësua emri i përdoruesit.",
+
     // Categories
     category: "Kategoria",
     addNote: "+ Shto shënim",
@@ -1855,5 +1877,8 @@ function applyTranslations() {
   }
   if (typeof webChatRenderRecentCommands === "function") {
     webChatRenderRecentCommands();
+  }
+  if (typeof applyDiscordCommunityUi === "function") {
+    applyDiscordCommunityUi();
   }
 }

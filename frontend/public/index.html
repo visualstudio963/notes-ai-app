@@ -249,24 +249,51 @@
         </nav>
       </div>
       <div class="sidebar-footer">
-        <div class="sidebar-discord-logo" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="currentColor">
-            <path d="M20.32 4.37a19.8 19.8 0 0 0-4.92-1.53.07.07 0 0 0-.07.03c-.21.38-.44.88-.6 1.27a18.6 18.6 0 0 0-5.45 0c-.16-.39-.4-.89-.61-1.27a.08.08 0 0 0-.07-.03 19.74 19.74 0 0 0-4.92 1.53.07.07 0 0 0-.03.03C.53 9.02-.32 13.54.1 18.01a.08.08 0 0 0 .03.06 19.8 19.8 0 0 0 6.04 3.06.08.08 0 0 0 .09-.03c.47-.64.88-1.31 1.23-2.02a.08.08 0 0 0-.04-.1 12.9 12.9 0 0 1-1.87-.89.08.08 0 0 1-.01-.13c.13-.1.26-.2.38-.31a.08.08 0 0 1 .08-.02c3.93 1.8 8.18 1.8 12.06 0a.08.08 0 0 1 .08.02c.12.11.25.21.38.31a.08.08 0 0 1-.01.13c-.59.35-1.22.65-1.87.89a.08.08 0 0 0-.04.1c.36.71.77 1.38 1.24 2.02a.08.08 0 0 0 .09.03 19.74 19.74 0 0 0 6.03-3.06.08.08 0 0 0 .03-.06c.5-5.17-.84-9.65-3.54-13.61a.06.06 0 0 0-.03-.03ZM8.02 15.3c-1.18 0-2.15-1.08-2.15-2.4 0-1.33.95-2.4 2.15-2.4 1.2 0 2.16 1.08 2.15 2.4 0 1.33-.95 2.4-2.15 2.4Zm7.95 0c-1.18 0-2.15-1.08-2.15-2.4 0-1.33.95-2.4 2.15-2.4 1.2 0 2.16 1.08 2.15 2.4 0 1.33-.95 2.4-2.15 2.4Z"/>
-          </svg>
+        <div id="sidebarSocialBlock" class="sidebar-social hidden">
+          <p class="sidebar-social__label" data-t="homeDiscordTitle">Komuniteti &amp; Njoftime</p>
+          <div class="sidebar-social__row">
+            <a
+              id="sidebarSocialDiscord"
+              class="sidebar-social__link hidden"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span class="sidebar-social__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+                  <path d="M20.32 4.37a19.8 19.8 0 0 0-4.92-1.53.07.07 0 0 0-.07.03c-.21.38-.44.88-.6 1.27a18.6 18.6 0 0 0-5.45 0c-.16-.39-.4-.89-.61-1.27a.08.08 0 0 0-.07-.03 19.74 19.74 0 0 0-4.92 1.53.07.07 0 0 0-.03.03C.53 9.02-.32 13.54.1 18.01a.08.08 0 0 0 .03.06 19.8 19.8 0 0 0 6.04 3.06.08.08 0 0 0 .09-.03c.47-.64.88-1.31 1.23-2.02a.08.08 0 0 0-.04-.1 12.9 12.9 0 0 1-1.87-.89.08.08 0 0 1-.01-.13c.13-.1.26-.2.38-.31a.08.08 0 0 1 .08-.02c3.93 1.8 8.18 1.8 12.06 0a.08.08 0 0 1 .08.02c.12.11.25.21.38.31a.08.08 0 0 1-.01.13c-.59.35-1.22.65-1.87.89a.08.08 0 0 0-.04.1c.36.71.77 1.38 1.24 2.02a.08.08 0 0 0 .09.03 19.74 19.74 0 0 0 6.03-3.06.08.08 0 0 0 .03-.06c.5-5.17-.84-9.65-3.54-13.61a.06.06 0 0 0-.03-.03ZM8.02 15.3c-1.18 0-2.15-1.08-2.15-2.4 0-1.33.95-2.4 2.15-2.4 1.2 0 2.16 1.08 2.15 2.4 0 1.33-.95 2.4-2.15 2.4Zm7.95 0c-1.18 0-2.15-1.08-2.15-2.4 0-1.33.95-2.4 2.15-2.4 1.2 0 2.16 1.08 2.15 2.4 0 1.33-.95 2.4-2.15 2.4Z"/>
+                </svg>
+              </span>
+              <span id="sidebarDiscordBadge" class="sidebar-social__badge hidden" aria-live="polite">0</span>
+            </a>
+            <a
+              id="sidebarSocialTiktok"
+              class="sidebar-social__link hidden"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span class="sidebar-social__icon sidebar-social__icon--tiktok" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+                  <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.69v-.83h-3.07v17.72a2.6 2.6 0 1 1-2.61-2.61c.14 0 .27.02.4.05v-3.15a5.73 5.73 0 0 0-.4-.03 5.75 5.75 0 1 0 5.74 5.75V9.93a8.54 8.54 0 0 0 4.93 1.57V8.43a6.06 6.06 0 0 1-1.22-.74Z"/>
+                </svg>
+              </span>
+            </a>
+            <a
+              id="sidebarSocialYoutube"
+              class="sidebar-social__link hidden"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span class="sidebar-social__icon sidebar-social__icon--youtube" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+                  <path d="M23.5 6.2c-.3-1.1-1.1-1.9-2.2-2.2C19.5 3.2 12 3.2 12 3.2s-7.5 0-9.3.8C1.6 4.3.8 5.1.5 6.2 0 8.3 0 12 0 12s0 3.7.5 5.8c.3 1.1 1.1 1.9 2.2 2.2 1.8.8 9.3.8 9.3.8s7.5 0 9.3-.8c1.1-.3 1.9-1.1 2.2-2.2.5-2.1.5-5.8.5-5.8s0-3.7-.5-5.8zM9.5 15.5V8.5l6.7 3.5-6.7 3.5z"/>
+                </svg>
+              </span>
+            </a>
+          </div>
         </div>
-        <button
-          id="sidebarDiscordBtn"
-          class="sidebar-discord-btn hidden"
-          type="button"
-          onclick="openDiscordCommunity()"
-          data-t="homeDiscordBtn"
-        >
-          <span class="sidebar-discord-btn__label">Hap Discord</span>
-          <span id="sidebarDiscordBadge" class="sidebar-discord-btn__badge hidden" aria-live="polite">0</span>
-        </button>
-        <p class="sidebar-discord-note">
-          Këtu do të merrni çdo njoftim në lidhje me njoftimet dhe updatet e fundit. Keni ndonjë problem? Na kontaktoni.
-        </p>
       </div>
     </aside>
 
@@ -441,17 +468,49 @@
                 </div>
                 <span class="home-bottom-info-bar__stats" aria-hidden="true">📊</span>
               </div>
-              <div id="homeDiscordCard" class="home-discord-card hidden">
-                <div class="home-discord-card__main">
-                  <div class="home-discord-card__icon" aria-hidden="true">💬</div>
-                  <div class="home-discord-card__copy">
-                    <h3 class="home-discord-card__title" data-t="homeDiscordTitle">Komuniteti &amp; Njoftime</h3>
-                    <p class="home-discord-card__text" data-t="homeDiscordText">Join our Discord to get updates, ask questions, and stay connected.</p>
-                  </div>
+              <div id="homeSocialCard" class="home-social-card hidden">
+                <h3 class="home-social-card__title" data-t="homeDiscordTitle">Komuniteti &amp; Njoftime</h3>
+                <div class="home-social-card__row">
+                  <a
+                    id="homeSocialDiscord"
+                    class="home-social-card__link hidden"
+                    href="#"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <span class="home-social-card__icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                        <path d="M20.32 4.37a19.8 19.8 0 0 0-4.92-1.53.07.07 0 0 0-.07.03c-.21.38-.44.88-.6 1.27a18.6 18.6 0 0 0-5.45 0c-.16-.39-.4-.89-.61-1.27a.08.08 0 0 0-.07-.03 19.74 19.74 0 0 0-4.92 1.53.07.07 0 0 0-.03.03C.53 9.02-.32 13.54.1 18.01a.08.08 0 0 0 .03.06 19.8 19.8 0 0 0 6.04 3.06.08.08 0 0 0 .09-.03c.47-.64.88-1.31 1.23-2.02a.08.08 0 0 0-.04-.1 12.9 12.9 0 0 1-1.87-.89.08.08 0 0 1-.01-.13c.13-.1.26-.2.38-.31a.08.08 0 0 1 .08-.02c3.93 1.8 8.18 1.8 12.06 0a.08.08 0 0 1 .08.02c.12.11.25.21.38.31a.08.08 0 0 1-.01.13c-.59.35-1.22.65-1.87.89a.08.08 0 0 0-.04.1c.36.71.77 1.38 1.24 2.02a.08.08 0 0 0 .09.03 19.74 19.74 0 0 0 6.03-3.06.08.08 0 0 0 .03-.06c.5-5.17-.84-9.65-3.54-13.61a.06.06 0 0 0-.03-.03ZM8.02 15.3c-1.18 0-2.15-1.08-2.15-2.4 0-1.33.95-2.4 2.15-2.4 1.2 0 2.16 1.08 2.15 2.4 0 1.33-.95 2.4-2.15 2.4Zm7.95 0c-1.18 0-2.15-1.08-2.15-2.4 0-1.33.95-2.4 2.15-2.4 1.2 0 2.16 1.08 2.15 2.4 0 1.33-.95 2.4-2.15 2.4Z"/>
+                      </svg>
+                    </span>
+                  </a>
+                  <a
+                    id="homeSocialTiktok"
+                    class="home-social-card__link hidden"
+                    href="#"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <span class="home-social-card__icon home-social-card__icon--tiktok" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                        <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.69v-.83h-3.07v17.72a2.6 2.6 0 1 1-2.61-2.61c.14 0 .27.02.4.05v-3.15a5.73 5.73 0 0 0-.4-.03 5.75 5.75 0 1 0 5.74 5.75V9.93a8.54 8.54 0 0 0 4.93 1.57V8.43a6.06 6.06 0 0 1-1.22-.74Z"/>
+                      </svg>
+                    </span>
+                  </a>
+                  <a
+                    id="homeSocialYoutube"
+                    class="home-social-card__link hidden"
+                    href="#"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <span class="home-social-card__icon home-social-card__icon--youtube" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                        <path d="M23.5 6.2c-.3-1.1-1.1-1.9-2.2-2.2C19.5 3.2 12 3.2 12 3.2s-7.5 0-9.3.8C1.6 4.3.8 5.1.5 6.2 0 8.3 0 12 0 12s0 3.7.5 5.8c.3 1.1 1.1 1.9 2.2 2.2 1.8.8 9.3.8 9.3.8s7.5 0 9.3-.8c1.1-.3 1.9-1.1 2.2-2.2.5-2.1.5-5.8.5-5.8s0-3.7-.5-5.8zM9.5 15.5V8.5l6.7 3.5-6.7 3.5z"/>
+                      </svg>
+                    </span>
+                  </a>
                 </div>
-                <button id="homeDiscordJoinBtn" type="button" class="home-discord-card__btn" onclick="openDiscordCommunity()" data-t="homeDiscordBtn">
-                  Hap Discord
-                </button>
               </div>
             </div>
 
@@ -1272,12 +1331,25 @@
                   <label for="settingsEditLastName" data-t="lastName">Last Name</label>
                   <input id="settingsEditLastName" type="text" maxlength="40" autocomplete="family-name" />
                 </div>
+                <div class="field-group settings-field-compact">
+                  <label for="settingsEditUsername" data-t="username">Username</label>
+                  <input
+                    id="settingsEditUsername"
+                    type="text"
+                    maxlength="30"
+                    spellcheck="false"
+                    autocomplete="username"
+                    oninput="settingsUsernameInputChanged(this)"
+                  />
+                  <p id="settingsUsernameCooldownHint" class="settings-field-hint settings-field-hint--muted hidden" role="status"></p>
+                  <p id="settingsUsernameInlineError" class="settings-field-error hidden" role="alert"></p>
+                </div>
                 <div class="settings-profile-edit__actions">
                   <button type="button" class="save-button secondary settings-edit-cancel-btn" onclick="toggleSettingsProfileEdit(false)" data-t="cancelNote">Cancel</button>
                   <button type="button" class="save-button settings-edit-save-btn" onclick="saveSettingsProfileEdit()" data-t="saveNote">Save</button>
                 </div>
               </div>
-              <p id="settingsUsernameBanner" class="settings-username-banner hidden" role="status">
+              <p id="settingsUsernameBanner" class="settings-username-banner hidden" role="status" data-t="settingsUsernameBannerNeed">
                 Choose a public username to finish your profile.
               </p>
               <div class="settings-account-grid">
@@ -1303,21 +1375,6 @@
                     <a href="admin.html" class="settings-admin-link">Admin dashboard</a>
                     <span class="settings-admin-hint">Users, messages, and stats</span>
                   </p>
-                </div>
-              </div>
-              <div id="settingsUsernameEditWrap" class="settings-username-edit-wrap hidden">
-                <div class="field-group settings-field-compact">
-                  <label for="settingsEditUsername" data-t="username">Username</label>
-                  <div class="settings-username-row">
-                    <input
-                      id="settingsEditUsername"
-                      type="text"
-                      maxlength="30"
-                      spellcheck="false"
-                      autocomplete="username"
-                    />
-                    <button type="button" class="save-button" onclick="saveSettingsUsername()" data-t="saveNote">Save</button>
-                  </div>
                 </div>
               </div>
             </section>

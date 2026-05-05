@@ -359,6 +359,7 @@ function createAuthRouter({
         isPremium: false,
         premiumExpires: null,
         needsUsername: false,
+        usernameLastChangedAt: new Date(),
         trialEndsAt: new Date(Date.now() + TRIAL_DURATION_MS)
       });
 

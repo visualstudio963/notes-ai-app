@@ -55,6 +55,8 @@ const userSchema = new mongoose.Schema(
      * (a provisional unique username is still stored for schema/legacy reasons).
      */
     needsUsername: { type: Boolean, default: false },
+    /** Last time username was changed (first pick from provisional also sets this); enforces cooldown in settings */
+    usernameLastChangedAt: { type: Date, default: null },
     /** Trial: new accounts get STANDARD-level features until this UTC time */
     trialEndsAt: { type: Date, default: null },
     /** STANDARD unlocked with coins until this UTC time */

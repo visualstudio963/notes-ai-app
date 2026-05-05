@@ -83,6 +83,25 @@
   grid-column: 1 / -1;
 }
 
+.settings-field-error {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: #f87171;
+  font-weight: 600;
+}
+
+.settings-field-hint {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.settings-field-hint--muted {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
 .settings-username-banner {
   margin: 0 0 14px;
   padding: 12px 14px;
@@ -92,24 +111,6 @@
   color: #e0f2fe;
   font-size: 0.92rem;
   line-height: 1.45;
-}
-
-.settings-username-edit-wrap {
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(148, 163, 184, 0.12);
-}
-
-.settings-username-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-}
-
-.settings-username-row input {
-  flex: 1;
-  min-width: 160px;
 }
 
 .settings-admin-wrap {

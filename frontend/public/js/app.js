@@ -70,6 +70,8 @@ let webChatFabPromptCycleTimer = null;
 let premiumLiteBillingMode = "monthly";
 let discordCommunityUrl = "";
 let discordUpdatesCount = 0;
+let tiktokCommunityUrl = "";
+let youtubeCommunityUrl = "";
 let stripePublishableKey = "";
 /** Set from GET /api/public/app-config (GOOGLE_CLIENT_ID). Used by Sign in with Google. */
 let googleOAuthClientId = "";
@@ -2307,7 +2309,10 @@ async function apiFetch(path, options = {}, isRetry) {
     }
 
     if (!response.ok) {
-      throw new Error(data.error || data.message || "Request failed");
+      const err = new Error(data.error || data.message || "Request failed");
+      err.status = response.status;
+      err.payload = data;
+      throw err;
     }
 
     return data;
@@ -3184,17 +3189,57 @@ function webChatSetUnread(count) {
   badge.textContent = webChatUnreadCount > 99 ? "99+" : String(webChatUnreadCount);
 }
 
+function normalizeSocialInviteUrl(raw) {
+  const s = String(raw || "").trim();
+  return /^https?:\/\//i.test(s) ? s : "";
+}
+
+function syncSocialLinkPair(sidebarId, homeId, url) {
+  const href = normalizeSocialInviteUrl(url);
+  const show = Boolean(href);
+  for (const id of [sidebarId, homeId]) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.classList.toggle("hidden", !show);
+    if (show) el.setAttribute("href", href);
+    else el.removeAttribute("href");
+  }
+  return show;
+}
+
 function applyDiscordCommunityUi() {
-  const hasUrl = /^https?:\/\//i.test(String(discordCommunityUrl || "").trim());
-  const sidebarBtn = document.getElementById("sidebarDiscordBtn");
-  const card = document.getElementById("homeDiscordCard");
+  const dOk = syncSocialLinkPair("sidebarSocialDiscord", "homeSocialDiscord", discordCommunityUrl);
+  syncSocialLinkPair("sidebarSocialTiktok", "homeSocialTiktok", tiktokCommunityUrl);
+  syncSocialLinkPair("sidebarSocialYoutube", "homeSocialYoutube", youtubeCommunityUrl);
+  const hasAny =
+    normalizeSocialInviteUrl(discordCommunityUrl) ||
+    normalizeSocialInviteUrl(tiktokCommunityUrl) ||
+    normalizeSocialInviteUrl(youtubeCommunityUrl);
+  const block = document.getElementById("sidebarSocialBlock");
+  const card = document.getElementById("homeSocialCard");
+  if (block) block.classList.toggle("hidden", !hasAny);
+  if (card) card.classList.toggle("hidden", !hasAny);
   const badge = document.getElementById("sidebarDiscordBadge");
-  if (sidebarBtn) sidebarBtn.classList.remove("hidden");
-  if (card) card.classList.toggle("hidden", !hasUrl);
   if (badge) {
     const n = Math.max(0, Number(discordUpdatesCount) || 0);
-    badge.classList.toggle("hidden", !(hasUrl && n > 0));
+    badge.classList.toggle("hidden", !(dOk && n > 0));
     badge.textContent = n > 99 ? "99+" : String(n);
+  }
+  const ariaPairs = [
+    ["sidebarSocialDiscord", "socialAriaDiscord"],
+    ["sidebarSocialTiktok", "socialAriaTiktok"],
+    ["sidebarSocialYoutube", "socialAriaYoutube"],
+    ["homeSocialDiscord", "socialAriaDiscord"],
+    ["homeSocialTiktok", "socialAriaTiktok"],
+    ["homeSocialYoutube", "socialAriaYoutube"]
+  ];
+  if (typeof t === "function") {
+    for (const [id, key] of ariaPairs) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      if (el.classList.contains("hidden")) el.removeAttribute("aria-label");
+      else el.setAttribute("aria-label", t(key));
+    }
   }
 }
 
@@ -3205,11 +3250,15 @@ async function loadDiscordCommunityConfig() {
     if (!res.ok) throw new Error(data.error || "Failed to load app config");
     discordCommunityUrl = String((data && data.discordInviteUrl) || "").trim();
     discordUpdatesCount = Math.max(0, Number((data && data.discordUpdatesCount) || 0));
+    tiktokCommunityUrl = String((data && data.tiktokUrl) || "").trim();
+    youtubeCommunityUrl = String((data && data.youtubeUrl) || "").trim();
     stripePublishableKey = String((data && data.stripePublishableKey) || "").trim();
     googleOAuthClientId = String((data && data.googleClientId) || "").trim();
   } catch {
     discordCommunityUrl = "";
     discordUpdatesCount = 0;
+    tiktokCommunityUrl = "";
+    youtubeCommunityUrl = "";
     stripePublishableKey = "";
     googleOAuthClientId = "";
   } finally {
@@ -3287,19 +3336,6 @@ async function consumeGoogleOAuthFromHash() {
     console.error(e);
     showToast("Google sign-in could not be completed.");
     history.replaceState(null, "", window.location.pathname + window.location.search);
-  }
-}
-
-function openDiscordCommunity() {
-  const url = String(discordCommunityUrl || "").trim();
-  if (!/^https?:\/\//i.test(url)) {
-    showToast("Diçka nuk shkoi mirë: linku i Discord mungon.");
-    return;
-  }
-  try {
-    window.open(url, "_blank", "noopener,noreferrer");
-  } catch {
-    window.location.href = url;
   }
 }
 
@@ -6524,6 +6560,88 @@ function logoutUser() {
 
 // ===== SETTINGS FUNCTIONS =====
 
+function getUsernameCooldownMeta() {
+  if (!currentUser || currentUser.needsUsername) return { locked: false, availableAt: null };
+  const raw = currentUser.usernameLastChangedAt;
+  if (!raw) return { locked: false, availableAt: null };
+  const lastMs =
+    typeof raw === "string" ? Date.parse(raw) : raw instanceof Date ? raw.getTime() : NaN;
+  if (!Number.isFinite(lastMs)) return { locked: false, availableAt: null };
+  const nextMs = lastMs + 7 * 24 * 60 * 60 * 1000;
+  if (Date.now() >= nextMs) return { locked: false, availableAt: null };
+  return { locked: true, availableAt: nextMs };
+}
+
+function settingsUsernameInputChanged(el) {
+  if (!el || el.disabled) return;
+  clearSettingsUsernameInlineError();
+  const v = String(el.value || "")
+    .replace(/\s/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "")
+    .slice(0, 30);
+  el.value = v;
+}
+
+function clearSettingsUsernameInlineError() {
+  const err = document.getElementById("settingsUsernameInlineError");
+  if (err) {
+    err.textContent = "";
+    err.classList.add("hidden");
+  }
+  const form = document.getElementById("settingsProfileEditForm");
+  syncSettingsUsernameFieldState(form && !form.classList.contains("hidden"));
+}
+
+function showSettingsUsernameInlineError(message) {
+  const err = document.getElementById("settingsUsernameInlineError");
+  if (!err) return;
+  err.textContent = message;
+  err.classList.remove("hidden");
+}
+
+function validateSettingsUsernameInput(raw) {
+  const u = String(raw || "").trim().toLowerCase();
+  if (u.length < 3) {
+    return { ok: false, message: t("settingsUsernameErrTooShort") };
+  }
+  if (u.length > 30) {
+    return { ok: false, message: t("settingsUsernameErrTooLong") };
+  }
+  if (!/^[a-z0-9_]+$/.test(u)) {
+    return { ok: false, message: t("settingsUsernameErrChars") };
+  }
+  return { ok: true, username: u };
+}
+
+function syncSettingsUsernameFieldState(formOpen) {
+  const input = document.getElementById("settingsEditUsername");
+  const hint = document.getElementById("settingsUsernameCooldownHint");
+  if (!input) return;
+  if (!formOpen || !currentUser) {
+    input.disabled = false;
+    if (hint) {
+      hint.classList.add("hidden");
+      hint.textContent = "";
+      delete hint.dataset.sticky;
+    }
+    return;
+  }
+  const { locked, availableAt } = getUsernameCooldownMeta();
+  const blockEdit = locked && !currentUser.needsUsername;
+  input.disabled = blockEdit;
+  if (hint) {
+    if (blockEdit && availableAt != null) {
+      const when = new Date(availableAt).toLocaleString();
+      hint.textContent = t("settingsUsernameCooldownHint").replace("{date}", when);
+      hint.classList.remove("hidden");
+    } else {
+      hint.classList.add("hidden");
+      hint.textContent = "";
+    }
+  }
+}
+
 function displayAccountInfo() {
   const fn = document.getElementById("settingsFirstName");
   const ln = document.getElementById("settingsLastName");
@@ -6577,11 +6695,10 @@ function displayAccountInfo() {
     const adminRowGuest = document.getElementById("settingsAdminRow");
     if (adminRowGuest) adminRowGuest.classList.add("hidden");
     const uBanner = document.getElementById("settingsUsernameBanner");
-    const uWrap = document.getElementById("settingsUsernameEditWrap");
     const uInput = document.getElementById("settingsEditUsername");
     if (uBanner) uBanner.classList.add("hidden");
-    if (uWrap) uWrap.classList.add("hidden");
     if (uInput) uInput.value = "";
+    syncSettingsUsernameFieldState(false);
     updateSettingsSecurityGuestState();
     return;
   }
@@ -6623,11 +6740,16 @@ function displayAccountInfo() {
   if (editLast) editLast.value = currentUser.lastName || "";
 
   const uBanner = document.getElementById("settingsUsernameBanner");
-  const uWrap = document.getElementById("settingsUsernameEditWrap");
   const uInput = document.getElementById("settingsEditUsername");
-  if (uWrap) uWrap.classList.remove("hidden");
   if (uInput) uInput.value = String(currentUser.username || "").trim();
-  if (uBanner) uBanner.classList.toggle("hidden", !currentUser.needsUsername);
+  if (uBanner) {
+    uBanner.classList.toggle("hidden", !currentUser.needsUsername);
+    uBanner.setAttribute("data-t", "settingsUsernameBannerNeed");
+  }
+  {
+    const form = document.getElementById("settingsProfileEditForm");
+    syncSettingsUsernameFieldState(form && !form.classList.contains("hidden"));
+  }
 
   const planText = String(currentUser.plan || currentUser.subscriptionPlan || "free").toLowerCase();
   const statusText = String(currentUser.subscriptionStatus || (premium ? "active" : "inactive"));
@@ -6701,24 +6823,62 @@ function toggleSettingsProfileEdit(show) {
   const open = !!show;
   form.classList.toggle("hidden", !open);
   btn.classList.toggle("hidden", open);
-  if (open) {
+  if (open && currentUser) {
+    clearSettingsUsernameInlineError();
     const first = document.getElementById("settingsEditFirstName");
-    if (first) first.focus();
+    const last = document.getElementById("settingsEditLastName");
+    const userInput = document.getElementById("settingsEditUsername");
+    if (first) first.value = currentUser.firstName || "";
+    if (last) last.value = currentUser.lastName || "";
+    if (userInput) userInput.value = String(currentUser.username || "").trim();
+    syncSettingsUsernameFieldState(true);
+    if (currentUser.needsUsername && userInput && !userInput.disabled) userInput.focus();
+    else if (first) first.focus();
   }
+  if (!open) syncSettingsUsernameFieldState(false);
 }
 
 async function saveSettingsProfileEdit() {
   if (!requireAuth("edit your profile")) return;
+  clearSettingsUsernameInlineError();
   const first = document.getElementById("settingsEditFirstName");
   const last = document.getElementById("settingsEditLastName");
-  if (!first || !last) return;
+  const userEl = document.getElementById("settingsEditUsername");
+  if (!first || !last || !userEl) return;
   const firstName = String(first.value || "").trim();
   const lastName = String(last.value || "").trim();
   if (!firstName || !lastName) {
     showToast(t("fillAllFields"));
     return;
   }
+  const storedUsername = String((currentUser && currentUser.username) || "")
+    .trim()
+    .toLowerCase();
+  let usernameToSave = storedUsername;
+  if (!userEl.disabled) {
+    const check = validateSettingsUsernameInput(userEl.value);
+    if (!check.ok) {
+      showSettingsUsernameInlineError(check.message);
+      return;
+    }
+    usernameToSave = check.username;
+  }
+  const usernameWillChange = usernameToSave !== storedUsername;
+
   try {
+    if (usernameWillChange) {
+      const uData = await apiFetch("/api/user/username", {
+        method: "PUT",
+        body: JSON.stringify({ username: usernameToSave })
+      });
+      if (uData && uData.user) Object.assign(currentUser, uData.user);
+      else {
+        currentUser.username = usernameToSave;
+        currentUser.needsUsername = false;
+      }
+      persistCurrentUserToStorage();
+    }
+
     let data = null;
     let lastErr = null;
     const profilePaths = ["/api/user/profile", "/api/profile"];
@@ -6744,49 +6904,36 @@ async function saveSettingsProfileEdit() {
       persistCurrentUserToStorage();
     }
     displayAccountInfo();
+    updateAccountUI();
     toggleSettingsProfileEdit(false);
     showToast(t("settingsProfileSaved"));
   } catch (err) {
+    const st = err && err.status;
     const rawMsg = err && err.message ? String(err.message) : "";
-    if (/Request failed|Failed to fetch|timed out/i.test(rawMsg)) {
+    if (st === 409) {
+      showSettingsUsernameInlineError(t("settingsUsernameErrTaken"));
+      return;
+    }
+    if (st === 429) {
+      const pay = err.payload || {};
+      const iso = pay.usernameChangeAvailableAt;
+      const when = iso ? new Date(iso).toLocaleString() : "";
+      const msg = when
+        ? t("settingsUsernameCooldownHint").replace("{date}", when)
+        : rawMsg || t("settingsUsernameErrCooldown");
+      showSettingsUsernameInlineError(msg);
+      syncSettingsUsernameFieldState(true);
+      return;
+    }
+    if (usernameWillChange && (st === 400 || rawMsg)) {
+      showSettingsUsernameInlineError(rawMsg || t("settingsUsernameErrGeneric"));
+      return;
+    }
+    if (/Request failed|Failed to fetch|timed out|Network error/i.test(rawMsg)) {
       showToast(t("settingsProfileSaveServerHint"));
       return;
     }
     showToast(rawMsg || t("settingsProfileSaveFailed"));
-  }
-}
-
-async function saveSettingsUsername() {
-  if (!requireAuth("update your username")) return;
-  const input = document.getElementById("settingsEditUsername");
-  if (!input || !currentUser) return;
-  const username = String(input.value || "").trim().toLowerCase();
-  if (username.length < 3 || username.length > 30) {
-    showToast("Username must be between 3 and 30 characters.");
-    return;
-  }
-  if (!/^[a-z0-9_]+$/.test(username)) {
-    showToast("Username may only contain lowercase letters, numbers, and underscores.");
-    return;
-  }
-  try {
-    const data = await apiFetch("/api/user/username", {
-      method: "PUT",
-      body: JSON.stringify({ username })
-    });
-    if (data && data.user) {
-      Object.assign(currentUser, data.user);
-      persistCurrentUserToStorage();
-    } else {
-      currentUser.username = username;
-      currentUser.needsUsername = false;
-      persistCurrentUserToStorage();
-    }
-    displayAccountInfo();
-    updateAccountUI();
-    showToast("Username saved.");
-  } catch (err) {
-    showToast((err && err.message) || "Could not update username.");
   }
 }
 

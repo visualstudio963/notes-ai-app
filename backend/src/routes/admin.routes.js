@@ -717,10 +717,14 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
 
   router.get("/config/discord", requireStaffMin(STAFF_RANK.SUPPORT), async (_req, res) => {
     try {
-      const doc = await AppConfig.findOne({ key: "main" }).select("discordInviteUrl discordUpdatesCount").lean();
+      const doc = await AppConfig.findOne({ key: "main" })
+        .select("discordInviteUrl discordUpdatesCount tiktokUrl youtubeUrl")
+        .lean();
       return res.json({
         discordInviteUrl: doc && doc.discordInviteUrl ? String(doc.discordInviteUrl) : "",
-        discordUpdatesCount: Math.max(0, Number((doc && doc.discordUpdatesCount) || 0))
+        discordUpdatesCount: Math.max(0, Number((doc && doc.discordUpdatesCount) || 0)),
+        tiktokUrl: doc && doc.tiktokUrl ? String(doc.tiktokUrl) : "",
+        youtubeUrl: doc && doc.youtubeUrl ? String(doc.youtubeUrl) : ""
       });
     } catch {
       return res.status(500).json({ error: "Failed to load Discord config" });
@@ -730,24 +734,34 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
   router.put("/config/discord", requireStaffMin(STAFF_RANK.ADMIN), async (req, res) => {
     try {
       const rawUrl = String((req.body && req.body.discordInviteUrl) || "").trim();
+      const rawTiktok = String((req.body && req.body.tiktokUrl) || "").trim();
+      const rawYoutube = String((req.body && req.body.youtubeUrl) || "").trim();
       const updatesCountRaw = req.body && req.body.discordUpdatesCount;
       if (rawUrl && !/^https?:\/\//i.test(rawUrl)) {
         return res.status(400).json({ error: "Discord URL must start with http:// or https://" });
+      }
+      if (rawTiktok && !/^https?:\/\//i.test(rawTiktok)) {
+        return res.status(400).json({ error: "TikTok URL must start with http:// or https://" });
+      }
+      if (rawYoutube && !/^https?:\/\//i.test(rawYoutube)) {
+        return res.status(400).json({ error: "YouTube URL must start with http:// or https://" });
       }
       const discordUpdatesCount = Number.isFinite(Number(updatesCountRaw))
         ? Math.max(0, Math.floor(Number(updatesCountRaw)))
         : 0;
       const updated = await AppConfig.findOneAndUpdate(
         { key: "main" },
-        { $set: { discordInviteUrl: rawUrl, discordUpdatesCount } },
+        { $set: { discordInviteUrl: rawUrl, discordUpdatesCount, tiktokUrl: rawTiktok, youtubeUrl: rawYoutube } },
         { upsert: true, new: true }
       )
-        .select("discordInviteUrl discordUpdatesCount")
+        .select("discordInviteUrl discordUpdatesCount tiktokUrl youtubeUrl")
         .lean();
       return res.json({
         success: true,
         discordInviteUrl: updated && updated.discordInviteUrl ? String(updated.discordInviteUrl) : "",
-        discordUpdatesCount: Math.max(0, Number((updated && updated.discordUpdatesCount) || 0))
+        discordUpdatesCount: Math.max(0, Number((updated && updated.discordUpdatesCount) || 0)),
+        tiktokUrl: updated && updated.tiktokUrl ? String(updated.tiktokUrl) : "",
+        youtubeUrl: updated && updated.youtubeUrl ? String(updated.youtubeUrl) : ""
       });
     } catch {
       return res.status(500).json({ error: "Failed to save Discord config" });

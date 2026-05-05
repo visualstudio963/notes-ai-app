@@ -1,6 +1,6 @@
 const express = require("express");
 
-function sanitizeDiscordUrl(raw) {
+function sanitizeHttpUrl(raw) {
   const s = String(raw || "").trim();
   if (!s) return "";
   if (!/^https?:\/\//i.test(s)) return "";
@@ -12,10 +12,14 @@ function createAppConfigRouter({ AppConfig, stripePublishableKey, googleClientId
 
   router.get("/public/app-config", async (_req, res) => {
     try {
-      const doc = await AppConfig.findOne({ key: "main" }).select("discordInviteUrl discordUpdatesCount").lean();
+      const doc = await AppConfig.findOne({ key: "main" })
+        .select("discordInviteUrl discordUpdatesCount tiktokUrl youtubeUrl")
+        .lean();
       return res.json({
-        discordInviteUrl: sanitizeDiscordUrl(doc && doc.discordInviteUrl),
+        discordInviteUrl: sanitizeHttpUrl(doc && doc.discordInviteUrl),
         discordUpdatesCount: Math.max(0, Number((doc && doc.discordUpdatesCount) || 0)),
+        tiktokUrl: sanitizeHttpUrl(doc && doc.tiktokUrl),
+        youtubeUrl: sanitizeHttpUrl(doc && doc.youtubeUrl),
         stripePublishableKey: stripePublishableKey || "",
         googleClientId: String(googleClientId || "").trim()
       });

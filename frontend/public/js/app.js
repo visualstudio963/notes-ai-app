@@ -1503,6 +1503,7 @@ function hideScanCamPage() {
 function hideCoinsHubPage() {
   const el = document.getElementById("coins-hub");
   if (el) el.classList.add("hidden");
+  document.body.classList.remove("coins-hub-open");
 }
 
 function getStoredAccessToken() {
@@ -2787,8 +2788,21 @@ async function openCoinsRewards() {
   hideScanCamPage();
   const hub = document.getElementById("coins-hub");
   if (hub) hub.classList.remove("hidden");
+  document.body.classList.add("coins-hub-open");
   applyTranslations();
   await refreshCoinsHubUi();
+}
+
+function coinsHubEnsureStreakDelegate() {
+  const grid = document.getElementById("coinsHubStreakGrid");
+  if (!grid || grid.dataset.coinsStreakDelegated === "1") return;
+  grid.dataset.coinsStreakDelegated = "1";
+  grid.addEventListener("click", (ev) => {
+    const slot = ev.target.closest(".daily-checkin-slot--claim");
+    if (!slot || !grid.contains(slot)) return;
+    ev.preventDefault();
+    void coinsHubClaimDaily();
+  });
 }
 
 function coinsHubBuildInviteUrl(codeRaw) {
@@ -2865,7 +2879,6 @@ function coinsHubApplyStreakUi(coins) {
         `<span class="daily-checkin-slot__coin-ring" aria-hidden="true"><span class="daily-checkin-slot__coin">🪙</span></span>` +
         `<span class="daily-checkin-slot__amt">+${amt}</span>` +
         `<span class="daily-checkin-slot__meta">${escapeHtml(todayTag)}</span>`;
-      btn.onclick = () => void coinsHubClaimDaily();
       grid.appendChild(btn);
       continue;
     }
@@ -2918,11 +2931,19 @@ function coinsHubPulseHero() {
 }
 
 async function refreshCoinsHubUi() {
-  const ok = await mergePremiumFromServer();
-  if (!ok) {
-    showToast(typeof t === "function" ? t("coinsHubUpdateFailed") : "Could not refresh your plan.");
-    return;
+  const streakGridEl = document.getElementById("coinsHubStreakGrid");
+  const clearStreakGrid = () => {
+    if (streakGridEl) streakGridEl.innerHTML = "";
+  };
+
+  let premiumOk = true;
+  if (currentUser && accessToken) {
+    premiumOk = await mergePremiumFromServer();
+    if (!premiumOk) {
+      /* Still load coins — rewards API is independent of premium/status blips */
+    }
   }
+
   let coins = null;
   try {
     coins = await apiFetch("/api/coins/status");
@@ -2952,8 +2973,13 @@ async function refreshCoinsHubUi() {
   const topCapChip = document.getElementById("coinsHubTopCap");
 
   if (!coins || coins.cap == null) {
+    clearStreakGrid();
     if (topBalChip) topBalChip.textContent = "0";
+    if (topCapChip) topCapChip.textContent = "1200";
     if (balEl) balEl.textContent = "0";
+    if (!premiumOk) {
+      showToast(typeof t === "function" ? t("coinsHubUpdateFailed") : "Could not refresh your plan.");
+    }
     return;
   }
 
@@ -3047,21 +3073,51 @@ async function refreshCoinsHubUi() {
     multEl.textContent = nm < 0.995 ? t("coinsEarnReducedNotice") : "";
     multEl.classList.toggle("hidden", nm >= 0.995);
   }
+
+  if (!premiumOk) {
+    showToast(typeof t === "function" ? t("coinsHubUpdateFailed") : "Could not refresh your plan.");
+  }
 }
+
+let coinsHubDailyClaimInFlight = false;
 
 async function coinsHubClaimDaily() {
   if (!requireAuth("collect rewards")) return;
-  const cur = document.querySelector("#coinsHubStreakGrid .daily-checkin-slot--claim");
-  const claimedDay = cur ? Number(cur.getAttribute("data-day")) : null;
+  if (coinsHubDailyClaimInFlight) return;
+  coinsHubDailyClaimInFlight = true;
   try {
-    await apiFetch("/api/coins/daily-login", { method: "POST", body: JSON.stringify({}) });
-  } catch (e) {
-    showToast(e && e.message ? e.message : t("coinsActionFailed"));
-    return;
+    let cur = document.querySelector("#coinsHubStreakGrid .daily-checkin-slot--claim");
+    let claimedDay = cur ? Number(cur.getAttribute("data-day")) : null;
+
+    if (!cur) {
+      await refreshCoinsHubUi();
+      cur = document.querySelector("#coinsHubStreakGrid .daily-checkin-slot--claim");
+      claimedDay = cur ? Number(cur.getAttribute("data-day")) : null;
+    }
+
+    if (!cur) {
+      showToast(typeof t === "function" ? t("coinsHubDailyNotAvailable") : "No reward is ready.");
+      return;
+    }
+
+    try {
+      await apiFetch("/api/coins/daily-login", { method: "POST", body: JSON.stringify({}) });
+    } catch (e) {
+      const st = e && e.status;
+      if (st === 409) {
+        await refreshCoinsHubUi();
+        return;
+      }
+      showToast(e && e.message ? e.message : typeof t === "function" ? t("coinsActionFailed") : "Request failed.");
+      return;
+    }
+
+    await refreshCoinsHubUi();
+    coinsHubPulseHero();
+    if (claimedDay != null && Number.isFinite(claimedDay)) coinsHubAnimateClaimedDay(claimedDay);
+  } finally {
+    coinsHubDailyClaimInFlight = false;
   }
-  await refreshCoinsHubUi();
-  coinsHubPulseHero();
-  if (claimedDay != null && Number.isFinite(claimedDay)) coinsHubAnimateClaimedDay(claimedDay);
 }
 
 async function coinsHubWatchVideoAd() {
@@ -7668,6 +7724,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Initialize theme and language
   applyTheme(getCurrentTheme());
   applyTranslations();
+
+  coinsHubEnsureStreakDelegate();
 
   updateAccountUI();
 

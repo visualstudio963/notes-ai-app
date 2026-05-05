@@ -1081,18 +1081,26 @@
       <section id="coins-hub" class="page hidden coins-dash-page" aria-labelledby="coinsHubTitleHeading">
         <div class="page-shell coins-dash-shell">
           <header class="coins-dash-topbar">
-            <div class="coins-dash-topbar-left">
-              <button type="button" class="back-button coins-dash-back" onclick="goHome()">&#x2190; Home</button>
-              <div class="coins-dash-topbar-text">
-                <p class="eyebrow" data-t="coinsHubEyebrow">Rewards</p>
-                <h2 id="coinsHubTitleHeading" class="coins-dash-page-title" data-t="coinsHubTitle">Rewards</h2>
-              </div>
-            </div>
-            <div class="coins-dash-topbar-balance" aria-live="polite">
+            <div class="coins-dash-topbar-balance coins-dash-topbar-balance--lead" aria-live="polite">
               <span class="coins-dash-topbar-balance__icon" aria-hidden="true">🪙</span>
               <span id="coinsHubTopBalance" class="coins-dash-topbar-balance__num">0</span>
               <span class="coins-dash-topbar-balance__sep" data-t="coinsDashBalanceSlash">/</span>
               <span id="coinsHubTopCap" class="coins-dash-topbar-balance__cap">1200</span>
+            </div>
+            <div class="coins-dash-topbar-sub">
+              <button
+                type="button"
+                class="coins-dash-back-btn"
+                onclick="goHome()"
+                data-t-title="coinsDashBackAria"
+              >
+                <span class="coins-dash-back-btn__glyph" aria-hidden="true">←</span>
+                <span class="coins-dash-back-btn__label" data-t="home">Home</span>
+              </button>
+              <div class="coins-dash-topbar-text">
+                <p class="eyebrow" data-t="coinsHubEyebrow">Rewards</p>
+                <h2 id="coinsHubTitleHeading" class="coins-dash-page-title" data-t="coinsHubTitle">Rewards</h2>
+              </div>
             </div>
           </header>
 

@@ -13534,6 +13534,31 @@ body.note-rich-editor-open #dailyPlannerFab {
   padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
 }
 
+/* Coins rewards: tighter layout under global topbar — balance reads first */
+body.coins-hub-open #coins-hub .coins-dash-shell {
+  margin-top: -6px;
+}
+
+@media (max-width: 560px) {
+  body.coins-hub-open #coins-hub .coins-dash-shell {
+    margin-top: -4px;
+  }
+
+  body.coins-hub-open .main {
+    padding-top: calc(50px + env(safe-area-inset-top, 0px)) !important;
+  }
+
+  body.coins-hub-open.mobile-scrolled .main {
+    padding-top: calc(44px + env(safe-area-inset-top, 0px)) !important;
+  }
+}
+
+@media (min-width: 561px) {
+  body.coins-hub-open .main {
+    padding-top: clamp(12px, 2vw, 18px);
+  }
+}
+
 .coins-dash-card--hero-tight .coins-dash-balance-digits {
   margin-top: 10px;
 }
@@ -14257,11 +14282,72 @@ button.daily-checkin-slot {
 
 .coins-dash-topbar {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  margin-bottom: 0.65rem;
+}
+
+.coins-dash-topbar-balance--lead {
+  width: 100%;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.coins-dash-topbar-sub {
+  display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px 16px;
-  margin-bottom: 1.05rem;
-  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+
+.coins-dash-topbar-sub .coins-dash-topbar-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.coins-dash-back-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 6px 10px;
+  min-height: 34px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.65);
+  color: #e2e8f0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: transform var(--depth-motion), border-color var(--depth-motion), background var(--depth-motion),
+    box-shadow var(--depth-motion);
+}
+
+.coins-dash-back-btn:hover {
+  border-color: rgba(56, 189, 248, 0.45);
+  background: rgba(30, 41, 59, 0.75);
+}
+
+.coins-dash-back-btn:active {
+  transform: scale(0.98);
+}
+
+.coins-dash-back-btn__glyph {
+  font-size: 0.95rem;
+  line-height: 1;
+  opacity: 0.92;
+}
+
+.coins-dash-back-btn__label {
+  line-height: 1;
+  max-width: 7ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .coins-dash-topbar-left {
@@ -14316,6 +14402,8 @@ button.daily-checkin-slot {
 .coins-dash-back {
   flex-shrink: 0;
 }
+
+/* Deprecated: coins page uses `.coins-dash-back-btn` instead of global `.back-button`. */
 
 .coins-dash-page-title {
   margin: 0.15rem 0 0;
@@ -14860,11 +14948,16 @@ button.daily-checkin-slot {
 }
 
 @media (max-width: 520px) {
+  .coins-dash-topbar-sub {
+    flex-wrap: nowrap;
+    align-items: flex-start;
+  }
+
   .coins-dash-topbar-left {
     flex: 1 1 100%;
   }
 
-  .coins-dash-topbar-balance {
+  .coins-dash-topbar-balance:not(.coins-dash-topbar-balance--lead) {
     width: 100%;
     justify-content: center;
     box-sizing: border-box;

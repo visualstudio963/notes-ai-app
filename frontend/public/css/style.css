@@ -2378,11 +2378,11 @@ body.modal-open {
   background: rgba(30, 41, 59, 0.75);
 }
 
-/* Scan Cam — document source chooser bottom sheet (“choose an action”) */
+/* Scan Cam — document source chooser bottom sheet (mounted on body — avoid overflow/transform clipping). */
 .scan-cam-doc-sheet {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: 10140;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -2400,16 +2400,19 @@ body.modal-open {
 .scan-cam-doc-sheet__backdrop {
   position: absolute;
   inset: 0;
+  z-index: 0;
   border: none;
   padding: 0;
   margin: 0;
   cursor: pointer;
-  background: rgba(2, 6, 23, 0.55);
-  backdrop-filter: blur(4px);
+  /* No backdrop-filter: stacked with Scan Cam gradients it looked like a heavy “fog blur” on mobile. */
+  background: rgba(2, 6, 23, 0.62);
 }
 
 .scan-cam-doc-sheet__panel {
   position: relative;
+  z-index: 1;
+  isolation: isolate;
   width: 100%;
   max-width: 520px;
   margin: 0 auto;

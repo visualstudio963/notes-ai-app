@@ -23,6 +23,8 @@ const webNotificationLock = new Set();
 let scanCamMediaStream = null;
 /** @type {string | null} */
 let scanCamPdfObjectUrl = null;
+/** @type {null | ((ev: KeyboardEvent) => void)} */
+let scanCamDocSheetEscHandler = null;
 
 /** @type {import("tesseract.js").Worker | null} */
 let scanCamTesseractWorker = null;
@@ -3841,6 +3843,14 @@ function scanCamOpenDocSourceSheet() {
   if (!sheet) return;
   sheet.classList.remove("hidden");
   document.body.classList.add("modal-open");
+  if (scanCamDocSheetEscHandler) {
+    document.removeEventListener("keydown", scanCamDocSheetEscHandler);
+    scanCamDocSheetEscHandler = null;
+  }
+  scanCamDocSheetEscHandler = (ev) => {
+    if (ev.key === "Escape") scanCamCloseDocSourceSheet();
+  };
+  document.addEventListener("keydown", scanCamDocSheetEscHandler);
 }
 
 function scanCamCloseDocSourceSheet() {
@@ -3848,6 +3858,10 @@ function scanCamCloseDocSourceSheet() {
   if (!sheet) return;
   sheet.classList.add("hidden");
   document.body.classList.remove("modal-open");
+  if (scanCamDocSheetEscHandler) {
+    document.removeEventListener("keydown", scanCamDocSheetEscHandler);
+    scanCamDocSheetEscHandler = null;
+  }
 }
 
 function scanCamUploadDocument() {

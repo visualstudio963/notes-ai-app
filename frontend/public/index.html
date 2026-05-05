@@ -807,52 +807,6 @@
           </div>
 
           <textarea id="scanCamResultText" class="hidden" spellcheck="true" aria-hidden="true"></textarea>
-
-          <div
-            id="scanCamDocSourceSheet"
-            class="scan-cam-doc-sheet hidden"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="scanCamDocSheetTitle"
-          >
-            <button
-              type="button"
-              class="scan-cam-doc-sheet__backdrop"
-              onclick="scanCamCloseDocSourceSheet()"
-              data-t-title="scanCamCloseResultTitle"
-              aria-label="Close"
-            ></button>
-            <div class="scan-cam-doc-sheet__panel">
-              <div class="scan-cam-doc-sheet__handle" aria-hidden="true"></div>
-              <p id="scanCamDocSheetTitle" class="scan-cam-doc-sheet__title scan-cam-doc-sheet__title--leading" data-t="scanCamDocSheetTitle">
-                Choose an action
-              </p>
-              <div class="scan-cam-doc-sheet__tiles">
-                <button type="button" class="scan-cam-doc-sheet__tile" onclick="scanCamDocPickFromFilesDevice()">
-                  <span class="scan-cam-doc-sheet__tile-icon" aria-hidden="true">
-                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
-                      <path d="M4 6h16v14H4V6z M4 12h16" stroke-linecap="round" />
-                      <path d="M8 12V8h8v4" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                  </span>
-                  <span class="scan-cam-doc-sheet__tile-label" data-t="scanCamDocPickFilesLabel">Files</span>
-                  <span class="scan-cam-doc-sheet__tile-hint" data-t="scanCamDocPickFilesHint">PDF on device</span>
-                </button>
-                <button type="button" class="scan-cam-doc-sheet__tile" onclick="scanCamDocPickFromDriversAndCloud()">
-                  <span class="scan-cam-doc-sheet__tile-icon" aria-hidden="true">
-                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
-                      <path d="M6 17h12l-6-13-6 13z M6 17l3 4h6l3-4" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                  </span>
-                  <span class="scan-cam-doc-sheet__tile-label" data-t="scanCamDocPickDriversLabel">Storage &amp; cloud</span>
-                  <span class="scan-cam-doc-sheet__tile-hint" data-t="scanCamDocPickDriversHint">All providers</span>
-                </button>
-              </div>
-              <button type="button" class="scan-cam-doc-sheet__cancel" onclick="scanCamCloseDocSourceSheet()" data-t="scanCamDocCancel">
-                Cancel
-              </button>
-            </div>
-          </div>
         </div>
         </div>
       </section>
@@ -1862,6 +1816,52 @@
         <button type="button" class="save-button" onclick="closeScanCamUpgradeModal(); openBot();" data-t="scanCamUpgradeCta">See plans</button>
         <button type="button" class="save-button secondary" onclick="closeScanCamUpgradeModal()" data-t="scanCamUpgradeModalDismiss">Close</button>
       </div>
+    </div>
+  </div>
+
+  <div
+    id="scanCamDocSourceSheet"
+    class="scan-cam-doc-sheet hidden"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="scanCamDocSheetTitle"
+  >
+    <button
+      type="button"
+      class="scan-cam-doc-sheet__backdrop"
+      onclick="scanCamCloseDocSourceSheet()"
+      data-t-title="scanCamCloseResultTitle"
+      aria-label="Close"
+    ></button>
+    <div class="scan-cam-doc-sheet__panel">
+      <div class="scan-cam-doc-sheet__handle" aria-hidden="true"></div>
+      <p id="scanCamDocSheetTitle" class="scan-cam-doc-sheet__title scan-cam-doc-sheet__title--leading" data-t="scanCamDocSheetTitle">
+        Choose document source
+      </p>
+      <div class="scan-cam-doc-sheet__tiles">
+        <button type="button" class="scan-cam-doc-sheet__tile" onclick="scanCamDocPickFromFilesDevice()">
+          <span class="scan-cam-doc-sheet__tile-icon" aria-hidden="true">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+              <path d="M4 6h16v14H4V6z M4 12h16" stroke-linecap="round" />
+              <path d="M8 12V8h8v4" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </span>
+          <span class="scan-cam-doc-sheet__tile-label" data-t="scanCamDocPickFilesLabel">Files</span>
+          <span class="scan-cam-doc-sheet__tile-hint" data-t="scanCamDocPickFilesHint">PDF on device</span>
+        </button>
+        <button type="button" class="scan-cam-doc-sheet__tile" onclick="scanCamDocPickFromDriversAndCloud()">
+          <span class="scan-cam-doc-sheet__tile-icon" aria-hidden="true">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+              <path d="M6 17h12l-6-13-6 13z M6 17l3 4h6l3-4" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </span>
+          <span class="scan-cam-doc-sheet__tile-label" data-t="scanCamDocPickDriversLabel">Storage &amp; cloud</span>
+          <span class="scan-cam-doc-sheet__tile-hint" data-t="scanCamDocPickDriversHint">All providers</span>
+        </button>
+      </div>
+      <button type="button" class="scan-cam-doc-sheet__cancel" onclick="scanCamCloseDocSourceSheet()" data-t="scanCamDocCancel">
+        Cancel
+      </button>
     </div>
   </div>
 

@@ -717,6 +717,7 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
 
   router.get("/config/discord", requireStaffMin(STAFF_RANK.SUPPORT), async (_req, res) => {
     try {
+      res.set("Cache-Control", "no-store, max-age=0");
       const doc = await AppConfig.findOne({ key: "main" })
         .select("discordInviteUrl discordUpdatesCount tiktokUrl youtubeUrl")
         .lean();
@@ -733,9 +734,14 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
 
   router.put("/config/discord", requireStaffMin(STAFF_RANK.SUPPORT), async (req, res) => {
     try {
-      const rawUrl = String((req.body && req.body.discordInviteUrl) || "").trim();
-      const rawTiktok = String((req.body && req.body.tiktokUrl) || "").trim();
-      const rawYoutube = String((req.body && req.body.youtubeUrl) || "").trim();
+      const prependHttp = (raw) => {
+        const s = String(raw || "").trim();
+        if (!s) return "";
+        return /^https?:\/\//i.test(s) ? s : `https://${s.replace(/^\/+/, "")}`;
+      };
+      const rawUrl = prependHttp(String((req.body && req.body.discordInviteUrl) || "").trim());
+      const rawTiktok = prependHttp(String((req.body && req.body.tiktokUrl) || "").trim());
+      const rawYoutube = prependHttp(String((req.body && req.body.youtubeUrl) || "").trim());
       const updatesCountRaw = req.body && req.body.discordUpdatesCount;
       if (rawUrl && !/^https?:\/\//i.test(rawUrl)) {
         return res.status(400).json({ error: "Discord URL must start with http:// or https://" });
@@ -751,7 +757,10 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
         : 0;
       const updated = await AppConfig.findOneAndUpdate(
         { key: "main" },
-        { $set: { discordInviteUrl: rawUrl, discordUpdatesCount, tiktokUrl: rawTiktok, youtubeUrl: rawYoutube } },
+        {
+          $set: { discordInviteUrl: rawUrl, discordUpdatesCount, tiktokUrl: rawTiktok, youtubeUrl: rawYoutube },
+          $setOnInsert: { key: "main" }
+        },
         { upsert: true, new: true }
       )
         .select("discordInviteUrl discordUpdatesCount tiktokUrl youtubeUrl")

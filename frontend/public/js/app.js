@@ -77,6 +77,8 @@ let stripePublishableKey = "";
 let googleOAuthClientId = "";
 /** True after `/api/public/app-config` finishes (success or failure). Avoids blocking OAuth before config loads. */
 let googleOAuthConfigLoaded = false;
+/** Coalesces overlapping /api/public/app-config fetches (e.g. DOMContentLoaded + goHome). */
+let loadDiscordCommunityConfigInflight = null;
 const REMINDER_NOTIFY_PREFS_KEY = "webReminderNotificationPrefs";
 const ANDROID_REMINDERS_CHANNEL_ID = "reminders-high";
 
@@ -2682,6 +2684,7 @@ function setBodyHomePage(isHome) {
 function goHome() {
   currentCategory = "";
   activateMenu("menuHome");
+  void loadDiscordCommunityConfig();
   document.getElementById("home").classList.remove("hidden");
   document.getElementById("category").classList.add("hidden");
   document.getElementById("notes-all").classList.add("hidden");
@@ -3440,28 +3443,40 @@ function applyDiscordCommunityUi() {
 }
 
 async function loadDiscordCommunityConfig() {
+  if (loadDiscordCommunityConfigInflight) return loadDiscordCommunityConfigInflight;
+  loadDiscordCommunityConfigInflight = (async () => {
+    try {
+      const res = await fetch(buildApiUrl("/api/public/app-config"), {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store"
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to load app config");
+      discordCommunityUrl = String((data && data.discordInviteUrl) || "").trim();
+      discordUpdatesCount = Math.max(0, Number((data && data.discordUpdatesCount) || 0));
+      tiktokCommunityUrl = String((data && data.tiktokUrl) || "").trim();
+      youtubeCommunityUrl = String((data && data.youtubeUrl) || "").trim();
+      stripePublishableKey = String((data && data.stripePublishableKey) || "").trim();
+      googleOAuthClientId = String((data && data.googleClientId) || "").trim();
+    } catch {
+      discordCommunityUrl = "";
+      discordUpdatesCount = 0;
+      tiktokCommunityUrl = "";
+      youtubeCommunityUrl = "";
+      stripePublishableKey = "";
+      googleOAuthClientId = "";
+    } finally {
+      googleOAuthConfigLoaded = true;
+    }
+    applyDiscordCommunityUi();
+    syncAuthGoogleLinkHref();
+  })();
   try {
-    const res = await fetch(buildApiUrl("/api/public/app-config"), { method: "GET", credentials: "include" });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || "Failed to load app config");
-    discordCommunityUrl = String((data && data.discordInviteUrl) || "").trim();
-    discordUpdatesCount = Math.max(0, Number((data && data.discordUpdatesCount) || 0));
-    tiktokCommunityUrl = String((data && data.tiktokUrl) || "").trim();
-    youtubeCommunityUrl = String((data && data.youtubeUrl) || "").trim();
-    stripePublishableKey = String((data && data.stripePublishableKey) || "").trim();
-    googleOAuthClientId = String((data && data.googleClientId) || "").trim();
-  } catch {
-    discordCommunityUrl = "";
-    discordUpdatesCount = 0;
-    tiktokCommunityUrl = "";
-    youtubeCommunityUrl = "";
-    stripePublishableKey = "";
-    googleOAuthClientId = "";
+    await loadDiscordCommunityConfigInflight;
   } finally {
-    googleOAuthConfigLoaded = true;
+    loadDiscordCommunityConfigInflight = null;
   }
-  applyDiscordCommunityUi();
-  syncAuthGoogleLinkHref();
 }
 
 /** After OAuth redirect: tokens in #google_oauth=… then GET /api/me to load user (hash kept small). */

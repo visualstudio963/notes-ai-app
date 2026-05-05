@@ -126,6 +126,28 @@
   color: #94a3b8;
 }
 
+/* How coins work — intro card at top */
+.coins-rewards-intro__title {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #f8fafc;
+}
+
+.coins-rewards-intro__rule {
+  height: 1px;
+  margin: 0 0 14px;
+  background: rgba(148, 163, 184, 0.25);
+}
+
+.coins-rewards-intro__text {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: #e2e8f0;
+}
+
 .coins-rewards-section-title-row {
   margin-bottom: 16px;
 }
@@ -515,32 +537,6 @@
   font-size: 0.8rem;
 }
 
-.coins-rewards-details summary {
-  cursor: pointer;
-  font-weight: 750;
-}
-
-.coins-rewards-details-summary {
-  list-style: none;
-}
-
-.coins-rewards-details-summary::-webkit-details-marker {
-  display: none;
-}
-
-.coins-rewards-details-body {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(148, 163, 184, 0.12);
-}
-
-.coins-rewards-info-short {
-  margin: 0;
-  font-size: 0.85rem;
-  line-height: 1.5;
-  color: #cbd5e1;
-}
-
 @media (max-width: 420px) {
   .coins-rewards-day-reward {
     font-size: 0.62rem;
@@ -595,6 +591,18 @@
 .theme-normal body .coins-rewards-micro-bar__label,
 .theme-normal body .coins-rewards-invite-lead {
   color: #64748b;
+}
+
+.theme-normal body .coins-rewards-intro__title {
+  color: #0f172a;
+}
+
+.theme-normal body .coins-rewards-intro__rule {
+  background: rgba(148, 163, 184, 0.35);
+}
+
+.theme-normal body .coins-rewards-intro__text {
+  color: #475569;
 }
 
 .theme-normal body .coins-rewards-day-box.day-box.completed {

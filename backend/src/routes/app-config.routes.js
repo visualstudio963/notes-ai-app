@@ -12,6 +12,7 @@ function createAppConfigRouter({ AppConfig, stripePublishableKey, googleClientId
 
   router.get("/public/app-config", async (_req, res) => {
     try {
+      res.set("Cache-Control", "no-store, max-age=0");
       const doc = await AppConfig.findOne({ key: "main" })
         .select("discordInviteUrl discordUpdatesCount tiktokUrl youtubeUrl")
         .lean();

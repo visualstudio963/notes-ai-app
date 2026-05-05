@@ -13,6 +13,31 @@
     youtubeUrl: ""
   };
 
+  function normalizeCommunityUrl(raw) {
+    const s = String(raw || "").trim();
+    if (!s) return "";
+    return /^https?:\/\//i.test(s) ? s : `https://${s.replace(/^\/+/, "")}`;
+  }
+
+  /** Hydrate inputs + cache from GET/PUT payloads (includes tiktok & youtube). */
+  function applyDiscordConfigToInputs(data) {
+    if (!data || typeof data !== "object") return;
+    discordConfigCache = {
+      discordInviteUrl: String(data.discordInviteUrl != null ? data.discordInviteUrl : "").trim(),
+      discordUpdatesCount: Math.max(0, Number(data.discordUpdatesCount || 0)),
+      tiktokUrl: String(data.tiktokUrl != null ? data.tiktokUrl : "").trim(),
+      youtubeUrl: String(data.youtubeUrl != null ? data.youtubeUrl : "").trim()
+    };
+    const urlInput = document.getElementById("adminDiscordInviteUrl");
+    if (urlInput) urlInput.value = discordConfigCache.discordInviteUrl;
+    const countInput = document.getElementById("adminDiscordUpdatesCount");
+    if (countInput) countInput.value = String(discordConfigCache.discordUpdatesCount || 0);
+    const tiktokInput = document.getElementById("adminTiktokUrl");
+    if (tiktokInput) tiktokInput.value = discordConfigCache.tiktokUrl;
+    const youtubeInput = document.getElementById("adminYoutubeUrl");
+    if (youtubeInput) youtubeInput.value = discordConfigCache.youtubeUrl;
+  }
+
   /** @type {Map<string, object>} */
   const usersByIdCache = new Map();
 
@@ -834,21 +859,8 @@
   }
 
   async function loadDiscordConfig() {
-    const data = await apiJson("/api/admin/config/discord", { method: "GET" });
-    discordConfigCache = {
-      discordInviteUrl: String((data && data.discordInviteUrl) || ""),
-      discordUpdatesCount: Math.max(0, Number((data && data.discordUpdatesCount) || 0)),
-      tiktokUrl: String((data && data.tiktokUrl) || ""),
-      youtubeUrl: String((data && data.youtubeUrl) || "")
-    };
-    const urlInput = document.getElementById("adminDiscordInviteUrl");
-    if (urlInput) urlInput.value = discordConfigCache.discordInviteUrl;
-    const countInput = document.getElementById("adminDiscordUpdatesCount");
-    if (countInput) countInput.value = String(discordConfigCache.discordUpdatesCount || 0);
-    const tiktokInput = document.getElementById("adminTiktokUrl");
-    if (tiktokInput) tiktokInput.value = discordConfigCache.tiktokUrl;
-    const youtubeInput = document.getElementById("adminYoutubeUrl");
-    if (youtubeInput) youtubeInput.value = discordConfigCache.youtubeUrl;
+    const data = await apiJson("/api/admin/config/discord", { method: "GET", cache: "no-store" });
+    applyDiscordConfigToInputs(data);
   }
 
   function setNavActive(panel) {
@@ -986,17 +998,17 @@
       const countInput = document.getElementById("adminDiscordUpdatesCount");
       const tiktokInput = document.getElementById("adminTiktokUrl");
       const youtubeInput = document.getElementById("adminYoutubeUrl");
-      const discordInviteUrl = urlInput ? String(urlInput.value || "").trim() : "";
+      const discordInviteUrl = normalizeCommunityUrl(urlInput ? String(urlInput.value || "").trim() : "");
       const discordUpdatesCount = countInput ? Math.max(0, Number(countInput.value || 0)) : 0;
-      const tiktokUrl = tiktokInput ? String(tiktokInput.value || "").trim() : "";
-      const youtubeUrl = youtubeInput ? String(youtubeInput.value || "").trim() : "";
+      const tiktokUrl = normalizeCommunityUrl(tiktokInput ? String(tiktokInput.value || "").trim() : "");
+      const youtubeUrl = normalizeCommunityUrl(youtubeInput ? String(youtubeInput.value || "").trim() : "");
       try {
-        await apiJson("/api/admin/config/discord", {
+        const saved = await apiJson("/api/admin/config/discord", {
           method: "PUT",
           body: JSON.stringify({ discordInviteUrl, discordUpdatesCount, tiktokUrl, youtubeUrl })
         });
+        applyDiscordConfigToInputs(saved);
         setAlert("Community links saved.", "info");
-        await loadDiscordConfig();
       } catch (err) {
         setAlert(err.message, "error");
       }

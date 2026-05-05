@@ -2989,8 +2989,6 @@ async function refreshCoinsHubUi() {
 
   coinsHubApplyStreakUi(coins);
 
-  if (topBalChip) topBalChip.textContent = String(balance);
-  if (topCapChip) topCapChip.textContent = String(cap);
   if (balEl) balEl.textContent = String(balance);
   if (capDisplay) capDisplay.textContent = String(cap);
   const capPct = cap ? Math.min(100, (balance / cap) * 100) : 0;

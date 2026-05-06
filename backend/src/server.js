@@ -281,8 +281,11 @@ app.get(
         return;
       }
 
-      /** Always land on dashboard after Google sign-in; optional password is set later in Settings (not forced on first login). */
-      const nextSegment = "/dashboard";
+      /**
+       * Land on site root so static hosts always serve index.html (avoids Vercel 404 on /dashboard if SPA rewrites fail).
+       * Optional local password is set later in Settings — not forced on first login.
+       */
+      const nextSegment = "/";
       const oauthCookieOpts = getOAuthHandoffSetCookieOptions(sessionCookieSecure);
       const finish = () => {
         res.cookie(OAUTH_HANDOFF_AT, accessToken, oauthCookieOpts);

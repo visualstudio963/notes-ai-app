@@ -333,10 +333,10 @@ const translations = {
     settings: "Settings",
     workspaceHub: "Workspace hub",
     sidebarFooterTagline: "Smart reminders, note sync, and WhatsApp follow-up.",
-    trialGiftBadge: "Your welcome gift",
-    trialGiftTitle: "Standard access — gift for 7 days",
+    trialGiftBadge: "New-user notification",
+    trialGiftTitle: "7-day Standard — free gift",
     trialGiftLead:
-      "You’re on our Standard tier for your first week. Below is exactly what Notes AI unlocks compared to basic Free.",
+      "As a new Notes AI user, we’re giving you Standard access free for 7 days. Your trial is already active — tap Claim (or close) to enter the app.",
     trialGiftItem1: "Full Web Chat (guided local replies + reminders you save straight from conversation)",
     trialGiftItem2: "Scan Cam — camera or uploads become editable text notes",
     trialGiftItem3: "Professional exports — PDF & JPG downloads (plus TXT) from your workspace",
@@ -344,7 +344,10 @@ const translations = {
     trialGiftItem5: "Earn coins anytime under Rewards — they keep rolling even during trial",
     trialGiftAfter:
       "When the 7 days end you automatically move to Free (manual reminders + notes only) unless you pay for Standard/Premium or redeem Standard with coins. You can browse Rewards & coins any time.",
-    trialGiftCta: "Accept gift",
+    trialGiftCta: "Claim",
+    trialGiftLater: "Close",
+    trialGiftCloseAria: "Close notification",
+
 
     // Home page
     welcomeBack: "Welcome back",
@@ -615,6 +618,11 @@ const translations = {
     settingsNotifStatusGranted: "Permission: granted — you can receive reminder alerts.",
     settingsNotifStatusDenied: "Permission: blocked — enable notifications for this site in your browser settings.",
     settingsNotifStatusDefault: "Permission: not yet requested — tap the button below to allow alerts.",
+    settingsNotifStatusGrantedPaused:
+      "Browser permission stays on, but reminder alerts from this app are turned off. Turn the switch on to receive them again.",
+    settingsNotificationsDisableConfirm:
+      "If you turn this off, you will not receive notifications for your reminders. Continue?",
+    settingsNotificationsDisabledToast: "Reminder notifications are turned off in this app.",
     settingsSecurityTitle: "Security",
     settingsSecurityIntro: "Change your password and manage how you are signed in.",
     settingsSecurityLoginHint: "Log in to change your password and view session controls.",
@@ -801,6 +809,13 @@ const translations = {
     dailyPlannerTaskRequired: "Write a plan first.",
     dailyPlannerProgressLabel: "{done} of {total} done",
     dailyPlannerRequiresStandard: "Daily planner needs Standard or Premium. Open Upgrade plan to unlock.",
+    offlineModeShort: "Offline",
+    offlinePendingSync: "{n} pending sync",
+    offlineShowingCachedNotes: "Offline — showing saved copy of your notes.",
+    offlineShowingCachedCategory: "Offline — showing saved copy for this category.",
+    offlineNoteSavedLocal: "Saved on this device — will sync when you’re back online.",
+    offlineSyncComplete: "Notes synced.",
+    offlineNoteDeletedPending: "Removed here — will sync when you’re online.",
 
     // Onboarding tutorial
     onboardingWelcomeTitle: "Welcome!",
@@ -1162,10 +1177,10 @@ const translations = {
     settings: "Cilësimet",
     workspaceHub: "Qendra e punës",
     sidebarFooterTagline: "Kujtesa të zgjuara, sinkron shënimesh dhe WhatsApp.",
-    trialGiftBadge: "Dhurata e mirëseardhjes",
-    trialGiftTitle: "Standard falas për 7 ditë",
+    trialGiftBadge: "Njoftim për llogari të re",
+    trialGiftTitle: "7 ditë Standard — dhuratë për ty",
     trialGiftLead:
-      "Sapo të aktivizuam nivelin Standard si dhuratë. Poshtë listohen veçoritë që përdorni javën e parë, krahasuar me planin Falas.",
+      "Si përdorues i ri të dhurojmë Planin Standard falas për 7 ditë. Prova është tashmë aktivizuar — shtyp Konfirmo ose mbyll njoftimin për të hyrë në aplikacion.",
     trialGiftItem1: "Web Chat i plotë (skript lokale të zgjuara + ruani kujtesat direkt nga chat-i)",
     trialGiftItem2: "Scan Cam — dokumente në tekst që mund ta ruash si shënim",
     trialGiftItem3: "Shkarkime profesionale për shënimet — PDF, JPG dhe TXT",
@@ -1173,7 +1188,9 @@ const translations = {
     trialGiftItem5: "Fitoni monedha nga seksioni Shpërblime edhe gjatë trial-it",
     trialGiftAfter:
       "Pas 7 ditëve llogaria kalon automatikisht në Falas — vetëm shënime + kujtesa manuale — përveç nëse rinovoni Standard/Premium në para ose përdorni 600 monedha për 30 ditë të tjera Standard.",
-    trialGiftCta: "Merre si dhuratë",
+    trialGiftCta: "Konfirmo",
+    trialGiftLater: "Mbyll",
+    trialGiftCloseAria: "Mbyll njoftimin",
 
     // Home page
     welcomeBack: "Mirë se u kthye",
@@ -1448,6 +1465,11 @@ const translations = {
     settingsNotifStatusGranted: "Leja: e dhënë — mund të marrësh sinjalizime kujtese.",
     settingsNotifStatusDenied: "Leja: e bllokuar — aktivizo njoftimet për këtë sajt në cilësimet e shfletuesit.",
     settingsNotifStatusDefault: "Leja: ende e pakërkuar — prek butonin më poshtë për të lejuar sinjalizimet.",
+    settingsNotifStatusGrantedPaused:
+      "Leja e shfletuesit mbetet dhënë, por sinjalizimet e kujtesave në këtë app janë të fikura. Ndiz çelësin që t’i marrësh përsëri.",
+    settingsNotificationsDisableConfirm:
+      "Nëse i fikni, nuk do të merrni njoftime nga kujtesat. Të vazhdohet?",
+    settingsNotificationsDisabledToast: "Njoftimet e kujtesave janë të fikura në këtë aplikacion.",
     settingsSecurityTitle: "Siguria",
     settingsSecurityIntro: "Ndrysho fjalëkalimin dhe menaxho hyrjen.",
     settingsSecurityLoginHint: "Hyr për të ndryshuar fjalëkalimin dhe për kontrollin e sesionit.",
@@ -1634,6 +1656,13 @@ const translations = {
     dailyPlannerTaskRequired: "Shkruaj një plan fillimisht.",
     dailyPlannerProgressLabel: "{done} nga {total} të kryera",
     dailyPlannerRequiresStandard: "Planifikimi ditor kërkon Standard ose Premium. Hape Përmirëso planin për ta zhbllokuar.",
+    offlineModeShort: "Offline",
+    offlinePendingSync: "{n} në pritje për sinkron",
+    offlineShowingCachedNotes: "Offline — po shfaq kopjen e ruajtur të shënimeve.",
+    offlineShowingCachedCategory: "Offline — po shfaq kopjen e ruajtur për këtë kategori.",
+    offlineNoteSavedLocal: "Ruajtur në pajisje — sinkronizohet kur të kthehet interneti.",
+    offlineSyncComplete: "Shënimet u sinkronizuan.",
+    offlineNoteDeletedPending: "U hoq këtu — sinkronizohet kur të jesh online.",
 
     onboardingWelcomeTitle: "Mirë se vini!",
     onboardingWelcomeBody: "Një hap i shpejtë: shënime, kujtime dhe shpërblime.",
@@ -1983,6 +2012,19 @@ function applyTranslations() {
     }
   });
 
+  document.querySelectorAll("[data-t-aria-label]").forEach((el) => {
+    const key = el.getAttribute("data-t-aria-label");
+    if (!key) return;
+    try {
+      el.setAttribute("aria-label", t(key));
+    } catch (e) {
+      console.warn("applyTranslations aria-label:", key, e);
+    }
+  });
+
+  if (typeof syncOfflineIndicatorUi === "function") {
+    syncOfflineIndicatorUi();
+  }
   if (typeof syncWebChatModelSelectorUi === "function") {
     syncWebChatModelSelectorUi();
   }

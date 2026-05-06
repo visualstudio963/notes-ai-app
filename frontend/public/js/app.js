@@ -82,7 +82,26 @@ let googleOAuthConfigLoaded = false;
 /** Coalesces overlapping /api/public/app-config fetches (e.g. DOMContentLoaded + goHome). */
 let loadDiscordCommunityConfigInflight = null;
 const REMINDER_NOTIFY_PREFS_KEY = "webReminderNotificationPrefs";
+/** "0" = user turned off in-app reminder alerts (browser permission may still be "granted"). */
+const WEB_REMINDER_NOTIFICATIONS_APP_ENABLED_KEY = "aiNotesWebReminderNotificationsAppEnabled";
 const ANDROID_REMINDERS_CHANNEL_ID = "reminders-high";
+
+function webReminderNotificationsAppEnabled() {
+  try {
+    return localStorage.getItem(WEB_REMINDER_NOTIFICATIONS_APP_ENABLED_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+
+function setWebReminderNotificationsAppEnabled(on) {
+  try {
+    if (on) localStorage.removeItem(WEB_REMINDER_NOTIFICATIONS_APP_ENABLED_KEY);
+    else localStorage.setItem(WEB_REMINDER_NOTIFICATIONS_APP_ENABLED_KEY, "0");
+  } catch {
+    /* ignore */
+  }
+}
 
 function isNativeLocalNotificationsAvailable() {
   return Boolean(
@@ -208,15 +227,70 @@ function dailyPlannerTodayKey() {
   return `${y}-${m}-${day}`;
 }
 
+/** Logged-in user id for scoped planner keys — empty when guest (fallback to legacy-shaped keys). */
+function dailyPlannerEffectiveUserId() {
+  if (typeof currentUser !== "undefined" && currentUser && currentUser.id != null) return String(currentUser.id);
+  return "";
+}
+
 function dailyPlannerStorageKey(dateKey = dailyPlannerTodayKey()) {
+  const uid = dailyPlannerEffectiveUserId();
+  if (uid) return `${DAILY_PLANNER_KEY_PREFIX}:${uid}:${dateKey}`;
   return `${DAILY_PLANNER_KEY_PREFIX}:${dateKey}`;
 }
 
 function dailyPlannerNotifiedStorageKey(dateKey = dailyPlannerTodayKey()) {
+  const uid = dailyPlannerEffectiveUserId();
+  if (uid) return `${DAILY_PLANNER_NOTIFIED_KEY_PREFIX}:${uid}:${dateKey}`;
   return `${DAILY_PLANNER_NOTIFIED_KEY_PREFIX}:${dateKey}`;
 }
 
+/** @returns {{ legacy: boolean, dateKey: string } | null} */
+function parseDailyPlannerDatedKey(key, prefix) {
+  const p = `${prefix}:`;
+  if (!key.startsWith(p)) return null;
+  const rest = key.slice(p.length);
+  const scoped = /^(.+):(\d{4}-\d{2}-\d{2})$/.exec(rest);
+  if (scoped) return { legacy: false, dateKey: scoped[2], userSegment: scoped[1] };
+  const leg = /^(\d{4}-\d{2}-\d{2})$/.exec(rest);
+  if (leg) return { legacy: true, dateKey: leg[1], userSegment: null };
+  return null;
+}
+
+/**
+ * One-way migration: legacy per-device keys ({prefix}:{date}) → per-user ({prefix}:{userId}:{date}).
+ * Logout/login keeps data on the same account; nightly cleanup still drops outdated dates only.
+ */
+function dailyPlannerMigrateLegacyForLoggedInUser(dateKey = dailyPlannerTodayKey()) {
+  const uid = dailyPlannerEffectiveUserId();
+  if (!uid) return;
+  try {
+    const legacyT = `${DAILY_PLANNER_KEY_PREFIX}:${dateKey}`;
+    const scopedT = `${DAILY_PLANNER_KEY_PREFIX}:${uid}:${dateKey}`;
+    const L = localStorage.getItem(legacyT);
+    const S = localStorage.getItem(scopedT);
+    if (L && !S) {
+      localStorage.setItem(scopedT, L);
+      localStorage.removeItem(legacyT);
+    }
+
+    const legacyN = `${DAILY_PLANNER_NOTIFIED_KEY_PREFIX}:${dateKey}`;
+    const scopedN = `${DAILY_PLANNER_NOTIFIED_KEY_PREFIX}:${uid}:${dateKey}`;
+    const Ln = localStorage.getItem(legacyN);
+    const Sn = localStorage.getItem(scopedN);
+    if (Ln && !Sn) {
+      localStorage.setItem(scopedN, Ln);
+      localStorage.removeItem(legacyN);
+    }
+    if (L && S) localStorage.removeItem(legacyT);
+    if (Ln && Sn) localStorage.removeItem(legacyN);
+  } catch {
+    /* ignore quota / Safari private */
+  }
+}
+
 function readDailyPlannerTasks() {
+  dailyPlannerMigrateLegacyForLoggedInUser();
   try {
     const raw = localStorage.getItem(dailyPlannerStorageKey());
     if (!raw) return [];
@@ -252,13 +326,13 @@ function cleanupDailyPlannerStorage() {
       const k = localStorage.key(i);
       if (!k) continue;
       if (k.startsWith(`${DAILY_PLANNER_KEY_PREFIX}:`)) {
-        const dateKey = k.slice(`${DAILY_PLANNER_KEY_PREFIX}:`.length);
-        if (dateKey && dateKey !== todayKey) keys.push(k);
+        const meta = parseDailyPlannerDatedKey(k, DAILY_PLANNER_KEY_PREFIX);
+        if (meta && meta.dateKey && meta.dateKey !== todayKey) keys.push(k);
         continue;
       }
       if (k.startsWith(`${DAILY_PLANNER_NOTIFIED_KEY_PREFIX}:`)) {
-        const dateKey = k.slice(`${DAILY_PLANNER_NOTIFIED_KEY_PREFIX}:`.length);
-        if (dateKey && dateKey !== todayKey) keys.push(k);
+        const meta = parseDailyPlannerDatedKey(k, DAILY_PLANNER_NOTIFIED_KEY_PREFIX);
+        if (meta && meta.dateKey && meta.dateKey !== todayKey) keys.push(k);
         continue;
       }
       if (k === DAILY_PLANNER_KEY_PREFIX || k === DAILY_PLANNER_NOTIFIED_KEY_PREFIX) {
@@ -272,6 +346,7 @@ function cleanupDailyPlannerStorage() {
 }
 
 function readDailyPlannerNotifiedSet() {
+  dailyPlannerMigrateLegacyForLoggedInUser();
   try {
     const raw = localStorage.getItem(dailyPlannerNotifiedStorageKey());
     if (!raw) return new Set();
@@ -315,6 +390,7 @@ async function cancelPlannerLocalNotification(taskId, dateKey = dailyPlannerToda
 
 async function schedulePlannerLocalNotification(task) {
   if (!isNativeLocalNotificationsAvailable()) return;
+  if (!webReminderNotificationsAppEnabled()) return;
   if (!task || !task.id || !task.notificationEnabled || !task.time || task.done) return;
   const when = plannerTaskToDate(task);
   if (!when || when.getTime() <= Date.now()) return;
@@ -378,6 +454,7 @@ async function cancelReminderLocalNotification(reminderId) {
 
 async function scheduleReminderLocalNotification(reminder) {
   if (!isNativeLocalNotificationsAvailable()) return;
+  if (!webReminderNotificationsAppEnabled()) return;
   if (!reminder || !reminder._id || !reminder.time || reminder.sent) return;
   if (!isReminderNotificationEnabled(reminder._id)) return;
   const when = new Date(reminder.time);
@@ -427,6 +504,7 @@ async function syncReminderLocalNotifications(reminders) {
 
 function dailyPlannerMaybeTriggerNotifications() {
   if (isNativeLocalNotificationsAvailable()) return;
+  if (!webReminderNotificationsAppEnabled()) return;
   if (!("Notification" in window) || Notification.permission !== "granted") return;
   const tasks = readDailyPlannerTasks();
   if (!tasks.length) return;
@@ -472,11 +550,14 @@ function scheduleDailyPlannerNotificationLoop() {
 function scheduleDailyPlannerMidnightReset() {
   if (dailyPlannerMidnightTimer) window.clearTimeout(dailyPlannerMidnightTimer);
   const now = new Date();
-  const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1, 0);
-  const wait = Math.max(1000, nextMidnight.getTime() - now.getTime());
+  /** Next local calendar midnight — drop prior days’ buckets; today’s slot starts fresh as a new dated key when user adds tasks */
+  const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
+  const wait = Math.max(1500, nextMidnight.getTime() - now.getTime());
   dailyPlannerMidnightTimer = window.setTimeout(() => {
     cleanupDailyPlannerStorage();
     renderDailyPlannerList();
+    /** Reschedule reminders for native after day roll */
+    void syncPlannerLocalNotifications();
     scheduleDailyPlannerMidnightReset();
   }, wait);
 }
@@ -2346,6 +2427,328 @@ async function apiFetch(path, options = {}, isRetry) {
   }
 }
 
+/* —— Offline notes: local cache + mutation queue, sync when back online —— */
+const OFFLINE_NOTES_QUEUE_PREFIX = "aiNotesOfflineNoteQueue:";
+const OFFLINE_NOTES_CACHE_PREFIX = "aiNotesOfflineNotesCache:";
+
+function isBrowserOnline() {
+  return typeof navigator === "undefined" || navigator.onLine !== false;
+}
+
+function isOfflineOrNetworkError(err) {
+  if (!err || typeof err.message !== "string") return false;
+  const m = err.message.toLowerCase();
+  return m.includes("network error") || m.includes("failed to fetch") || m.includes("timed out");
+}
+
+function offlineMakeTempNoteId() {
+  return `offline-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+}
+
+function offlineNotesCategoryNorm(note) {
+  const c = note && note.category != null ? String(note.category).trim() : "";
+  return c || "__uncategorized__";
+}
+
+function offlineNotesQueueKey() {
+  return currentUser && currentUser.id != null ? `${OFFLINE_NOTES_QUEUE_PREFIX}${String(currentUser.id)}` : null;
+}
+
+function offlineNotesSnapshotKey() {
+  return currentUser && currentUser.id != null ? `${OFFLINE_NOTES_CACHE_PREFIX}${String(currentUser.id)}` : null;
+}
+
+function offlineNotesDedupeById(notes) {
+  const m = new Map();
+  for (const n of notes || []) {
+    if (!n || n._id == null) continue;
+    m.set(String(n._id), n);
+  }
+  return [...m.values()];
+}
+
+function offlineNotesReadSnapshot() {
+  const key = offlineNotesSnapshotKey();
+  if (!key) return null;
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    if (!o || typeof o !== "object") return null;
+    return {
+      allNotes: Array.isArray(o.allNotes) ? o.allNotes : [],
+      byCategory: o.byCategory && typeof o.byCategory === "object" ? o.byCategory : {}
+    };
+  } catch {
+    return null;
+  }
+}
+
+function offlineNotesWriteSnapshot(snap) {
+  const key = offlineNotesSnapshotKey();
+  if (!key || !snap) return;
+  try {
+    localStorage.setItem(
+      key,
+      JSON.stringify({ allNotes: snap.allNotes || [], byCategory: snap.byCategory || {} })
+    );
+  } catch {
+    /* quota */
+  }
+}
+
+function offlineNotesRebuildByCategory(snap) {
+  const byCat = {};
+  for (const n of snap.allNotes || []) {
+    const ck = offlineNotesCategoryNorm(n);
+    if (!byCat[ck]) byCat[ck] = [];
+    byCat[ck].push(n);
+  }
+  snap.byCategory = byCat;
+}
+
+function offlineNotesRecordSuccessfulLoadAll(mergedAllNotes) {
+  const snap = offlineNotesReadSnapshot() || { allNotes: [], byCategory: {} };
+  snap.allNotes = offlineNotesDedupeById(mergedAllNotes || []);
+  offlineNotesRebuildByCategory(snap);
+  offlineNotesWriteSnapshot(snap);
+}
+
+function offlineNotesRecordSuccessfulCategoryLoad(categoryKey, list) {
+  const snap = offlineNotesReadSnapshot() || { allNotes: [], byCategory: {} };
+  const filtered = (snap.allNotes || []).filter((n) => offlineNotesCategoryNorm(n) !== String(categoryKey));
+  snap.allNotes = offlineNotesDedupeById([...(list || []), ...filtered]);
+  offlineNotesRebuildByCategory(snap);
+  offlineNotesWriteSnapshot(snap);
+}
+
+function offlineNotesPickCategoryList(categoryKey) {
+  const snap = offlineNotesReadSnapshot();
+  if (!snap) return null;
+  const ck = String(categoryKey);
+  if (snap.byCategory && Array.isArray(snap.byCategory[ck])) return snap.byCategory[ck];
+  return (snap.allNotes || []).filter((n) => offlineNotesCategoryNorm(n) === ck);
+}
+
+function offlineNotesReadQueue() {
+  const k = offlineNotesQueueKey();
+  if (!k) return [];
+  try {
+    const raw = localStorage.getItem(k);
+    const q = raw ? JSON.parse(raw) : [];
+    return Array.isArray(q) ? q : [];
+  } catch {
+    return [];
+  }
+}
+
+function offlineNotesWriteQueue(q) {
+  const k = offlineNotesQueueKey();
+  if (!k) return;
+  try {
+    localStorage.setItem(k, JSON.stringify(q || []));
+  } catch {
+    /* ignore */
+  }
+  syncOfflineIndicatorUi();
+}
+
+function offlineNotesEnqueue(op) {
+  const k = offlineNotesQueueKey();
+  if (!k) return;
+  const q = offlineNotesReadQueue();
+  q.push({
+    ...op,
+    qid: `${Date.now()}-${Math.random().toString(16).slice(2)}`
+  });
+  offlineNotesWriteQueue(q);
+}
+
+function offlineNotesPatchQueuedCreate(tempId, text, title) {
+  const q = offlineNotesReadQueue();
+  for (const o of q) {
+    if (o.op === "create" && o.tempId === tempId) {
+      o.text = text;
+      o.title = title || "";
+      break;
+    }
+  }
+  offlineNotesWriteQueue(q);
+}
+
+function offlineNotesDropQueueOpsForNoteId(noteId) {
+  const id = String(noteId);
+  const q = offlineNotesReadQueue().filter((o) => {
+    if (o.op === "create" && o.tempId === id) return false;
+    if ((o.op === "update" || o.op === "delete") && o.noteId === id) return false;
+    return true;
+  });
+  offlineNotesWriteQueue(q);
+}
+
+function offlineNotesRemapQueueIds(q, idMap) {
+  return q.map((o) => {
+    if ((o.op === "update" || o.op === "delete") && idMap.has(o.noteId))
+      return { ...o, noteId: idMap.get(o.noteId) };
+    return o;
+  });
+}
+
+function offlineNotesReplaceTempNoteInMemory(tempId, serverNote) {
+  const tid = String(tempId);
+  const rep = (arr) =>
+    Array.isArray(arr) ? arr.map((n) => (String(n._id) === tid ? serverNote : n)) : arr;
+  allNotes = rep(allNotes);
+  currentNotes = rep(currentNotes);
+}
+
+function offlineNotesReplaceNoteInMemory(noteId, serverNote) {
+  const id = String(noteId);
+  const rep = (arr) =>
+    Array.isArray(arr) ? arr.map((n) => (String(n._id) === id ? serverNote : n)) : arr;
+  allNotes = rep(allNotes);
+  currentNotes = rep(currentNotes);
+}
+
+function offlineNotesRemoveNoteInMemory(noteId) {
+  const id = String(noteId);
+  allNotes = (allNotes || []).filter((n) => String(n._id) !== id);
+  currentNotes = (currentNotes || []).filter((n) => String(n._id) !== id);
+}
+
+function offlineNotesReplaceTempInSnapshot(tempId, serverNote) {
+  const snap = offlineNotesReadSnapshot();
+  if (!snap) return;
+  snap.allNotes = (snap.allNotes || []).map((n) => (String(n._id) === String(tempId) ? serverNote : n));
+  offlineNotesRebuildByCategory(snap);
+  offlineNotesWriteSnapshot(snap);
+}
+
+function offlineNotesReplaceNoteInSnapshot(noteId, serverNote) {
+  const snap = offlineNotesReadSnapshot();
+  if (!snap) return;
+  const id = String(noteId);
+  snap.allNotes = (snap.allNotes || []).map((n) => (String(n._id) === id ? serverNote : n));
+  offlineNotesRebuildByCategory(snap);
+  offlineNotesWriteSnapshot(snap);
+}
+
+function offlineNotesRemoveNoteInSnapshot(noteId) {
+  const snap = offlineNotesReadSnapshot();
+  if (!snap) return;
+  const id = String(noteId);
+  snap.allNotes = (snap.allNotes || []).filter((n) => String(n._id) !== id);
+  offlineNotesRebuildByCategory(snap);
+  offlineNotesWriteSnapshot(snap);
+}
+
+function syncOfflineIndicatorUi() {
+  const badge = document.getElementById("appOfflineBadge");
+  if (!badge) return;
+  const pending = offlineNotesReadQueue().length;
+  const offline = !isBrowserOnline();
+  if (!offline && !pending) {
+    badge.classList.add("hidden");
+    badge.textContent = "";
+    return;
+  }
+  badge.classList.remove("hidden");
+  const parts = [];
+  if (offline) parts.push(typeof t === "function" ? t("offlineModeShort") : "Offline");
+  if (pending)
+    parts.push(
+      typeof t === "function"
+        ? t("offlinePendingSync").replace("{n}", String(pending))
+        : `${pending} pending`
+    );
+  badge.textContent = parts.join(" · ");
+}
+
+async function offlineNotesFlushQueue() {
+  if (!isBrowserOnline() || !currentUser || !currentUser.id || !accessToken) return;
+  const k = offlineNotesQueueKey();
+  if (!k) return;
+  let q = offlineNotesReadQueue();
+  if (!q.length) {
+    syncOfflineIndicatorUi();
+    return;
+  }
+  const idMap = new Map();
+  let mutated = false;
+  while (q.length) {
+    const op = q[0];
+    try {
+      if (op.op === "create") {
+        const data = await apiFetch("/api/notes", {
+          method: "POST",
+          body: JSON.stringify({
+            category: op.category,
+            text: op.text,
+            title: op.title || ""
+          })
+        });
+        const note = data && data.note;
+        if (note && note._id) {
+          idMap.set(op.tempId, String(note._id));
+          offlineNotesReplaceTempNoteInMemory(op.tempId, note);
+          offlineNotesReplaceTempInSnapshot(op.tempId, note);
+        }
+        q = offlineNotesRemapQueueIds(q.slice(1), idMap);
+        mutated = true;
+      } else if (op.op === "update") {
+        let nid = op.noteId;
+        if (idMap.has(nid)) nid = idMap.get(nid);
+        if (String(nid).startsWith("offline-")) break;
+        const data = await apiFetch(`/api/notes/${encodeURIComponent(String(nid))}`, {
+          method: "PUT",
+          body: JSON.stringify({ text: op.text, title: op.title || "" })
+        });
+        if (data && data.note && data.note._id) {
+          offlineNotesReplaceNoteInMemory(String(data.note._id), data.note);
+          offlineNotesReplaceNoteInSnapshot(String(data.note._id), data.note);
+        }
+        q = offlineNotesRemapQueueIds(q.slice(1), idMap);
+        mutated = true;
+      } else if (op.op === "delete") {
+        let nid = op.noteId;
+        if (idMap.has(nid)) nid = idMap.get(nid);
+        if (String(nid).startsWith("offline-")) {
+          q = offlineNotesRemapQueueIds(q.slice(1), idMap);
+          mutated = true;
+          continue;
+        }
+        await apiFetch(`/api/notes/${encodeURIComponent(String(nid))}`, { method: "DELETE" });
+        offlineNotesRemoveNoteInMemory(String(nid));
+        offlineNotesRemoveNoteInSnapshot(String(nid));
+        q = offlineNotesRemapQueueIds(q.slice(1), idMap);
+        mutated = true;
+      } else {
+        q = q.slice(1);
+      }
+    } catch (e) {
+      if (isOfflineOrNetworkError(e)) break;
+      if (typeof showToast === "function") showToast((e && e.message) || "Sync failed");
+      break;
+    }
+  }
+  offlineNotesWriteQueue(q);
+  if (mutated) {
+    try {
+      if (currentCategory) await loadNotes();
+    } catch {
+      /* ignore */
+    }
+    try {
+      await loadMyNotes();
+    } catch {
+      /* ignore */
+    }
+    if (typeof showToast === "function" && !q.length)
+      showToast(typeof t === "function" ? t("offlineSyncComplete") : "Synced");
+  }
+  syncOfflineIndicatorUi();
+}
+
 function isChooseUsernamePath() {
   const p = (window.location.pathname || "").replace(/\/$/, "") || "/";
   return /(^|\/)choose-username\/?$/.test(p);
@@ -2489,6 +2892,8 @@ function authPostLoginShellSuccess(data, rememberMe) {
   showToast(`Welcome, ${data.user.username}`);
   goHome();
   refreshReminderRelatedViews();
+  if (typeof maybeShowTrialGiftWelcome === "function") maybeShowTrialGiftWelcome();
+  void offlineNotesFlushQueue();
   void mergePremiumFromServer().then(() => {
     displayAccountInfo();
     void updateHomeDashboardStats();
@@ -2619,6 +3024,8 @@ async function submitChooseUsername() {
     showToast(`Welcome, ${data.user.username}`);
     goHome();
     refreshReminderRelatedViews();
+    if (typeof maybeShowTrialGiftWelcome === "function") maybeShowTrialGiftWelcome();
+    void offlineNotesFlushQueue();
     void mergePremiumFromServer().then(() => {
       displayAccountInfo();
       void updateHomeDashboardStats();
@@ -3848,6 +4255,26 @@ function scanCamEnsureConvertAccess() {
   return true;
 }
 
+/**
+ * Source rectangle (video pixel space) that matches CSS object-fit: cover for the current video element box.
+ * Avoids “0.5×” ultrawide feel in preview vs capture mismatch.
+ */
+function scanCamGetVideoCoverCropSourceRect(videoEl) {
+  const vw = videoEl.videoWidth;
+  const vh = videoEl.videoHeight;
+  const cw = videoEl.clientWidth || vw;
+  const ch = videoEl.clientHeight || vh;
+  if (!vw || !vh || !cw || !ch) {
+    return { sx: 0, sy: 0, sw: vw || 1, sh: vh || 1 };
+  }
+  const scale = Math.max(cw / vw, ch / vh);
+  const sw = cw / scale;
+  const sh = ch / scale;
+  const sx = Math.max(0, Math.min(vw - sw, (vw - sw) / 2));
+  const sy = Math.max(0, Math.min(vh - sh, (vh - sh) / 2));
+  return { sx, sy, sw, sh };
+}
+
 async function scanCamOpenCamera() {
   const status = document.getElementById("scanCamStatus");
   const video = document.getElementById("scanCamVideo");
@@ -3867,10 +4294,26 @@ async function scanCamOpenCamera() {
       preview.classList.add("hidden");
     }
     scanCamClearPdf();
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: "environment" } },
-      audio: false
-    });
+    /** Prefer main rear stream: higher resolution reduces grain; narrow aspect can skip some ultrawide profiles. */
+    const videoConstraints = {
+      facingMode: { ideal: "environment" },
+      width: { ideal: 2560, min: 1280 },
+      height: { ideal: 1440, min: 720 },
+      aspectRatio: { ideal: 16 / 9 },
+      frameRate: { ideal: 30, max: 30 }
+    };
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: videoConstraints,
+        audio: false
+      });
+    } catch {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false
+      });
+    }
     scanCamMediaStream = stream;
     video.srcObject = stream;
     await video.play().catch(() => {});
@@ -3916,7 +4359,8 @@ function scanCamCloseDocSourceSheet() {
 
 function scanCamUploadDocument() {
   scanCamDismissOnboarding();
-  scanCamOpenDocSourceSheet();
+  /** Open device file picker directly (Samsung “My Files” / Downloads) — skip interim chooser sheet. */
+  scanCamDocPickFromFilesDevice();
 }
 
 /** PDF-focused picker (downloads / Files app on mobile). */
@@ -3983,7 +4427,12 @@ function scanCamHandlePhotoUpload(inputEl) {
 function scanCamHandleDocumentUpload(inputEl) {
   if (!inputEl || !inputEl.files || !inputEl.files[0]) return;
   const file = inputEl.files[0];
-  const mime = String(file.type || "");
+  let mime = String(file.type || "");
+  /** Some Android picks return empty MIME; fall back by extension so Files / Downloads still work. */
+  if (!mime) {
+    if (/\.(jpe?g|png|gif|webp|bmp|heic|heif)$/i.test(file.name)) mime = "image/unknown-fallback";
+    else if (/\.pdf$/i.test(file.name)) mime = "application/pdf";
+  }
   if (mime.startsWith("image/")) {
     const reader = new FileReader();
     reader.onload = () => {
@@ -4136,14 +4585,17 @@ function scanCamCapturePhoto() {
     if (status) status.textContent = t("scanCamCameraNotReady");
     return;
   }
+  const { sx, sy, sw, sh } = scanCamGetVideoCoverCropSourceRect(video);
   const canvas = document.createElement("canvas");
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+  const outW = Math.max(1, Math.round(sw));
+  const outH = Math.max(1, Math.round(sh));
+  canvas.width = outW;
+  canvas.height = outH;
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
-  ctx.drawImage(video, 0, 0);
+  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, outW, outH);
   scanCamClearPdf();
-  preview.src = canvas.toDataURL("image/jpeg", 0.92);
+  preview.src = canvas.toDataURL("image/jpeg", 0.95);
   preview.classList.remove("hidden");
   scanCamCloseCameraUi();
   scanCamCloseResultPanel();
@@ -4261,7 +4713,7 @@ function scanCamNormalizeOcrOutput(s) {
   return t.trim();
 }
 
-function scanCamCanvasFromImgElement(img, maxSide = 2800) {
+function scanCamCanvasFromImgElement(img, maxSide = 3600) {
   const w0 = img.naturalWidth || img.width;
   const h0 = img.naturalHeight || img.height;
   if (!w0 || !h0) return null;
@@ -4290,11 +4742,20 @@ async function scanCamEnsureTesseractWorker() {
           scanCamTesseractWorker = await Tesseract.createWorker(lang, undefined, { logger: () => {} });
           try {
             await scanCamTesseractWorker.setParameters({
-              tessedit_pageseg_mode: "3",
-              preserve_interword_spaces: "1"
+              tessedit_pageseg_mode: "1",
+              preserve_interword_spaces: "1",
+              user_defined_dpi: "300"
             });
-          } catch (e) {
-            console.warn("[Scan Cam] Tesseract setParameters", e && e.message);
+          } catch {
+            try {
+              await scanCamTesseractWorker.setParameters({
+                tessedit_pageseg_mode: "3",
+                preserve_interword_spaces: "1",
+                user_defined_dpi: "300"
+              });
+            } catch (e2) {
+              console.warn("[Scan Cam] Tesseract setParameters", e2 && e2.message);
+            }
           }
           return scanCamTesseractWorker;
         } catch (e) {
@@ -5785,6 +6246,7 @@ async function toggleReminderNotification(reminderId, whenDate, message, buttonE
 function requestNotificationPermission() {
   requestNotificationPermissionIfNeeded(true).then((granted) => {
     if (granted) {
+      setWebReminderNotificationsAppEnabled(true);
       showToast(t("notificationsEnabledToast"));
       void syncPlannerLocalNotifications();
       if (currentUser && accessToken) {
@@ -5941,6 +6403,7 @@ function startWebNotificationScheduler() {
 
 async function checkForDueReminders() {
   if (isNativeLocalNotificationsAvailable()) return;
+  if (!webReminderNotificationsAppEnabled()) return;
   if (!currentUser || !accessToken) return;
   
   try {
@@ -5966,6 +6429,7 @@ async function checkForDueReminders() {
 
 function showWebNotification(reminder) {
   if (isNativeLocalNotificationsAvailable()) return;
+  if (!webReminderNotificationsAppEnabled()) return;
   const id = String(reminder._id);
   if (webNotificationLock.has(id)) return;
 
@@ -6050,11 +6514,31 @@ async function loadNotes() {
       list = mergeNotesWithScanCamLocal(list);
     }
     currentNotes = list;
+    offlineNotesRecordSuccessfulCategoryLoad(currentCategory, list);
     renderNotes(currentNotes);
+    syncOfflineIndicatorUi();
   } catch (err) {
+    const fallback =
+      currentUser && currentCategory
+        ? offlineNotesPickCategoryList(currentCategory)
+        : null;
+    if (fallback != null && Array.isArray(fallback)) {
+      let list = fallback;
+      if (currentCategory === "scan_cam") {
+        list = mergeNotesWithScanCamLocal(list);
+      }
+      currentNotes = list;
+      renderNotes(currentNotes);
+      if (!isBrowserOnline() || isOfflineOrNetworkError(err))
+        showToast(typeof t === "function" ? t("offlineShowingCachedCategory") : err.message);
+      else showToast(err.message);
+      syncOfflineIndicatorUi();
+      return;
+    }
     showToast(err.message);
     currentNotes = [];
     renderNotes([]);
+    syncOfflineIndicatorUi();
   }
 }
 
@@ -6160,6 +6644,40 @@ async function noteRichEditorPersistRequest(payload) {
       return { note };
     }
 
+    if (!isBrowserOnline()) {
+      const tempId = offlineMakeTempNoteId();
+      const note = {
+        _id: tempId,
+        category,
+        text: storageText,
+        title: titleTrim,
+        createdAt: new Date().toISOString(),
+        offlinePending: true
+      };
+      offlineNotesEnqueue({
+        op: "create",
+        tempId,
+        category,
+        text: storageText,
+        title: titleTrim
+      });
+      const id = String(note._id);
+      allNotes = [note, ...allNotes.filter((n) => String(n._id) !== id)];
+      if (category === currentCategory) {
+        currentNotes = [note, ...currentNotes.filter((n) => String(n._id) !== id)];
+      }
+      offlineNotesRecordSuccessfulLoadAll(mergeNotesWithScanCamLocal(allNotes));
+      noteEditorState = {
+        mode: "edit",
+        origin,
+        editingNote: note,
+        presetCategory: null
+      };
+      syncOfflineIndicatorUi();
+      if (typeof showToast === "function") showToast(t("offlineNoteSavedLocal"));
+      return { note };
+    }
+
     const created = await apiFetch("/api/notes", {
       method: "POST",
       body: JSON.stringify({
@@ -6201,6 +6719,45 @@ async function noteRichEditorPersistRequest(payload) {
     replace(allNotes);
     replace(currentNotes);
     noteEditorState.editingNote = updated;
+    return { note: updated };
+  }
+
+  if (idStr.startsWith("offline-")) {
+    offlineNotesPatchQueuedCreate(idStr, storageText, titleTrim);
+    const prev = noteEditorState.editingNote || {};
+    const updated = { ...prev, _id: idStr, text: storageText, title: titleTrim };
+    const lid = idStr;
+    const replace = (arr) => {
+      const ix = arr.findIndex((n) => String(n._id) === lid);
+      if (ix >= 0) arr[ix] = updated;
+    };
+    replace(allNotes);
+    replace(currentNotes);
+    offlineNotesRecordSuccessfulLoadAll(mergeNotesWithScanCamLocal(allNotes));
+    noteEditorState.editingNote = updated;
+    syncOfflineIndicatorUi();
+    return { note: updated };
+  }
+
+  if (!isBrowserOnline()) {
+    offlineNotesEnqueue({
+      op: "update",
+      noteId: idStr,
+      text: storageText,
+      title: titleTrim
+    });
+    const prev = noteEditorState.editingNote || {};
+    const updated = { ...prev, _id: idStr, text: storageText, title: titleTrim };
+    const replace = (arr) => {
+      const ix = arr.findIndex((n) => String(n._id) === idStr);
+      if (ix >= 0) arr[ix] = updated;
+    };
+    replace(allNotes);
+    replace(currentNotes);
+    offlineNotesRecordSuccessfulLoadAll(mergeNotesWithScanCamLocal(allNotes));
+    noteEditorState.editingNote = updated;
+    syncOfflineIndicatorUi();
+    if (typeof showToast === "function") showToast(t("offlineNoteSavedLocal"));
     return { note: updated };
   }
 
@@ -6345,6 +6902,25 @@ async function submitNoteEditor() {
         }
         persistScanCamNoteLocally(text, title);
         showToast(t("noteCreatedToast"));
+      } else if (!isBrowserOnline()) {
+        const tempId = offlineMakeTempNoteId();
+        const note = {
+          _id: tempId,
+          category,
+          text,
+          title,
+          createdAt: new Date().toISOString(),
+          offlinePending: true
+        };
+        offlineNotesEnqueue({ op: "create", tempId, category, text, title });
+        const id = String(note._id);
+        allNotes = [note, ...allNotes.filter((n) => String(n._id) !== id)];
+        if (category === currentCategory) {
+          currentNotes = [note, ...currentNotes.filter((n) => String(n._id) !== id)];
+        }
+        offlineNotesRecordSuccessfulLoadAll(mergeNotesWithScanCamLocal(allNotes));
+        syncOfflineIndicatorUi();
+        showToast(t("offlineNoteSavedLocal"));
       } else {
         const created = await apiFetch("/api/notes", {
           method: "POST",
@@ -6373,6 +6949,30 @@ async function submitNoteEditor() {
         replace(allNotes);
         replace(currentNotes);
         showToast(t("noteUpdatedToast"));
+      } else if (lid.startsWith("offline-")) {
+        offlineNotesPatchQueuedCreate(lid, text, title);
+        const updated = { ...note, text, title };
+        const replace = (arr) => {
+          const ix = arr.findIndex((n) => String(n._id) === lid);
+          if (ix >= 0) arr[ix] = updated;
+        };
+        replace(allNotes);
+        replace(currentNotes);
+        offlineNotesRecordSuccessfulLoadAll(mergeNotesWithScanCamLocal(allNotes));
+        syncOfflineIndicatorUi();
+        showToast(t("offlineNoteSavedLocal"));
+      } else if (!isBrowserOnline()) {
+        offlineNotesEnqueue({ op: "update", noteId: lid, text, title });
+        const updated = { ...note, text, title };
+        const replace = (arr) => {
+          const ix = arr.findIndex((n) => String(n._id) === lid);
+          if (ix >= 0) arr[ix] = updated;
+        };
+        replace(allNotes);
+        replace(currentNotes);
+        offlineNotesRecordSuccessfulLoadAll(mergeNotesWithScanCamLocal(allNotes));
+        syncOfflineIndicatorUi();
+        showToast(t("offlineNoteSavedLocal"));
       } else {
         const updated = await apiFetch(`/api/notes/${note._id}`, {
           method: "PUT",
@@ -6432,6 +7032,48 @@ async function deleteNoteById(note) {
     if (!document.getElementById("home")?.classList.contains("hidden")) {
       void updateHomeDashboardStats();
     }
+    return;
+  }
+
+  if (idStr.startsWith("offline-")) {
+    offlineNotesDropQueueOpsForNoteId(idStr);
+    offlineNotesRemoveNoteInMemory(idStr);
+    offlineNotesRemoveNoteInSnapshot(idStr);
+    showToast(t("noteDeletedToast"));
+    if (currentCategory) {
+      loadNotes();
+    }
+    if (!document.getElementById("notes-all")?.classList.contains("hidden")) {
+      loadMyNotes();
+    }
+    if (currentCategory) {
+      updateCategoryViewForWebReminders();
+    }
+    if (!document.getElementById("home")?.classList.contains("hidden")) {
+      void updateHomeDashboardStats();
+    }
+    syncOfflineIndicatorUi();
+    return;
+  }
+
+  if (!isBrowserOnline()) {
+    offlineNotesEnqueue({ op: "delete", noteId: idStr });
+    offlineNotesRemoveNoteInMemory(idStr);
+    offlineNotesRemoveNoteInSnapshot(idStr);
+    showToast(t("offlineNoteDeletedPending"));
+    if (currentCategory) {
+      loadNotes();
+    }
+    if (!document.getElementById("notes-all")?.classList.contains("hidden")) {
+      loadMyNotes();
+    }
+    if (currentCategory) {
+      updateCategoryViewForWebReminders();
+    }
+    if (!document.getElementById("home")?.classList.contains("hidden")) {
+      void updateHomeDashboardStats();
+    }
+    syncOfflineIndicatorUi();
     return;
   }
 
@@ -6576,16 +7218,33 @@ async function loadMyNotes() {
     const notes = data.notes || [];
     const merged = mergeNotesWithScanCamLocal(notes);
     allNotes = merged;
+    offlineNotesRecordSuccessfulLoadAll(allNotes);
     populateAllNotesCategoryFilter(merged);
     const sortSelect = document.getElementById("notesSortSelect");
     if (sortSelect) sortSelect.value = allNotesSortMode;
     filterAllNotesList();
+    syncOfflineIndicatorUi();
   } catch (err) {
+    const snap = offlineNotesReadSnapshot();
+    if (snap && Array.isArray(snap.allNotes) && currentUser) {
+      const merged = mergeNotesWithScanCamLocal(snap.allNotes);
+      allNotes = merged;
+      populateAllNotesCategoryFilter(merged);
+      const sortSelect = document.getElementById("notesSortSelect");
+      if (sortSelect) sortSelect.value = allNotesSortMode;
+      filterAllNotesList();
+      if (!isBrowserOnline() || isOfflineOrNetworkError(err))
+        showToast(typeof t === "function" ? t("offlineShowingCachedNotes") : err.message);
+      else showToast(err.message);
+      syncOfflineIndicatorUi();
+      return;
+    }
     showToast(err.message);
     countEl.textContent = `0 ${t("notes")}`;
     container.className = "notes-list";
     container.innerHTML = `<div class="note-card"><div class="note-content"><p>${escapeHtml(err.message)}</p></div></div>`;
     refreshDepthRevealObservers();
+    syncOfflineIndicatorUi();
   }
 }
 
@@ -7429,28 +8088,118 @@ async function updateSettingsNotificationStatus() {
     perm = "denied";
   }
 
+  const appOn = webReminderNotificationsAppEnabled();
   if (perm === "granted") {
-    el.textContent = t("settingsNotifStatusGranted");
+    el.textContent = appOn ? t("settingsNotifStatusGranted") : t("settingsNotifStatusGrantedPaused");
   } else if (perm === "denied") {
     el.textContent = t("settingsNotifStatusDenied");
   } else {
     el.textContent = t("settingsNotifStatusDefault");
   }
   if (toggle) {
-    toggle.disabled = false;
-    toggle.checked = perm === "granted";
+    if (perm === "denied") {
+      toggle.disabled = true;
+      toggle.checked = false;
+    } else {
+      toggle.disabled = false;
+      if (perm === "granted") {
+        toggle.checked = appOn;
+      } else {
+        toggle.checked = false;
+      }
+    }
   }
   if (enableBtn) {
     enableBtn.classList.toggle("hidden", perm === "granted");
   }
+
+  const wrap = document.getElementById("settingsNotifSection");
+  if (wrap) wrap.classList.toggle("settings-notif-card--paused", perm === "granted" && !appOn);
 }
 
-function settingsNotificationsToggleChanged(checked) {
-  if (checked) {
-    requestNotificationPermission();
-  } else {
-    showToast(t("settingsNotificationsGrantedHint"));
+async function settingsNotificationsToggleChanged(checked) {
+  const toggleEl = document.getElementById("settingsNotifToggle");
+
+  const revertToggle = () => {
+    if (toggleEl) toggleEl.checked = !checked;
+    void updateSettingsNotificationStatus();
+  };
+
+  if (isNativeLocalNotificationsAvailable()) {
+    if (checked) {
+      setWebReminderNotificationsAppEnabled(true);
+      const ok = await requestNotificationPermissionIfNeeded(true);
+      if (!ok) {
+        setWebReminderNotificationsAppEnabled(false);
+        revertToggle();
+        showToast(t("notificationsDenied"));
+      } else {
+        showToast(t("notificationsEnabledToast"));
+        void syncPlannerLocalNotifications();
+        if (currentUser && accessToken) {
+          void fetchWebRemindersListDeduped()
+            .then((data) => syncReminderLocalNotifications((data && data.reminders) || []))
+            .catch(() => {});
+        }
+      }
+    } else if (!window.confirm(t("settingsNotificationsDisableConfirm"))) {
+      revertToggle();
+      return;
+    } else {
+      setWebReminderNotificationsAppEnabled(false);
+      void syncPlannerLocalNotifications();
+      if (currentUser && accessToken) {
+        void fetchWebRemindersListDeduped()
+          .then((data) => syncReminderLocalNotifications((data && data.reminders) || []))
+          .catch(() => {});
+      }
+      showToast(t("settingsNotificationsDisabledToast"));
+    }
+    void updateSettingsNotificationStatus();
+    return;
   }
+
+  if (!("Notification" in window)) {
+    revertToggle();
+    showToast(t("notificationsNotSupported"));
+    return;
+  }
+
+  if (checked) {
+    if (Notification.permission !== "granted") {
+      await requestNotificationPermissionIfNeeded(true);
+    }
+    if (Notification.permission !== "granted") {
+      setWebReminderNotificationsAppEnabled(false);
+      revertToggle();
+      showToast(t("notificationsDenied"));
+      void updateSettingsNotificationStatus();
+      return;
+    }
+    setWebReminderNotificationsAppEnabled(true);
+    showToast(t("notificationsEnabledToast"));
+    void syncPlannerLocalNotifications();
+    if (currentUser && accessToken) {
+      void fetchWebRemindersListDeduped()
+        .then((data) => syncReminderLocalNotifications((data && data.reminders) || []))
+        .catch(() => {});
+    }
+    startWebNotificationScheduler();
+  } else if (Notification.permission === "granted") {
+    if (!window.confirm(t("settingsNotificationsDisableConfirm"))) {
+      revertToggle();
+      return;
+    }
+    setWebReminderNotificationsAppEnabled(false);
+    showToast(t("settingsNotificationsDisabledToast"));
+    void syncPlannerLocalNotifications();
+    if (currentUser && accessToken) {
+      void fetchWebRemindersListDeduped()
+        .then((data) => syncReminderLocalNotifications((data && data.reminders) || []))
+        .catch(() => {});
+    }
+  }
+
   void updateSettingsNotificationStatus();
 }
 
@@ -7730,19 +8479,12 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   updateAccountUI();
 
-  // If user is already logged in, load their settings from server
   if (currentUser && accessToken) {
-    void mergePremiumFromServer();
-    loadUserSettings();
-    // Start web notification scheduler for logged-in users
+    await loadUserSettings();
     startWebNotificationScheduler();
-    // Request notification permission
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
     }
-  }
-
-  if (currentUser && accessToken) {
     const blockGoHome = isSetPasswordPath() && !userHasLocalPasswordFlag();
     if (!blockGoHome) {
       goHome();
@@ -7751,6 +8493,22 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
     if (typeof scheduleOnboardingTutorialAfterAuth === "function") scheduleOnboardingTutorialAfterAuth();
   }
+  if (currentUser && accessToken && isBrowserOnline()) void offlineNotesFlushQueue();
+
+  window.addEventListener("online", () => {
+    syncOfflineIndicatorUi();
+    if (typeof applyTranslations === "function") applyTranslations();
+    void offlineNotesFlushQueue();
+  });
+  window.addEventListener("offline", () => {
+    syncOfflineIndicatorUi();
+    if (typeof applyTranslations === "function") applyTranslations();
+  });
+  window.setInterval(() => {
+    if (isBrowserOnline() && offlineNotesReadQueue().length) void offlineNotesFlushQueue();
+  }, 45000);
+  syncOfflineIndicatorUi();
+
   initDepthRevealSystem();
   initPremiumTiltSystem();
   cleanupDailyPlannerStorage();

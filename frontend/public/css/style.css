@@ -703,6 +703,19 @@ button {
   margin: 0 0 6px;
 }
 
+.topbar-offline-badge {
+  margin: 6px 0 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fbbf24;
+}
+
+.topbar-offline-badge.hidden {
+  display: none;
+}
+
 .app-page-home .topbar {
   margin-bottom: 22px;
   padding-bottom: 18px;
@@ -2115,16 +2128,19 @@ body.modal-open {
   display: none;
 }
 
+/* cover = same center crop as capture (feels like ~1× fill, not letterboxed ultrawide) */
 .scan-cam-stage__media--video video {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center center;
 }
 
 .scan-cam-stage__media--img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center center;
 }
 
 .scan-cam-stage__media--pdf {
@@ -12018,12 +12034,68 @@ body.floating-scrolled .discord-fab:hover {
   font-size: 0.78rem;
 }
 
+.settings-notif-card {
+  padding: 1.05rem 1.12rem 1.15rem;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: linear-gradient(160deg, rgba(15, 23, 42, 0.5), rgba(2, 6, 23, 0.78));
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+}
+
+.settings-notif-card__title.section-title {
+  margin: 0 0 0.35rem;
+}
+
+.settings-notif-card__lead.preference-desc {
+  margin: 0 0 0.95rem;
+  font-size: 0.88rem;
+  line-height: 1.48;
+}
+
+.settings-notif-card--paused {
+  border-color: rgba(251, 191, 36, 0.32);
+}
+
+.settings-notif-toggle-text {
+  flex: 1;
+  min-width: 0;
+  padding-right: 8px;
+}
+
+.settings-notif-label {
+  display: block;
+  font-weight: 650;
+  font-size: 0.93rem;
+  color: #e2e8f0;
+}
+
+.settings-notif-callout {
+  margin: 0 0 1rem;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.settings-notif-callout .settings-notif-status {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.settings-notif-btn.save-button {
+  width: 100%;
+  min-height: 46px;
+  margin-top: 0;
+  font-weight: 700;
+}
+
 .settings-notif-toggle-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
-  margin: 8px 0 10px;
+  gap: 12px;
+  margin: 4px 0 12px;
 }
 
 .settings-switch {
@@ -14959,6 +15031,7 @@ body.trial-gift-modal-open {
   width: 100%;
   max-width: min(36rem, 100%);
   padding: clamp(1.25rem, 4vw, 1.85rem);
+  padding-top: clamp(1.6rem, 4.5vw, 2.1rem);
   border-radius: 18px;
   border: 1px solid rgba(148, 163, 184, 0.35);
   background: linear-gradient(
@@ -15012,10 +15085,42 @@ body.trial-gift-modal-open {
 }
 
 .trial-gift-modal__note {
-  margin: 0 0 1.35rem;
+  margin: 0 0 1.15rem;
   font-size: 0.87rem;
   line-height: 1.52;
   color: #94a3b8;
+}
+
+.trial-gift-modal__close {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.1);
+  color: #cbd5e1;
+  font-size: 1.35rem;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.trial-gift-modal__close:hover {
+  background: rgba(148, 163, 184, 0.2);
+  color: #f1f5f9;
+}
+
+.trial-gift-modal__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
 }
 
 .trial-gift-modal__cta {
@@ -15023,6 +15128,25 @@ body.trial-gift-modal-open {
   justify-content: center;
   min-height: 48px;
   font-weight: 700;
+}
+
+.trial-gift-modal__later {
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.trial-gift-modal__later:hover {
+  color: #cbd5e1;
 }
 
 /* —— First-time onboarding (driver.js-style spotlight) —— */
@@ -15115,7 +15239,10 @@ body.trial-gift-modal-open {
   min-width: min(18rem, calc(100vw - 2.5rem));
   max-width: min(22rem, calc(100vw - 2.5rem));
   max-height: min(72vh, 520px);
-  padding: 1rem 1.1rem 0.95rem;
+  padding-top: max(1rem, calc(1rem + env(safe-area-inset-top, 0px)));
+  padding-right: max(1.1rem, calc(1.1rem + env(safe-area-inset-right, 0px)));
+  padding-bottom: max(0.95rem, calc(0.95rem + env(safe-area-inset-bottom, 0px)));
+  padding-left: max(1.1rem, calc(1.1rem + env(safe-area-inset-left, 0px)));
   border-radius: 16px;
   background: rgba(14, 20, 35, 0.97);
   border: 1px solid rgba(148, 163, 184, 0.32);

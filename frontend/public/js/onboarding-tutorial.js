@@ -83,6 +83,7 @@
   let forceRun = false;
   let ro = null;
   let repositionTimer = null;
+  let roRepositionTimer = null;
   let domReady = false;
   let targetElPinned = null;
   let tourLock = false;
@@ -157,6 +158,10 @@
       targetElPinned.classList.remove("onboarding-target-pulse");
       targetElPinned = null;
     }
+    if (roRepositionTimer) {
+      clearTimeout(roRepositionTimer);
+      roRepositionTimer = null;
+    }
     if (ro) {
       try {
         ro.disconnect();
@@ -214,6 +219,10 @@
 
     window.addEventListener("resize", scheduleReposition);
     window.addEventListener("scroll", scheduleReposition, true);
+    if (typeof window.visualViewport !== "undefined" && window.visualViewport) {
+      window.visualViewport.addEventListener("resize", scheduleReposition);
+      window.visualViewport.addEventListener("scroll", scheduleReposition);
+    }
     document.addEventListener("keydown", onDocumentKeydown, true);
   }
 
@@ -232,7 +241,16 @@
     repositionTimer = setTimeout(() => {
       repositionTimer = null;
       positionForCurrentStep(false);
-    }, 16);
+    }, 48);
+  }
+
+  function scheduleRepositionFromTargetResize() {
+    if (!active) return;
+    clearTimeout(roRepositionTimer);
+    roRepositionTimer = setTimeout(() => {
+      roRepositionTimer = null;
+      positionForCurrentStep(false);
+    }, 120);
   }
 
   /** @returns {HTMLElement | null} */
@@ -259,7 +277,7 @@
     targetElPinned = el;
     el.classList.add("onboarding-target-pulse");
     if (typeof ResizeObserver !== "undefined") {
-      ro = new ResizeObserver(() => scheduleReposition());
+      ro = new ResizeObserver(() => scheduleRepositionFromTargetResize());
       ro.observe(el);
     }
   }
@@ -283,36 +301,82 @@
     pulseEl.style.height = spotlightEl.style.height;
   }
 
+  function viewportEdgePadding() {
+    try {
+      const vv = typeof window.visualViewport !== "undefined" ? window.visualViewport : null;
+      const sx = vv ? vv.offsetLeft || 0 : 0;
+      const sy = vv ? vv.offsetTop || 0 : 0;
+      const vw = vv ? vv.width : window.innerWidth;
+      const vh = vv ? vv.height : window.innerHeight;
+      /** Baseline margin; safe-area is also applied on the tip via CSS padding on small viewports */
+      const m = 14;
+      return { left: sx + m, right: sx + vw - m, top: sy + m, bottom: sy + vh - m };
+    } catch {
+      return { left: 14, right: window.innerWidth - 14, top: 14, bottom: window.innerHeight - 14 };
+    }
+  }
+
   function positionTooltipNearRect(rect, placeBelow) {
     if (!tipEl || !arrowEl) return;
     const margin = 16;
-    const tipRectGuess = tipEl.getBoundingClientRect();
-    let top = placeBelow ? rect.bottom + margin : rect.top - tipRectGuess.height - margin;
+    const pad = viewportEdgePadding();
 
-    /** After first paint, clamp to viewport */
-    tipEl.style.top = `${Math.max(18, Math.min(top, window.innerHeight - (tipRectGuess.height || 120) - 14))}px`;
-    tipEl.style.left = "50%";
-    tipEl.style.transform = "translateX(-50%) scale(1)";
+    const applyLayout = () => {
+      let tR = tipEl.getBoundingClientRect();
 
-    /** Second pass once layout updated */
-    requestAnimationFrame(() => {
-      const tR = tipEl.getBoundingClientRect();
-      top = placeBelow ? rect.bottom + margin : rect.top - tR.height - margin;
-      if (top + tR.height > window.innerHeight - 12 && !placeBelow) {
-        tipEl.style.top = `${Math.max(18, rect.top - tR.height - margin)}px`;
-      } else if (top < 12 && placeBelow) {
-        tipEl.style.top = `${Math.min(window.innerHeight - tR.height - 12, rect.top - margin - tR.height)}px`;
-      } else {
-        tipEl.style.top = `${Math.max(18, Math.min(top, window.innerHeight - tR.height - 12))}px`;
+      /** Vertical: prefer below/above based on remaining space */
+      let top = placeBelow ? rect.bottom + margin : rect.top - tR.height - margin;
+      if (top + tR.height > pad.bottom && placeBelow) {
+        top = rect.top - tR.height - margin;
+      }
+      if (top < pad.top && !placeBelow) {
+        top = rect.bottom + margin;
       }
 
-      /** Arrow indicator toward target horizontal center */
-      const cxTarget = rect.left + rect.width / 2;
+      /** Clamp vertically into padded viewport */
+      const maxTop = Math.max(pad.top, pad.bottom - tR.height);
+      top = Math.max(pad.top, Math.min(top, maxTop));
+
+      /** Horizontal center on target + clamp full box inside padded viewport */
+      const targetCx = rect.left + rect.width / 2;
+      let cx = targetCx;
+      const halfW = tR.width / 2;
+      cx = Math.max(pad.left + halfW, Math.min(pad.right - halfW, cx));
+
+      tipEl.style.left = `${Math.round(cx)}px`;
+      tipEl.style.top = `${Math.round(top)}px`;
+      tipEl.style.transform = "translate(-50%, 0)";
+
+      /** Re-measure after horizontal move (max one extra pass) */
+      tR = tipEl.getBoundingClientRect();
+      if (tR.left < pad.left - 0.5 || tR.right > pad.right + 0.5) {
+        const halfW2 = tR.width / 2;
+        cx = Math.max(pad.left + halfW2, Math.min(pad.right - halfW2, targetCx));
+        tipEl.style.left = `${Math.round(cx)}px`;
+        tR = tipEl.getBoundingClientRect();
+        top = Math.max(pad.top, Math.min(top, pad.bottom - tR.height));
+        tipEl.style.top = `${Math.round(top)}px`;
+      }
+
+      /** Arrow nudged toward target center (stays inside tooltip width) */
       const cxTip = tR.left + tR.width / 2;
-      const dx = cxTarget - cxTip;
-      const arrowClamp = Math.max(-Math.min(80, (tR.width || 260) / 2 - 20), Math.min(80, dx * 0.25));
+      const dx = targetCx - cxTip;
+      const maxNudge = Math.max(20, tR.width / 2 - 28);
+      const arrowClamp = Math.max(-maxNudge, Math.min(maxNudge, dx * 0.35));
       arrowEl.style.marginLeft = `${arrowClamp}px`;
       arrowEl.style.transform = placeBelow ? "rotate(180deg)" : "rotate(0deg)";
+    };
+
+    /** First paint with estimated height so vertical choice is stable */
+    tipEl.style.left = `${Math.round(rect.left + rect.width / 2)}px`;
+    tipEl.style.transform = "translate(-50%, 0)";
+    const estH = tipEl.getBoundingClientRect().height || 200;
+    let guessTop = placeBelow ? rect.bottom + margin : rect.top - estH - margin;
+    guessTop = Math.max(pad.top, Math.min(guessTop, pad.bottom - estH));
+    tipEl.style.top = `${Math.round(guessTop)}px`;
+
+    requestAnimationFrame(() => {
+      applyLayout();
     });
   }
 
@@ -329,7 +393,7 @@
     arrowEl.style.display = "none";
     tipEl.style.top = "50%";
     tipEl.style.left = "50%";
-    tipEl.style.transform = "translate(-50%, -50%) scale(1)";
+    tipEl.style.transform = "translate(-50%, -50%)";
   }
 
   function positionForCurrentStep(firstPaint) {
@@ -344,8 +408,9 @@
       rootEl.style.opacity = String(firstPaint ? "0" : "1");
       requestAnimationFrame(() => {
         rootEl.style.opacity = "1";
-        tipEl.animate([{ opacity: 0.55, transform: "translate(-50%, -46%) scale(0.96)" }, { opacity: 1, transform: "translate(-50%, -50%) scale(1)" }], {
-          duration: 260,
+        /** Opacity-only: avoid overriding translate(-50%,-50%) on the tip (transform fights cause jump/jitter). */
+        tipEl.animate([{ opacity: 0.65 }, { opacity: 1 }], {
+          duration: 220,
           easing: "cubic-bezier(0.22, 1, 0.36, 1)"
         }).catch(() => {});
       });
@@ -384,13 +449,13 @@
     }
 
     rootEl.style.opacity = "1";
-    tipEl.animate([{ opacity: 0.75, transform: "scale(0.98)" }, { opacity: 1, transform: "scale(1)" }], {
-      duration: 200,
+    tipEl.animate([{ opacity: 0.78 }, { opacity: 1 }], {
+      duration: 180,
       easing: "cubic-bezier(0.33, 1, 0.68, 1)"
     }).catch(() => {});
   }
 
-  async function persistTutorialSeen() {
+  function markTutorialSeenLocally() {
     try {
       if (typeof currentUser !== "undefined" && currentUser && currentUser.id != null) {
         localStorage.setItem(tutorialLocalDoneKey(currentUser.id), "1");
@@ -402,6 +467,10 @@
       currentUser.hasSeenTutorial = true;
       if (typeof persistCurrentUserToStorage === "function") persistCurrentUserToStorage();
     }
+  }
+
+  async function persistTutorialSeen() {
+    markTutorialSeenLocally();
     try {
       if (typeof apiFetch === "function" && typeof accessToken !== "undefined" && accessToken) {
         await apiFetch("/api/user/settings", {
@@ -421,8 +490,10 @@
       return;
     }
     active = false;
+    /** Local + storage first so a fast refresh right after Skip never replays the tour. */
+    markTutorialSeenLocally();
     rootEl.classList.add("hidden");
-    tipEl.animate([{ opacity: 1, transform: tipEl.style.transform }, { opacity: 0 }], { duration: 140 }).catch(() => {});
+    tipEl.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 140 }).catch(() => {});
     document.documentElement.classList.remove("onboarding-tutorial-open");
 
     teardownTargetDecoration();

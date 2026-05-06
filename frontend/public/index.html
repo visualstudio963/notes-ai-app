@@ -149,14 +149,23 @@
 
   <div class="app">
     <div id="trialGiftModal" class="trial-gift-modal hidden" role="dialog" aria-modal="true" aria-labelledby="trialGiftTitle">
-      <div class="trial-gift-modal__backdrop" aria-hidden="true"></div>
+      <div class="trial-gift-modal__backdrop" aria-hidden="true" onclick="dismissTrialGiftModal()"></div>
       <div class="trial-gift-modal__dialog">
-        <p class="trial-gift-modal__badge" data-t="trialGiftBadge">Your welcome gift</p>
+        <button
+          type="button"
+          class="trial-gift-modal__close"
+          onclick="dismissTrialGiftModal()"
+          data-t-aria-label="trialGiftCloseAria"
+          aria-label="Close notification"
+        >
+          ×
+        </button>
+        <p class="trial-gift-modal__badge" data-t="trialGiftBadge">New-user gift</p>
         <h2 id="trialGiftTitle" class="trial-gift-modal__title" data-t="trialGiftTitle">
-          Standard access free for 7 days
+          7-day Standard — on us
         </h2>
         <p class="trial-gift-modal__lead" data-t="trialGiftLead">
-          You&apos;ve received Standard on us for one week — here&apos;s everything you can try in Notes AI today.
+          As a new user, we&apos;re gifting you 7 days of Standard access for free. Tap Claim to continue — your trial is ready.
         </p>
         <ul class="trial-gift-modal__list">
           <li data-t="trialGiftItem1">Full Web Chat (local bot flows + saving reminders from chat)</li>
@@ -168,9 +177,14 @@
         <p class="trial-gift-modal__note" data-t="trialGiftAfter">
           After 7 days you move to the Free plan unless you subscribe or redeem Standard with coins. Open Rewards &amp; coins anytime during the trial.
         </p>
-        <button type="button" class="save-button trial-gift-modal__cta" onclick="dismissTrialGiftModal()" data-t="trialGiftCta">
-          Accept gift
-        </button>
+        <div class="trial-gift-modal__actions">
+          <button type="button" class="save-button trial-gift-modal__cta" onclick="dismissTrialGiftModal()" data-t="trialGiftCta">
+            Claim
+          </button>
+          <button type="button" class="trial-gift-modal__later" onclick="dismissTrialGiftModal()" data-t="trialGiftLater">
+            Close
+          </button>
+        </div>
       </div>
     </div>
     <button
@@ -347,6 +361,7 @@
             <div class="topbar-titles">
               <p class="eyebrow topbar-eyebrow" data-t="intelligentNotes">Intelligent Notes</p>
               <h1 class="topbar-heading" data-t="cozzyNotes">Notes & reminders</h1>
+              <p id="appOfflineBadge" class="topbar-offline-badge hidden" role="status" aria-live="polite"></p>
             </div>
           </div>
           <div class="account-area account-area-top">
@@ -703,10 +718,10 @@
                         </button>
                       </div>
                       <input id="scanCamUploadInput" type="file" accept="image/*" class="hidden" onchange="scanCamHandlePhotoUpload(this)" />
+                      <!-- Omit accept so Android/WebView opens full storage chooser (e.g. Samsung My Files); handler still allows PDF/images -->
                       <input
                         id="scanCamUploadInputDoc"
                         type="file"
-                        accept=".pdf,application/pdf,image/jpeg,image/png,image/webp,image/*"
                         class="hidden"
                         onchange="scanCamHandleDocumentUpload(this)"
                       />
@@ -1424,18 +1439,33 @@
             </section>
 
             <section id="settingsSection-notifications" class="settings-section settings-section-pane hidden" data-settings-pane="notifications">
-              <h3 class="section-title" data-t="settingsNotificationsTitle">Notifications</h3>
-              <div class="settings-notif-toggle-row">
-                <span data-t="settingsNotificationsSimple">Aktivizo njoftimet</span>
-                <label class="settings-switch" for="settingsNotifToggle">
-                  <input id="settingsNotifToggle" type="checkbox" onchange="settingsNotificationsToggleChanged(this.checked)" />
-                  <span class="settings-switch__track" aria-hidden="true"></span>
-                </label>
+              <div id="settingsNotifSection" class="settings-notif-card">
+                <h3 class="section-title settings-notif-card__title" data-t="settingsNotificationsTitle">Notifications</h3>
+                <p class="preference-desc settings-notif-card__lead" data-t="settingsNotificationsIntro">
+                  Browser alerts for date and time reminders while this app is open.
+                </p>
+                <div class="settings-notif-toggle-row">
+                  <div class="settings-notif-toggle-text">
+                    <span class="settings-notif-label" data-t="settingsNotificationsSimple">Aktivizo njoftimet</span>
+                  </div>
+                  <label class="settings-switch" for="settingsNotifToggle">
+                    <input id="settingsNotifToggle" type="checkbox" onchange="settingsNotificationsToggleChanged(this.checked)" />
+                    <span class="settings-switch__track" aria-hidden="true"></span>
+                  </label>
+                </div>
+                <div class="settings-notif-callout">
+                  <p id="settingsNotifPermission" class="settings-notif-status" role="status">—</p>
+                </div>
+                <button
+                  type="button"
+                  id="settingsNotifEnableBtn"
+                  class="save-button settings-notif-btn"
+                  onclick="requestNotificationPermission()"
+                  data-t="enableNotifications"
+                >
+                  Enable notifications
+                </button>
               </div>
-              <p id="settingsNotifPermission" class="settings-notif-status" role="status">—</p>
-              <button type="button" id="settingsNotifEnableBtn" class="save-button settings-notif-btn" onclick="requestNotificationPermission()" data-t="enableNotifications">
-                Enable notifications
-              </button>
             </section>
 
             <section

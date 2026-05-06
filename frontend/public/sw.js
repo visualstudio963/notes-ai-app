@@ -1,9 +1,9 @@
 /**
- * Service worker — navigations always network (no HTML shell cache). Other same-origin GET uses
- * network-first; cache used only as offline fallback. CACHE_NAME includes deploy id after build inject.
+ * Offline-only: same-origin static GET (not navigations). Network first, cache on success,
+ * fallback to cache when offline. HTML is never handled here — left to the browser + CDN headers.
  */
 
-const CACHE_NAME = "notes-ai-__BUILD_HASH__";
+const CACHE_NAME = "notes-ai-offline-static";
 
 self.addEventListener("install", () => {
   self.skipWaiting();
@@ -22,6 +22,7 @@ self.addEventListener("activate", (event) => {
 
 function shouldHandleFetch(request) {
   if (request.method !== "GET") return false;
+  if (request.mode === "navigate") return false;
   try {
     const url = new URL(request.url);
     if (url.origin !== self.location.origin) return false;
@@ -33,30 +34,14 @@ function shouldHandleFetch(request) {
   }
 }
 
-function isNavigationOrHtml(request) {
-  if (request.mode === "navigate") return true;
-  const accept = request.headers.get("accept") || "";
-  return accept.includes("text/html");
-}
-
 self.addEventListener("fetch", (event) => {
   if (!shouldHandleFetch(event.request)) return;
   const req = event.request;
 
-  if (isNavigationOrHtml(req)) {
-    event.respondWith(fetch(req));
-    return;
-  }
-
   event.respondWith(
     fetch(req)
       .then((networkResponse) => {
-        if (
-          networkResponse &&
-          networkResponse.ok &&
-          networkResponse.type === "basic" &&
-          req.method === "GET"
-        ) {
+        if (networkResponse && networkResponse.ok && networkResponse.type === "basic") {
           const copy = networkResponse.clone();
           caches
             .open(CACHE_NAME)

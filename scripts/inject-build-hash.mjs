@@ -1,6 +1,6 @@
 /**
- * Replace __BUILD_HASH__ in frontend/public HTML + sw.js before Vercel deploy.
- * Keeps immutable URL tokens locally as __BUILD_HASH__; CI substitutes a short git SHA or timestamp.
+ * Replace __BUILD_HASH__ in frontend/public HTML before deploy (query params on assets + inline build id).
+ * Service worker stays a static file — only its registration URL picks up a fresh ?v= per deploy.
  */
 
 import fs from "fs";
@@ -17,7 +17,7 @@ const raw =
   process.env.CF_PAGES_COMMIT_SHA ||
   process.env.GITHUB_SHA ||
   "";
-/** Twelve hex chars keeps query strings short; fallback is unique per non-CI run. */
+/** Short id for query strings; fallback is unique per non-CI run. */
 const BUILD = raw ? raw.slice(0, 12) : `local-${Date.now().toString(36)}`;
 
 function patch(relPath) {
@@ -38,7 +38,5 @@ function patch(relPath) {
 
 const htmlFiles = fs.readdirSync(publicDir).filter((f) => f.endsWith(".html"));
 for (const f of htmlFiles) patch(f);
-
-patch("sw.js");
 
 console.log(`inject-build-hash: done (BUILD=${BUILD})`);

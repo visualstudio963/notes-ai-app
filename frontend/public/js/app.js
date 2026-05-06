@@ -2404,6 +2404,7 @@ function clearCurrentUser() {
   sessionStorage.removeItem("accessToken");
   sessionStorage.removeItem("refreshToken");
   sessionStorage.removeItem("currentUser");
+  sessionStorage.removeItem("oauth_handoff_tried");
   currentUser = null;
   accessToken = null;
   refreshToken = null;
@@ -4035,7 +4036,7 @@ async function loadDiscordCommunityConfig() {
   }
 }
 
-/** After OAuth redirect: HTTP-only cookies + POST handoff (no tokens in URL); legacy #google_oauth supported once. */
+/** OAuth: backend sets short-lived httpOnly cookies on redirect; one POST exchanges them for tokens (nothing in URL). */
 async function finalizeGoogleOAuthSession(payload) {
   const at = payload && payload.accessToken;
   const rt = payload && payload.refreshToken;
@@ -4076,7 +4077,7 @@ async function finalizeGoogleOAuthSession(payload) {
   if (typeof scheduleOnboardingTutorialAfterAuth === "function") scheduleOnboardingTutorialAfterAuth();
 }
 
-async function consumeGoogleOAuthPostRedirect() {
+async function applyGoogleOAuthLanding() {
   const params = new URLSearchParams(window.location.search);
   const qErr = params.get("google_oauth_error");
   if (qErr) {
@@ -4096,43 +4097,9 @@ async function consumeGoogleOAuthPostRedirect() {
     return;
   }
 
-  const h = window.location.hash || "";
-  if (h.includes("google_oauth=")) {
-    try {
-      const idx = h.indexOf("google_oauth=") + "google_oauth=".length;
-      const parsed = JSON.parse(decodeURIComponent(h.substring(idx)));
-      if (!parsed.accessToken || !parsed.refreshToken) {
-        showToast("Google sign-in could not be completed.");
-        history.replaceState(null, "", window.location.pathname + window.location.search);
-        return;
-      }
-      accessToken = parsed.accessToken;
-      refreshToken = parsed.refreshToken;
-      localStorage.setItem("accessToken", parsed.accessToken);
-      localStorage.setItem("refreshToken", parsed.refreshToken);
-      const data = await apiFetch("/api/me", { method: "GET" });
-      if (!data || !data.user) {
-        showToast("Could not load account after Google sign-in.");
-        history.replaceState(null, "", window.location.pathname + window.location.search);
-        return;
-      }
-      await finalizeGoogleOAuthSession({
-        accessToken: parsed.accessToken,
-        refreshToken: parsed.refreshToken,
-        user: data.user
-      });
-    } catch (e) {
-      console.error(e);
-      showToast("Google sign-in could not be completed.");
-      history.replaceState(null, "", window.location.pathname + window.location.search);
-    }
-    return;
-  }
-
-  const pathOnly = window.location.pathname || "";
-  const onOauthLanding = /\/set-password\/?$/.test(pathOnly) || /\/dashboard\/?$/.test(pathOnly);
-  if (!onOauthLanding) return;
   if (window.localStorage.getItem("accessToken") && window.localStorage.getItem("refreshToken")) return;
+  if (window.sessionStorage.getItem("oauth_handoff_tried")) return;
+  window.sessionStorage.setItem("oauth_handoff_tried", "1");
 
   try {
     const res = await fetch(buildApiUrl("/api/auth/oauth-handoff"), {
@@ -4142,10 +4109,14 @@ async function consumeGoogleOAuthPostRedirect() {
       body: "{}"
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.accessToken || !data.refreshToken || !data.user) return;
+    if (!res.ok || !data.accessToken || !data.refreshToken || !data.user) {
+      window.sessionStorage.removeItem("oauth_handoff_tried");
+      return;
+    }
     await finalizeGoogleOAuthSession(data);
   } catch (e) {
     console.error(e);
+    window.sessionStorage.removeItem("oauth_handoff_tried");
   }
 }
 
@@ -8632,7 +8603,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     window.NoteRichEditor.initNoteRichEditorBridge();
   }
   initAuthLandingUi();
-  await consumeGoogleOAuthPostRedirect();
+  await applyGoogleOAuthLanding();
   void ensureNativeNotificationChannel();
   // Initialize theme and language
   applyTheme(getCurrentTheme());

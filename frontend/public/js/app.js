@@ -2233,6 +2233,7 @@ function syncWebChatSoftPaywallUi() {
 }
 
 function updatePremiumUi() {
+  if (authBootstrapPhaseActive) return;
   syncPremiumGatedNav();
   syncDailyPlannerAccessUi();
   syncWebChatSoftPaywallUi();
@@ -2868,6 +2869,59 @@ function refreshClientAuthFromStorage() {
   currentUser = getStoredUser();
   accessToken = getStoredAccessToken();
   refreshToken = getStoredRefreshToken();
+}
+
+function isAuthSessionReady() {
+  return Boolean(
+    accessToken &&
+      refreshToken &&
+      currentUser &&
+      typeof currentUser === "object" &&
+      (currentUser.username || currentUser.email || currentUser.emailOrPhone || currentUser._id)
+  );
+}
+
+/**
+ * After tokens are in storage, ensure we have a user object (from storage or /api/me + refresh).
+ * Prevents “dashboard with no user” and clears dead tokens.
+ */
+async function hydrateSessionUserFromTokens() {
+  if (!accessToken || !refreshToken) return false;
+
+  if (
+    currentUser &&
+    typeof currentUser === "object" &&
+    (currentUser.username || currentUser.email || currentUser.emailOrPhone || currentUser._id)
+  ) {
+    return true;
+  }
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const data = await apiFetch("/api/me", { method: "GET" });
+      if (data && data.user) {
+        const remember = Boolean(localStorage.getItem("refreshToken"));
+        storeCurrentUser(data.user, accessToken, refreshToken, remember, { skipUi: true });
+        return true;
+      }
+    } catch {
+      /* retry path below */
+    }
+    if (attempt === 0) {
+      const refreshed = await tryRefreshAccessToken();
+      if (!refreshed) break;
+    }
+  }
+  return false;
+}
+
+/** SPA home lives at `/`; `/dashboard` is only a legacy deep-link — normalize once session is valid. */
+function normalizeAuthenticatedSpaPath() {
+  if (!isAuthSessionReady()) return;
+  const path = (window.location.pathname || "").replace(/\/+$/, "") || "/";
+  if (path === "/dashboard") {
+    history.replaceState(null, "", "/" + (window.location.search || ""));
+  }
 }
 
 function syncAuthShellVisibility() {
@@ -4082,6 +4136,10 @@ async function finalizeGoogleOAuthSession(payload) {
 }
 
 function presentPostGoogleOAuthChrome(u) {
+  if (!isAuthSessionReady()) {
+    showToast("Could not restore your session. Please sign in again.");
+    return;
+  }
   const welcomeUser = (u && u.username) || (currentUser && currentUser.username) || "";
   const finishGoogleOAuthSuccess = () => {
     refreshReminderRelatedViews();
@@ -4100,6 +4158,10 @@ function presentPostGoogleOAuthChrome(u) {
 /** After shell is visible: toast + navigation for a session that was persisted during bootstrap. */
 async function presentPendingPostOAuthLandingIfAny() {
   if (!pendingPostOAuthPresentation) return;
+  if (!isAuthSessionReady()) {
+    pendingPostOAuthPresentation = false;
+    return;
+  }
   pendingPostOAuthPresentation = false;
   await loadUserSettings();
   if ("Notification" in window && Notification.permission === "default") {
@@ -4141,22 +4203,18 @@ async function runAuthBootstrap() {
     return;
   }
 
-  const hasPair = Boolean(accessToken && refreshToken);
-  if (hasPair && !currentUser) {
-    try {
-      const data = await apiFetch("/api/me", { method: "GET" });
-      if (data && data.user) {
-        const remember = Boolean(
-          typeof localStorage !== "undefined" && localStorage.getItem("refreshToken")
-        );
-        storeCurrentUser(data.user, accessToken, refreshToken, remember, { skipUi: true });
-      }
-    } catch {
-      /* keep tokens */
+  if (accessToken && refreshToken) {
+    const hydrated = await hydrateSessionUserFromTokens();
+    if (!hydrated) {
+      clearCurrentUser();
+    } else {
+      return;
     }
   }
 
-  if (accessToken && refreshToken) return;
+  if (accessToken && refreshToken) {
+    return;
+  }
 
   if (window.sessionStorage.getItem("oauth_handoff_tried")) return;
   window.sessionStorage.setItem("oauth_handoff_tried", "1");
@@ -8689,6 +8747,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     document.documentElement.classList.remove("auth-bootstrap-pending");
   }
 
+  normalizeAuthenticatedSpaPath();
   handleGoogleOAuthQueryParams();
 
   initAuthLandingUi();
@@ -8705,7 +8764,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   if (pendingPostOAuthPresentation) {
     await presentPendingPostOAuthLandingIfAny();
-  } else if (currentUser && accessToken) {
+  } else if (isAuthSessionReady()) {
     await loadUserSettings();
     startWebNotificationScheduler();
     if ("Notification" in window && Notification.permission === "default") {
@@ -8719,7 +8778,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
     if (typeof scheduleOnboardingTutorialAfterAuth === "function") scheduleOnboardingTutorialAfterAuth();
   }
-  if (currentUser && accessToken && isBrowserOnline()) void offlineNotesFlushQueue();
+  if (isAuthSessionReady() && isBrowserOnline()) void offlineNotesFlushQueue();
 
   window.addEventListener("online", () => {
     syncOfflineIndicatorUi();

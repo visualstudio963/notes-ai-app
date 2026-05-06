@@ -377,7 +377,7 @@ const translations = {
     menuScanCam: "Scan Cam",
     menuCoinsRewards: "Rewards & coins",
     coinsHubEyebrow: "Rewards",
-    coinsHubTitle: "Coins Rewards",
+    coinsHubTitle: "Coins & rewards",
     coinsDashYourBalance: "Your balance",
     coinsDashEarnSub: "Earn coins daily and unlock features",
     coinsDashBalanceSlash: "/",

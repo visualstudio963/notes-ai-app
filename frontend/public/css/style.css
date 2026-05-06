@@ -14338,14 +14338,31 @@ button.daily-checkin-slot {
 /* Coins hub: back on the left, eyebrow + title optically centered */
 #coins-hub .coins-dash-topbar--balanced {
   display: grid;
-  grid-template-columns: minmax(4.75rem, 5.75rem) minmax(0, 1fr) minmax(4.75rem, 5.75rem);
+  grid-template-columns: minmax(5.5rem, 6.6rem) minmax(0, 1fr) minmax(5.5rem, 6.6rem);
   align-items: center;
-  column-gap: 8px;
+  column-gap: 10px;
   margin-bottom: 0.62rem;
 }
 
 #coins-hub .coins-dash-topbar--balanced .coins-dash-back-btn {
   justify-self: start;
+  font-size: 0.8rem;
+  font-weight: 400;
+  min-height: 32px;
+  padding: 6px 10px;
+  border-color: rgba(148, 163, 184, 0.15);
+  color: rgba(241, 245, 249, 0.95);
+}
+
+#coins-hub .coins-dash-topbar--balanced .coins-dash-back-btn__glyph {
+  font-size: 1.06rem;
+  font-weight: 300;
+  line-height: 1;
+  opacity: 1;
+}
+
+#coins-hub .coins-dash-topbar--balanced .coins-dash-back-btn__label {
+  font-weight: 400;
 }
 
 #coins-hub .coins-dash-topbar--balanced .coins-dash-topbar-text {
@@ -14358,6 +14375,11 @@ button.daily-checkin-slot {
 #coins-hub .coins-dash-topbar--balanced .coins-dash-topbar-text .eyebrow {
   margin: 0 0 4px;
   text-align: center;
+  text-transform: none;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+  font-size: 0.7rem;
+  color: rgba(226, 232, 240, 0.88);
 }
 
 #coins-hub .coins-dash-topbar--balanced .coins-dash-page-title {

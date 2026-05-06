@@ -79,14 +79,40 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+/**
+ * Keep email + emailOrPhone in sync (required by schema). Legacy imports or rare writes
+ * can omit `email`; any full document save (e.g. coins daily claim) would otherwise fail
+ * with "Path `email` is required."
+ * Must match LOCAL_ACCOUNT_EMAIL_DOMAIN in auth.routes.js for synthetic local accounts.
+ */
+const SYNTHETIC_EMAIL_DOMAIN = "users.notesai.invalid";
+
 userSchema.pre("validate", function syncLegacyEmailOrPhone(next) {
-  if (typeof this.email === "string") {
-    this.email = this.email.trim().toLowerCase();
+  try {
+    if (typeof this.email === "string") {
+      this.email = this.email.trim().toLowerCase();
+    }
+
+    const eop =
+      typeof this.emailOrPhone === "string" ? this.emailOrPhone.trim().toLowerCase() : "";
+
+    if ((!this.email || this.email === "") && eop.includes("@")) {
+      this.email = eop;
+    }
+
+    const u = typeof this.username === "string" ? this.username.trim().toLowerCase() : "";
+    if ((!this.email || this.email === "") && u) {
+      this.email = `${u}@${SYNTHETIC_EMAIL_DOMAIN}`;
+    }
+
+    if ((!this.emailOrPhone || String(this.emailOrPhone).trim() === "") && this.email) {
+      this.emailOrPhone = this.email;
+    }
+
+    next();
+  } catch (e) {
+    next(e);
   }
-  if (!this.emailOrPhone && this.email) {
-    this.emailOrPhone = this.email;
-  }
-  next();
 });
 
 userSchema.index(

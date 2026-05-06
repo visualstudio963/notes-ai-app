@@ -1705,10 +1705,14 @@ function persistCurrentUserToStorage() {
 function captureInviteCodeFromLocation() {
   try {
     const path = window.location.pathname || "";
-    const pathMatch = path.match(/\/invite\/([A-Za-z0-9]{4,})\/?$/i);
+    const pathMatch = path.match(/\/invite\/([A-Za-z0-9]+)\/?$/i);
     if (pathMatch) {
-      const code = pathMatch[1].toUpperCase();
-      sessionStorage.setItem("aiNotesPendingInvite", code);
+      const raw = pathMatch[1];
+      const norm = raw ? String(raw).toUpperCase() : "";
+      /* Backend expects ≥ 4 alphanumeric — real referral codes always satisfy this */
+      if (norm.length >= 4) {
+        sessionStorage.setItem("aiNotesPendingInvite", norm);
+      }
       const u = new URL(window.location.href);
       u.pathname = "/";
       u.searchParams.delete("invite");
@@ -1768,6 +1772,11 @@ async function tryQuietCoinsBootstrap() {
     const coins = await apiFetch("/api/coins/status");
     if (coins && coins.balance != null) {
       currentUser.coinBalance = Number(coins.balance) || 0;
+      const rc =
+        coins.referralCode != null && String(coins.referralCode).trim()
+          ? String(coins.referralCode).trim()
+          : "";
+      if (rc) currentUser.referralCode = rc;
       persistCurrentUserToStorage();
       updatePremiumUi();
     }
@@ -1789,11 +1798,11 @@ async function tryConsumePendingInviteCode() {
   }
   if (pending.length < 4) return;
   try {
-    sessionStorage.removeItem("aiNotesPendingInvite");
     await apiFetch("/api/coins/invite/bind", {
       method: "POST",
       body: JSON.stringify({ referralCode: pending })
     });
+    sessionStorage.removeItem("aiNotesPendingInvite");
     const data = await apiFetch("/api/premium/status");
     mergePremiumStatusIntoCurrentUser(data);
     persistCurrentUserToStorage();
@@ -3092,9 +3101,22 @@ async function submitChooseUsername() {
   }
   try {
     const deviceId = typeof getOrCreateDeviceId === "function" ? getOrCreateDeviceId() : "";
+    let inviteFromLink = "";
+    try {
+      inviteFromLink = String(sessionStorage.getItem("aiNotesPendingInvite") || "")
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "");
+    } catch {
+      inviteFromLink = "";
+    }
+    const signupBody =
+      inviteFromLink.length >= 4
+        ? { username, deviceId, referralCode: inviteFromLink }
+        : { username, deviceId };
     const data = await apiFetch("/api/auth/complete-google-signup", {
       method: "POST",
-      body: JSON.stringify({ username, deviceId })
+      body: JSON.stringify(signupBody)
     });
     storeCurrentUser(data.user, data.accessToken, data.refreshToken, true);
     chooseUsernameInitStarted = false;
@@ -3449,7 +3471,6 @@ async function refreshCoinsHubUi() {
   const btnRedeem = document.getElementById("coinsHubRedeemBtn");
   const videoLbl = document.getElementById("coinsHubVideoBtnLabel");
   const redeemLbl = document.getElementById("coinsHubRedeemBtnLabel");
-  const codeEl = document.getElementById("coinsHubReferralCode");
   const linkInput = document.getElementById("coinsHubInviteLinkInput");
   const inviteStatsLine = document.getElementById("coinsHubInviteStatsLine");
   const multEl = document.getElementById("coinsHubEarnMult");
@@ -3472,6 +3493,10 @@ async function refreshCoinsHubUi() {
   const codeStr =
     coins.referralCode && String(coins.referralCode).trim() ? String(coins.referralCode).trim() : "";
   const inviteUrl = coinsHubBuildInviteUrl(codeStr);
+  if (currentUser && codeStr) {
+    currentUser.referralCode = codeStr;
+    persistCurrentUserToStorage();
+  }
 
   coinsHubApplyStreakUi(coins);
 
@@ -3547,9 +3572,6 @@ async function refreshCoinsHubUi() {
     btnRedeem.disabled = coins.lifecycle === "premium" || balance < cost;
   }
 
-  if (codeEl) {
-    codeEl.textContent = codeStr || "—";
-  }
   if (linkInput) {
     linkInput.value = inviteUrl;
     linkInput.toggleAttribute("disabled", !inviteUrl);
@@ -3651,16 +3673,10 @@ function coinsHubCopyInvite() {
     }
     return;
   }
-  const raw = document.getElementById("coinsHubReferralCode");
   const code =
-    raw &&
-    typeof raw.textContent === "string" &&
-    raw.textContent.trim().length > 0 &&
-    raw.textContent.trim() !== "—"
-      ? raw.textContent.trim().toUpperCase()
-      : currentUser && currentUser.referralCode
-        ? String(currentUser.referralCode).trim().toUpperCase()
-        : "";
+    currentUser && currentUser.referralCode
+      ? String(currentUser.referralCode).trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
+      : "";
   if (!code) {
     showToast(typeof t === "function" ? t("coinsInviteNoCode") : "Invite code unavailable.");
     return;

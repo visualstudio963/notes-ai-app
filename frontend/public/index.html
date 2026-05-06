@@ -1106,6 +1106,23 @@
 
       <section id="coins-hub" class="page hidden coins-dash-page" aria-labelledby="coinsHubTitleHeading">
         <div class="page-shell coins-dash-shell">
+          <header class="coins-dash-topbar coins-dash-topbar--balanced">
+            <button
+              type="button"
+              class="coins-dash-back-btn"
+              onclick="goHome()"
+              data-t-title="coinsDashBackAria"
+            >
+              <span class="coins-dash-back-btn__glyph" aria-hidden="true">←</span>
+              <span class="coins-dash-back-btn__label" data-t="home">Home</span>
+            </button>
+            <div class="coins-dash-topbar-text">
+              <p class="eyebrow" data-t="coinsHubEyebrow">Rewards</p>
+              <h2 id="coinsHubTitleHeading" class="coins-dash-page-title" data-t="coinsHubTitle">Rewards</h2>
+            </div>
+            <span class="coins-dash-topbar-slot" aria-hidden="true"></span>
+          </header>
+
           <div id="coinsHubTrialBanner" class="coins-dash-alert coins-dash-alert--trial hidden" role="status">
             <span class="coins-dash-alert-icon" aria-hidden="true">⭐</span>
             <p id="coinsHubTrialText" class="coins-dash-alert-text"></p>
@@ -1208,9 +1225,6 @@
               </button>
             </div>
             <p id="coinsHubInviteStatsLine" class="coins-invite-panel__stats" aria-live="polite"></p>
-            <p class="coins-dash-code-row coins-invite-panel__code">
-              <span data-t="coinsDashCodeLabel">Code</span>: <strong id="coinsHubReferralCode" class="coins-dash-code-strong" aria-live="polite">—</strong>
-            </p>
           </article>
 
           <details class="coins-dash-details coins-dash-details--learn">
@@ -1229,22 +1243,6 @@
               </ul>
             </div>
           </details>
-
-          <header class="coins-dash-topbar coins-dash-topbar--bottom">
-            <button
-              type="button"
-              class="coins-dash-back-btn"
-              onclick="goHome()"
-              data-t-title="coinsDashBackAria"
-            >
-              <span class="coins-dash-back-btn__glyph" aria-hidden="true">←</span>
-              <span class="coins-dash-back-btn__label" data-t="home">Home</span>
-            </button>
-            <div class="coins-dash-topbar-text">
-              <p class="eyebrow" data-t="coinsHubEyebrow">Rewards</p>
-              <h2 id="coinsHubTitleHeading" class="coins-dash-page-title" data-t="coinsHubTitle">Rewards</h2>
-            </div>
-          </header>
         </div>
       </section>
 

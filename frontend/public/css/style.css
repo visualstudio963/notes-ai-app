@@ -14349,7 +14349,46 @@ button.daily-checkin-slot {
   margin-bottom: 0.5rem;
 }
 
-/* Bottom dock: page nav sits above fixed app topbar — only coins hub + narrow layout */
+/* Coins hub: back on the left, eyebrow + title optically centered */
+#coins-hub .coins-dash-topbar--balanced {
+  display: grid;
+  grid-template-columns: minmax(4.75rem, 5.75rem) minmax(0, 1fr) minmax(4.75rem, 5.75rem);
+  align-items: center;
+  column-gap: 8px;
+  margin-bottom: 0.62rem;
+}
+
+#coins-hub .coins-dash-topbar--balanced .coins-dash-back-btn {
+  justify-self: start;
+}
+
+#coins-hub .coins-dash-topbar--balanced .coins-dash-topbar-text {
+  flex: unset;
+  min-width: 0;
+  text-align: center;
+  justify-self: stretch;
+}
+
+#coins-hub .coins-dash-topbar--balanced .coins-dash-topbar-text .eyebrow {
+  margin: 0 0 4px;
+  text-align: center;
+}
+
+#coins-hub .coins-dash-topbar--balanced .coins-dash-page-title {
+  margin: 0;
+  text-align: center;
+  text-wrap: balance;
+}
+
+#coins-hub .coins-dash-topbar--balanced .coins-dash-topbar-slot {
+  display: block;
+  visibility: hidden;
+  pointer-events: none;
+  justify-self: end;
+  width: 100%;
+}
+
+/* Bottom dock: global app bar — only coins hub + narrow layout */
 @media (max-width: 840px) {
   body.coins-hub-open header.topbar {
     position: fixed !important;
@@ -14382,39 +14421,20 @@ button.daily-checkin-slot {
     ) !important;
   }
 
-  body.coins-hub-open #coins-hub .coins-dash-topbar--bottom {
-    position: fixed !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
-    z-index: 1402 !important;
-    margin: 0 !important;
-    padding: 10px max(14px, env(safe-area-inset-right, 0px)) 10px max(14px, env(safe-area-inset-left, 0px)) !important;
-    align-items: center !important;
-    background: rgba(11, 18, 34, 0.88) !important;
-    backdrop-filter: blur(14px) saturate(130%) !important;
-    -webkit-backdrop-filter: blur(14px) saturate(130%) !important;
-    border-bottom: none !important;
-    border-radius: 0 !important;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.06),
-      0 -4px 28px rgba(2, 6, 18, 0.4) !important;
-  }
-
   body.coins-hub-open #coins-hub .coins-dash-shell {
-    padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
   }
 
   body.coins-hub-open .web-chat-fab {
-    bottom: calc(max(24px, env(safe-area-inset-bottom, 0px) + 16px) + 132px) !important;
+    bottom: calc(max(24px, env(safe-area-inset-bottom, 0px) + 16px) + 88px) !important;
   }
 
   body.coins-hub-open .daily-planner-fab {
-    bottom: calc(max(24px, env(safe-area-inset-bottom, 0px) + 16px) + 132px + 54px + 12px) !important;
+    bottom: calc(max(24px, env(safe-area-inset-bottom, 0px) + 16px) + 88px + 54px + 12px) !important;
   }
 
   body.coins-hub-open .web-chat-fab-tip {
-    bottom: calc(max(34px, env(safe-area-inset-bottom, 0px) + 24px) + 132px) !important;
+    bottom: calc(max(34px, env(safe-area-inset-bottom, 0px) + 24px) + 88px) !important;
   }
 
   body.coins-hub-open .main {
@@ -14434,20 +14454,6 @@ button.daily-checkin-slot {
   body.coins-hub-open.mobile-scrolled header.topbar-inner {
     min-height: 48px !important;
     height: 48px !important;
-  }
-}
-
-@media (min-width: 841px) {
-  #coins-hub .coins-dash-shell {
-    display: flex;
-    flex-direction: column;
-  }
-
-  /* Header stays at end of DOM for mobile dock; desktop shows it above content */
-  #coins-hub .coins-dash-topbar--bottom {
-    order: -10;
-    margin-bottom: 0.5rem;
-    margin-top: 0;
   }
 }
 

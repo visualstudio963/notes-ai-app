@@ -2853,6 +2853,9 @@ let chooseUsernameInitStarted = false;
 /** When true, guest user intentionally opened the login/sign-up overlay (sidebar Account / requireAuth). */
 let authLoginModalOpen = false;
 
+/** True while waiting for POST /api/auth/oauth-handoff on /set-password (avoids false "guest on set-password" redirect). */
+let oauthSessionRestorePending = false;
+
 function syncAuthShellVisibility() {
   const landing = document.getElementById("authLanding");
   const choose = document.getElementById("chooseUsernameScreen");
@@ -2862,7 +2865,7 @@ function syncAuthShellVisibility() {
   const fab = document.getElementById("dailyPlannerFab");
   const loggedIn = Boolean(currentUser && accessToken);
 
-  if (!loggedIn && isSetPasswordPath()) {
+  if (!loggedIn && isSetPasswordPath() && !oauthSessionRestorePending) {
     history.replaceState(null, "", "/" + (window.location.search || ""));
     setPwd?.classList.add("hidden");
   }
@@ -4097,26 +4100,61 @@ async function applyGoogleOAuthLanding() {
     return;
   }
 
-  if (window.localStorage.getItem("accessToken") && window.localStorage.getItem("refreshToken")) return;
-  if (window.sessionStorage.getItem("oauth_handoff_tried")) return;
-  window.sessionStorage.setItem("oauth_handoff_tried", "1");
+  const hasStoredPair =
+    window.localStorage.getItem("accessToken") && window.localStorage.getItem("refreshToken");
+  const emptyTokens = !hasStoredPair;
+  const onSetPasswordRoute = isSetPasswordPath();
+
+  if (emptyTokens && onSetPasswordRoute) {
+    oauthSessionRestorePending = true;
+    document.body.classList.add("oauth-session-restore-pending");
+  }
 
   try {
-    const res = await fetch(buildApiUrl("/api/auth/oauth-handoff"), {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: "{}"
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.accessToken || !data.refreshToken || !data.user) {
+    if (hasStoredPair) return;
+
+    if (window.sessionStorage.getItem("oauth_handoff_tried")) return;
+    window.sessionStorage.setItem("oauth_handoff_tried", "1");
+
+    const url = buildApiUrl("/api/auth/oauth-handoff");
+    let lastRes = /** @type {Response | null} */ (null);
+    let data = {};
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      if (attempt > 0) {
+        await new Promise((r) => setTimeout(r, 100 * attempt));
+      }
+      try {
+        lastRes = await fetch(url, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: "{}"
+        });
+        data = await lastRes.json().catch(() => ({}));
+      } catch (netErr) {
+        console.warn("[oauth-handoff] attempt", attempt + 1, netErr);
+        lastRes = null;
+        data = {};
+        continue;
+      }
+      if (lastRes && lastRes.ok && data.accessToken && data.refreshToken && data.user) break;
+    }
+
+    if (!lastRes || !lastRes.ok || !data.accessToken || !data.refreshToken || !data.user) {
       window.sessionStorage.removeItem("oauth_handoff_tried");
       return;
     }
-    await finalizeGoogleOAuthSession(data);
-  } catch (e) {
-    console.error(e);
-    window.sessionStorage.removeItem("oauth_handoff_tried");
+    try {
+      await finalizeGoogleOAuthSession(data);
+    } catch (finErr) {
+      console.error(finErr);
+      window.sessionStorage.removeItem("oauth_handoff_tried");
+    }
+  } finally {
+    if (emptyTokens && onSetPasswordRoute) {
+      oauthSessionRestorePending = false;
+      document.body.classList.remove("oauth-session-restore-pending");
+    }
   }
 }
 
@@ -8602,8 +8640,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (window.NoteRichEditor && typeof window.NoteRichEditor.initNoteRichEditorBridge === "function") {
     window.NoteRichEditor.initNoteRichEditorBridge();
   }
-  initAuthLandingUi();
   await applyGoogleOAuthLanding();
+  initAuthLandingUi();
   void ensureNativeNotificationChannel();
   // Initialize theme and language
   applyTheme(getCurrentTheme());

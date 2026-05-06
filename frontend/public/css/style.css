@@ -12248,6 +12248,10 @@ body.floating-scrolled .discord-fab:hover {
   }
 }
 
+body.oauth-session-restore-pending {
+  cursor: wait;
+}
+
 body.auth-shell-locked .app,
 body.auth-shell-locked .site-footer {
   visibility: hidden;

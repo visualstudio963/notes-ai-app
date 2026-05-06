@@ -10,6 +10,12 @@ const cron = require("node-cron");
 const bcrypt = require("bcrypt");
 
 const config = require("./config");
+const cookieParser = require("cookie-parser");
+const {
+  OAUTH_HANDOFF_AT,
+  OAUTH_HANDOFF_RT,
+  getOAuthHandoffSetCookieOptions
+} = require("./config/oauthHandoffCookies");
 const { createAuthMiddleware } = require("./middleware/auth");
 const { createApiRouter } = require("./routes");
 const { createIssueSessionTokens, createPasswordLoginHandler } = require("./routes/auth.routes");
@@ -107,6 +113,7 @@ if (config.stripeSecretKey && config.stripeWebhookSecret) {
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 const sessionCookieSecure = process.env.NODE_ENV === "production";
 app.use(
@@ -274,11 +281,15 @@ app.get(
         return;
       }
 
-      const bundle = encodeURIComponent(JSON.stringify({ accessToken, refreshToken }));
       const uPw = await User.findById(user._id).select("password").lean();
       const needsPassword = !uPw || !uPw.password;
       const nextSegment = needsPassword ? "/set-password" : "/dashboard";
-      const finish = () => res.redirect(302, `${frontendBase}${nextSegment}#google_oauth=${bundle}`);
+      const oauthCookieOpts = getOAuthHandoffSetCookieOptions(sessionCookieSecure);
+      const finish = () => {
+        res.cookie(OAUTH_HANDOFF_AT, accessToken, oauthCookieOpts);
+        res.cookie(OAUTH_HANDOFF_RT, refreshToken, oauthCookieOpts);
+        res.redirect(302, `${frontendBase}${nextSegment}`);
+      };
 
       if (typeof req.logout === "function") {
         req.logout((err) => {

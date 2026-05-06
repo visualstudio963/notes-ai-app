@@ -2,6 +2,11 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+const {
+  OAUTH_HANDOFF_AT,
+  OAUTH_HANDOFF_RT,
+  clearOAuthHandoffCookies
+} = require("../config/oauthHandoffCookies");
 const { publicUser } = require("../utils/serializers");
 const { TRIAL_DURATION_MS } = require("../features/coins/coinConstants");
 const { bindReferralCode } = require("../features/coins/coinService");
@@ -441,6 +446,42 @@ function createAuthRouter({
     } catch (err) {
       console.error("[auth/verify-email]", err.message);
       return res.status(500).json({ error: "Email verification failed" });
+    }
+  });
+
+  const oauthHandoffProduction = process.env.NODE_ENV === "production";
+
+  router.post("/auth/oauth-handoff", authLimiter, async (req, res) => {
+    const at = req.cookies && req.cookies[OAUTH_HANDOFF_AT];
+    const rt = req.cookies && req.cookies[OAUTH_HANDOFF_RT];
+    if (!at || !rt) {
+      return res.status(401).json({ error: "No OAuth session" });
+    }
+    let accessPayload;
+    let refreshPayload;
+    try {
+      accessPayload = jwt.verify(at, jwtSecret);
+      refreshPayload = jwt.verify(rt, jwtRefreshSecret);
+    } catch {
+      clearOAuthHandoffCookies(res, oauthHandoffProduction);
+      return res.status(401).json({ error: "OAuth session expired" });
+    }
+    if (!accessPayload.id || String(accessPayload.id) !== String(refreshPayload.id)) {
+      clearOAuthHandoffCookies(res, oauthHandoffProduction);
+      return res.status(401).json({ error: "Invalid OAuth session" });
+    }
+    try {
+      const user = await User.findById(accessPayload.id);
+      if (!user || user.refreshToken !== rt) {
+        clearOAuthHandoffCookies(res, oauthHandoffProduction);
+        return res.status(401).json({ error: "Invalid OAuth session" });
+      }
+      clearOAuthHandoffCookies(res, oauthHandoffProduction);
+      res.json({ accessToken: at, refreshToken: rt, user: publicUser(user) });
+    } catch (err) {
+      console.error("[auth/oauth-handoff]", err && err.message);
+      clearOAuthHandoffCookies(res, oauthHandoffProduction);
+      res.status(500).json({ error: "OAuth handoff failed" });
     }
   });
 

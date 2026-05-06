@@ -89,6 +89,15 @@ const authLimiter = rateLimit({
   legacyHeaders: false
 });
 
+/** Looser than `authLimiter`: each Google login uses 2 GETs (/auth/google + callback). Brute-force risk is low (Google validates identity). */
+const googleOAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  message: "Too many Google sign-in attempts, please try again in a few minutes.",
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
 const signupLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 5,
@@ -234,7 +243,7 @@ app.get("/invite/:code", (req, res) => {
  * Google OAuth (Passport + passport-google-oauth20).
  * GOOGLE_CALLBACK_URL must match Google Cloud Console "Authorized redirect URI" exactly.
  */
-app.get("/auth/google", authLimiter, (req, res, next) => {
+app.get("/auth/google", googleOAuthLimiter, (req, res, next) => {
   if (!config.googleClientId || !config.googleClientSecret || !config.googleRedirectUri) {
     return res.status(503).send("Google OAuth is not configured (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL).");
   }
@@ -243,7 +252,7 @@ app.get("/auth/google", authLimiter, (req, res, next) => {
 
 app.get(
   "/auth/google/callback",
-  authLimiter,
+  googleOAuthLimiter,
   passport.authenticate("google", {
     failureRedirect: `${getFrontendBaseUrl()}/?google_oauth_error=${encodeURIComponent("passport_failed")}`
   }),

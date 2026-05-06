@@ -1,6 +1,22 @@
 {
   "rewrites": [
     {
+      "source": "/auth/(.*)",
+      "destination": "https://notes-ai-backend-lykf.onrender.com/auth/$1"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "https://notes-ai-backend-lykf.onrender.com/api/$1"
+    },
+    {
+      "source": "/admin",
+      "destination": "/admin.html"
+    },
+    {
+      "source": "/admin/",
+      "destination": "/admin.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

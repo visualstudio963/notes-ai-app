@@ -1,6 +1,14 @@
 {
   "rewrites": [
     {
+      "source": "/auth/(.*)",
+      "destination": "https://notes-ai-backend-lykf.onrender.com/auth/$1"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "https://notes-ai-backend-lykf.onrender.com/api/$1"
+    },
+    {
       "source": "/admin",
       "destination": "/admin.html"
     },
@@ -9,55 +17,7 @@
       "destination": "/admin.html"
     },
     {
-      "source": "/set-password",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/set-password/",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/dashboard",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/dashboard/",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/choose-username",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/choose-username/",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/billing",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/billing/",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/success",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/success/",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/pricing",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/pricing/",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/invite/:code*",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ],

@@ -281,9 +281,8 @@ app.get(
         return;
       }
 
-      const uPw = await User.findById(user._id).select("password").lean();
-      const needsPassword = !uPw || !uPw.password;
-      const nextSegment = needsPassword ? "/set-password" : "/dashboard";
+      /** Always land on dashboard after Google sign-in; optional password is set later in Settings (not forced on first login). */
+      const nextSegment = "/dashboard";
       const oauthCookieOpts = getOAuthHandoffSetCookieOptions(sessionCookieSecure);
       const finish = () => {
         res.cookie(OAUTH_HANDOFF_AT, accessToken, oauthCookieOpts);

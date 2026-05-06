@@ -54,7 +54,7 @@ function createPasswordLoginHandler({ User, jwtSecret, jwtRefreshSecret }) {
 
       if (!user.password) {
         return res.status(400).json({
-          error: "Please log in with Google first, or complete setting a password at /set-password after Google sign-in."
+          error: "Please log in with Google first, or set a password in Settings after signing in."
         });
       }
 

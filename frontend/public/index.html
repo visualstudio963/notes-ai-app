@@ -100,38 +100,6 @@
     </div>
   </div>
 
-  <div id="setPasswordScreen" class="auth-shell auth-shell--set-password hidden" role="dialog" aria-modal="true" aria-label="Set password">
-    <div class="auth-shell__inner">
-      <div class="auth-shell__card auth-shell__card--3d">
-        <h1 class="auth-shell__title" data-t="setPasswordTitle">Set password</h1>
-        <p class="auth-shell__subtitle" data-t="setPasswordSubtitle">Choose a password so you can sign in with username or email without Google.</p>
-        <form id="setPasswordForm" autocomplete="on" novalidate>
-          <label class="auth-shell__label" for="setPasswordNew" data-t="settingsNewPasswordLabel">New password</label>
-          <input
-            type="password"
-            id="setPasswordNew"
-            class="auth-shell__input"
-            name="newPassword"
-            autocomplete="new-password"
-            minlength="8"
-            placeholder="At least 8 characters"
-          />
-          <label class="auth-shell__label" for="setPasswordConfirm" data-t="settingsConfirmPasswordLabel">Confirm password</label>
-          <input
-            type="password"
-            id="setPasswordConfirm"
-            class="auth-shell__input"
-            name="confirmPassword"
-            autocomplete="new-password"
-            placeholder="Repeat new password"
-          />
-          <p class="auth-shell__error hidden" id="setPasswordError" role="alert"></p>
-          <button type="submit" class="auth-shell__btn-primary" id="setPasswordSubmit" data-t="setPasswordSubmit">Set password</button>
-        </form>
-      </div>
-    </div>
-  </div>
-
   <div id="chooseUsernameScreen" class="auth-shell auth-shell--username hidden" role="region" aria-label="Choose username">
     <div class="auth-shell__inner">
       <div class="auth-shell__card auth-shell__card--3d">

@@ -2850,10 +2850,6 @@ function isChooseUsernamePath() {
   return /(^|\/)choose-username\/?$/.test(p);
 }
 
-function isSetPasswordPath() {
-  return /\/set-password\/?$/.test(window.location.pathname || "");
-}
-
 let chooseUsernameInitStarted = false;
 
 /** When true, guest user intentionally opened the login/sign-up overlay (sidebar Account / requireAuth). */
@@ -2915,11 +2911,14 @@ async function hydrateSessionUserFromTokens() {
   return false;
 }
 
-/** SPA home lives at `/`; `/dashboard` is only a legacy deep-link — normalize once session is valid. */
-function normalizeAuthenticatedSpaPath() {
-  if (!isAuthSessionReady()) return;
+/** SPA home lives at `/`. Legacy `/dashboard` and removed `/set-password` entry URLs → `/`. */
+function normalizeSpaShellPaths() {
   const path = (window.location.pathname || "").replace(/\/+$/, "") || "/";
-  if (path === "/dashboard") {
+  if (path === "/set-password") {
+    history.replaceState(null, "", "/" + (window.location.search || ""));
+    return;
+  }
+  if (path === "/dashboard" && isAuthSessionReady()) {
     history.replaceState(null, "", "/" + (window.location.search || ""));
   }
 }
@@ -2928,45 +2927,21 @@ function syncAuthShellVisibility() {
   if (authBootstrapPhaseActive) return;
   const landing = document.getElementById("authLanding");
   const choose = document.getElementById("chooseUsernameScreen");
-  const setPwd = document.getElementById("setPasswordScreen");
   const appEl = document.querySelector(".app");
   const footer = document.querySelector(".site-footer");
   const fab = document.getElementById("dailyPlannerFab");
   const loggedIn = Boolean(currentUser && accessToken);
 
-  if (!loggedIn && isSetPasswordPath()) {
-    history.replaceState(null, "", "/" + (window.location.search || ""));
-    setPwd?.classList.add("hidden");
-  }
-
   if (loggedIn) {
     authLoginModalOpen = false;
     landing?.classList.add("hidden");
     choose?.classList.add("hidden");
-
-    if (isSetPasswordPath() && userHasLocalPasswordFlag()) {
-      history.replaceState(null, "", "/" + (window.location.search || ""));
-    }
-
-    if (isSetPasswordPath() && !userHasLocalPasswordFlag()) {
-      setPwd?.classList.remove("hidden");
-      appEl?.classList.add("hidden");
-      footer?.classList.add("hidden");
-      if (fab) fab.classList.add("hidden");
-      document.body.classList.add("auth-shell-locked");
-      window.setTimeout(() => document.getElementById("setPasswordNew")?.focus(), 0);
-      return;
-    }
-
-    setPwd?.classList.add("hidden");
     appEl?.classList.remove("hidden");
     footer?.classList.remove("hidden");
     if (fab) fab.classList.remove("hidden");
     document.body.classList.remove("auth-shell-locked");
     return;
   }
-
-  setPwd?.classList.add("hidden");
 
   if (isChooseUsernamePath()) {
     authLoginModalOpen = false;
@@ -3121,7 +3096,6 @@ function initAuthLandingUi() {
   document.getElementById("authTabLogin")?.addEventListener("click", () => switchAuthTab("login"));
   document.getElementById("authTabSignup")?.addEventListener("click", () => switchAuthTab("signup"));
   document.getElementById("authLoginForm")?.addEventListener("submit", (ev) => void submitAuthLogin(ev));
-  document.getElementById("setPasswordForm")?.addEventListener("submit", (ev) => void submitSetPassword(ev));
   const landing = document.getElementById("authLanding");
   landing?.addEventListener("click", (e) => {
     if (e.target === landing) closeAccountModal();
@@ -4123,7 +4097,6 @@ async function finalizeGoogleOAuthSession(payload) {
   }
 
   storeCurrentUser(u, at, rt, true, { skipUi: authBootstrapPhaseActive });
-  /** OAuth success always lands on home URL — never /set-password from Google flow. */
   history.replaceState(null, "", "/");
 
   if (authBootstrapPhaseActive) {
@@ -8472,84 +8445,6 @@ async function settingsNotificationsToggleChanged(checked) {
   void updateSettingsNotificationStatus();
 }
 
-async function submitSetPassword(ev) {
-  ev.preventDefault();
-  if (!requireAuth("set your password")) return;
-  const neu = document.getElementById("setPasswordNew");
-  const conf = document.getElementById("setPasswordConfirm");
-  const errEl = document.getElementById("setPasswordError");
-  const submitBtn = document.getElementById("setPasswordSubmit");
-  if (!neu || !conf) return;
-  if (errEl) {
-    errEl.classList.add("hidden");
-    errEl.textContent = "";
-  }
-  const p1 = String(neu.value || "");
-  const p2 = String(conf.value || "");
-  if (!p1 || !p2) {
-    if (errEl) {
-      errEl.textContent = t("fillAllFields");
-      errEl.classList.remove("hidden");
-    } else {
-      showToast(t("fillAllFields"));
-    }
-    return;
-  }
-  if (p1 !== p2) {
-    if (errEl) {
-      errEl.textContent = t("settingsPasswordMismatch");
-      errEl.classList.remove("hidden");
-    } else {
-      showToast(t("settingsPasswordMismatch"));
-    }
-    return;
-  }
-  if (p1.length < 8) {
-    if (errEl) {
-      errEl.textContent = t("settingsPasswordShort");
-      errEl.classList.remove("hidden");
-    } else {
-      showToast(t("settingsPasswordShort"));
-    }
-    return;
-  }
-  if (submitBtn) submitBtn.disabled = true;
-  try {
-    const data = await apiFetch("/auth/set-password", {
-      method: "POST",
-      body: JSON.stringify({ password: p1, confirmPassword: p2 })
-    });
-    if (data && data.user) {
-      Object.assign(currentUser, data.user);
-    } else if (currentUser) {
-      currentUser.hasLocalPassword = true;
-    }
-    persistCurrentUserToStorage();
-    neu.value = "";
-    conf.value = "";
-    history.replaceState(null, "", "/" + (window.location.search || ""));
-    syncAuthShellVisibility();
-    goHome();
-    displayAccountInfo();
-    syncSettingsPasswordFieldVisibility();
-    showToast(data && data.message ? data.message : t("settingsPasswordChanged"));
-    void mergePremiumFromServer().then(() => {
-      displayAccountInfo();
-      void updateHomeDashboardStats();
-    });
-  } catch (err) {
-    const msg = err && err.message ? String(err.message) : t("settingsProfileSaveFailed");
-    if (errEl) {
-      errEl.textContent = msg;
-      errEl.classList.remove("hidden");
-    } else {
-      showToast(msg);
-    }
-  } finally {
-    if (submitBtn) submitBtn.disabled = false;
-  }
-}
-
 async function submitSettingsPasswordChange() {
   if (!requireAuth("update your password")) return;
   const cur = document.getElementById("settingsCurrentPassword");
@@ -8733,6 +8628,7 @@ function updateThemeSelector() {
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
+  normalizeSpaShellPaths();
   authBootstrapPhaseActive = true;
   try {
     captureInviteCodeFromLocation();
@@ -8747,7 +8643,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     document.documentElement.classList.remove("auth-bootstrap-pending");
   }
 
-  normalizeAuthenticatedSpaPath();
+  normalizeSpaShellPaths();
   handleGoogleOAuthQueryParams();
 
   initAuthLandingUi();
@@ -8770,12 +8666,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
     }
-    const blockGoHome = isSetPasswordPath() && !userHasLocalPasswordFlag();
-    if (!blockGoHome) {
-      goHome();
-    } else {
-      syncAuthShellVisibility();
-    }
+    goHome();
     if (typeof scheduleOnboardingTutorialAfterAuth === "function") scheduleOnboardingTutorialAfterAuth();
   }
   if (isAuthSessionReady() && isBrowserOnline()) void offlineNotesFlushQueue();
@@ -8824,11 +8715,6 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
-    const setPasswordEl = document.getElementById("setPasswordScreen");
-    if (setPasswordEl && !setPasswordEl.classList.contains("hidden")) {
-      e.preventDefault();
-      return;
-    }
     const authLandingEl = document.getElementById("authLanding");
     if (authLandingEl && !authLandingEl.classList.contains("hidden")) {
       e.preventDefault();

@@ -83,8 +83,6 @@
     if (choose && !choose.classList.contains("hidden")) return true;
     const auth = document.getElementById("authLanding");
     if (auth && !auth.classList.contains("hidden")) return true;
-    const setPwd = document.getElementById("setPasswordScreen");
-    if (setPwd && !setPwd.classList.contains("hidden")) return true;
     return false;
   }
 

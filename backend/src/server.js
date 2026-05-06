@@ -213,7 +213,7 @@ app.get("/choose-username", (_req, res) => {
 });
 
 app.get("/set-password", (_req, res) => {
-  res.sendFile(path.join(FRONTEND_PUBLIC, "index.html"));
+  res.redirect(302, `${getFrontendBaseUrl()}/`);
 });
 
 app.get("/dashboard", (_req, res) => {

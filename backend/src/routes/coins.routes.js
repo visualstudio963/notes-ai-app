@@ -29,6 +29,17 @@ function createCoinsRouter({ User, authMiddleware }) {
       }
       user = await ensureReferralCode(User, user);
       await finalizeInviteBonus(User, user);
+
+      /* Auto-claim daily streak on status load once per UTC day (no extra tap). */
+      try {
+        await claimDailyLogin(User, req.userId);
+      } catch (err) {
+        const code = err && err.code ? String(err.code) : "";
+        if (code !== "DAILY_CLAIMED" && err.statusCode !== 409) {
+          throw err;
+        }
+      }
+
       user = await User.findById(req.userId).lean();
       const base = buildCoinsStatusPayload(user);
       const payload = await enrichCoinsStatusWithInviteStats(User, user, base);
@@ -64,11 +75,13 @@ function createCoinsRouter({ User, authMiddleware }) {
     } catch (err) {
       const code = err && err.code ? String(err.code) : "";
       const status =
-        code === "VIDEO_CAP" || (err && err.statusCode === 429)
-          ? 429
-          : err && err.statusCode === 404
-            ? 404
-            : 400;
+        code === "VIDEO_DISABLED" || (err && err.statusCode === 503)
+          ? 503
+          : code === "VIDEO_CAP" || (err && err.statusCode === 429)
+            ? 429
+            : err && err.statusCode === 404
+              ? 404
+              : 400;
       res.status(status).json({ error: err && err.message ? err.message : "Video reward failed." });
     }
   });

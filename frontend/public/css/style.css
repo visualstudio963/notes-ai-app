@@ -13606,6 +13606,12 @@ body.note-rich-editor-open #dailyPlannerFab {
   padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
 }
 
+/* Accent for the first earn card stack (daily + video precede balance hero) */
+.coins-dash-card--coins-first {
+  margin-top: 2px;
+  border-color: rgba(56, 189, 248, 0.28);
+}
+
 /* Coins rewards: tighter layout under global topbar */
 body.coins-hub-open #coins-hub .coins-dash-shell {
   margin-top: -8px;
@@ -14341,6 +14347,108 @@ button.daily-checkin-slot {
   justify-content: flex-start;
   gap: 10px;
   margin-bottom: 0.5rem;
+}
+
+/* Bottom dock: page nav sits above fixed app topbar — only coins hub + narrow layout */
+@media (max-width: 840px) {
+  body.coins-hub-open header.topbar {
+    position: fixed !important;
+    top: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    margin: 0 !important;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+    min-height: 0 !important;
+    z-index: 1405 !important;
+    background: rgba(6, 10, 22, 0.9) !important;
+    backdrop-filter: blur(16px) saturate(135%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(135%) !important;
+    border-bottom: none !important;
+    border-radius: 0 !important;
+    box-shadow:
+      0 -1px 0 rgba(255, 255, 255, 0.06),
+      0 -14px 32px rgba(2, 6, 18, 0.35) !important;
+  }
+
+  body.coins-hub-open header.topbar::after {
+    top: 0 !important;
+    bottom: auto !important;
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.05),
+      rgba(255, 255, 255, 0.12),
+      rgba(255, 255, 255, 0.05)
+    ) !important;
+  }
+
+  body.coins-hub-open #coins-hub .coins-dash-topbar--bottom {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
+    z-index: 1402 !important;
+    margin: 0 !important;
+    padding: 10px max(14px, env(safe-area-inset-right, 0px)) 10px max(14px, env(safe-area-inset-left, 0px)) !important;
+    align-items: center !important;
+    background: rgba(11, 18, 34, 0.88) !important;
+    backdrop-filter: blur(14px) saturate(130%) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(130%) !important;
+    border-bottom: none !important;
+    border-radius: 0 !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 -4px 28px rgba(2, 6, 18, 0.4) !important;
+  }
+
+  body.coins-hub-open #coins-hub .coins-dash-shell {
+    padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body.coins-hub-open .web-chat-fab {
+    bottom: calc(max(24px, env(safe-area-inset-bottom, 0px) + 16px) + 132px) !important;
+  }
+
+  body.coins-hub-open .daily-planner-fab {
+    bottom: calc(max(24px, env(safe-area-inset-bottom, 0px) + 16px) + 132px + 54px + 12px) !important;
+  }
+
+  body.coins-hub-open .web-chat-fab-tip {
+    bottom: calc(max(34px, env(safe-area-inset-bottom, 0px) + 24px) + 132px) !important;
+  }
+
+  body.coins-hub-open .main {
+    padding-top: calc(10px + env(safe-area-inset-top, 0px)) !important;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body.coins-hub-open.mobile-scrolled .main {
+    padding-top: calc(8px + env(safe-area-inset-top, 0px)) !important;
+  }
+
+  body.coins-hub-open.mobile-scrolled header.topbar {
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+    min-height: 0 !important;
+  }
+
+  body.coins-hub-open.mobile-scrolled header.topbar-inner {
+    min-height: 48px !important;
+    height: 48px !important;
+  }
+}
+
+@media (min-width: 841px) {
+  #coins-hub .coins-dash-shell {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Header stays at end of DOM for mobile dock; desktop shows it above content */
+  #coins-hub .coins-dash-topbar--bottom {
+    order: -10;
+    margin-bottom: 0.5rem;
+    margin-top: 0;
+  }
 }
 
 .coins-dash-topbar .coins-dash-topbar-text {

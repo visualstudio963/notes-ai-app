@@ -84,7 +84,41 @@ let loadDiscordCommunityConfigInflight = null;
 const REMINDER_NOTIFY_PREFS_KEY = "webReminderNotificationPrefs";
 /** "0" = user turned off in-app reminder alerts (browser permission may still be "granted"). */
 const WEB_REMINDER_NOTIFICATIONS_APP_ENABLED_KEY = "aiNotesWebReminderNotificationsAppEnabled";
-const ANDROID_REMINDERS_CHANNEL_ID = "reminders-high";
+/** New IDs force fresh Android channels after importance/sound tweaks (channels are immutable per id). */
+const ANDROID_REMINDERS_CHANNEL_ID = "notesai-reminders-v3";
+
+function capacitorPlatform() {
+  try {
+    if (window.Capacitor && typeof window.Capacitor.getPlatform === "function") {
+      return window.Capacitor.getPlatform();
+    }
+  } catch {
+    /* ignore */
+  }
+  return "";
+}
+
+/** Icon URL for Notification API so mobile web / PWA get a banner style closer to native apps */
+function notificationIconUrlHint() {
+  try {
+    return `${window.location.origin.replace(/\/+$/, "")}/icons/icon-192.png`;
+  } catch {
+    return "";
+  }
+}
+
+function webReminderNotificationOpts(body, tag) {
+  const iconSrc = notificationIconUrlHint();
+  /** @type {NotificationOptions & { vibrate?: number[] }} */
+  const o = {
+    body: String(body || "").slice(0, 260),
+    tag: String(tag || "reminder"),
+    silent: false,
+    ...(iconSrc ? { icon: iconSrc, badge: iconSrc } : {}),
+    vibrate: [260, 100, 280]
+  };
+  return o;
+}
 
 function webReminderNotificationsAppEnabled() {
   try {
@@ -204,19 +238,36 @@ async function ensureNativeNotificationChannel() {
   const localNotifications = getLocalNotificationsPlugin();
   if (!localNotifications || typeof localNotifications.createChannel !== "function") return;
   try {
+    /**
+     * Android 8+: importance 5 = IMPORTANCE_HIGH/MAX lane — banner “heads-up”, sound + vibration follow user channel settings.
+     * Omit custom filename sound (requires res/raw); OS default tone attaches to high-importance channels on most OEMs.
+     */
     await localNotifications.createChannel({
       id: ANDROID_REMINDERS_CHANNEL_ID,
-      name: "Reminders",
-      description: "High priority reminders and planner alerts",
+      name: "Notes AI — reminders",
+      description: "Scheduled reminders & daily planner alarms with sound.",
       importance: 5,
       visibility: 1,
-      sound: "default",
       vibration: true,
       lights: true
     });
   } catch {
     /* ignore */
   }
+}
+
+function scheduledLocalReminderPayload(common) {
+  const body = String(common.body ?? "").slice(0, 300);
+  const base = {
+    title: common.title || "Reminder ⏰",
+    body: body.slice(0, 180),
+    largeBody: body,
+    schedule: { at: common.at, allowWhileIdle: true },
+    channelId: ANDROID_REMINDERS_CHANNEL_ID,
+    autoCancel: true,
+    ...(capacitorPlatform() === "ios" ? { sound: "default" } : {})
+  };
+  return base;
 }
 
 function dailyPlannerTodayKey() {
@@ -396,20 +447,22 @@ async function schedulePlannerLocalNotification(task) {
   if (!when || when.getTime() <= Date.now()) return;
   const allowed = await requestNotificationPermissionIfNeeded(true);
   if (!allowed) return;
+  await ensureNativeNotificationChannel();
   const localNotifications = getLocalNotificationsPlugin();
   if (!localNotifications) return;
   const id = plannerNotificationId(task.id);
+  const text = String(task.text || "").trim();
   try {
     await localNotifications.cancel({ notifications: [{ id }] });
     await localNotifications.schedule({
       notifications: [
         {
           id,
-          title: "Reminder ⏰",
-          body: String(task.text || "").slice(0, 180),
-          schedule: { at: when, allowWhileIdle: true },
-          sound: "default",
-          channelId: ANDROID_REMINDERS_CHANNEL_ID
+          ...scheduledLocalReminderPayload({
+            title: "Reminder ⏰",
+            body: text || "—",
+            at: when
+          })
         }
       ]
     });
@@ -461,6 +514,7 @@ async function scheduleReminderLocalNotification(reminder) {
   if (!Number.isFinite(when.getTime()) || when.getTime() <= Date.now()) return;
   const allowed = await requestNotificationPermissionIfNeeded(true);
   if (!allowed) return;
+  await ensureNativeNotificationChannel();
   const localNotifications = getLocalNotificationsPlugin();
   if (!localNotifications) return;
   const id = reminderNotificationId(reminder._id);
@@ -470,11 +524,11 @@ async function scheduleReminderLocalNotification(reminder) {
       notifications: [
         {
           id,
-          title: "Reminder ⏰",
-          body: String(reminder.message || t("reminderDefaultBody")).slice(0, 180),
-          schedule: { at: when, allowWhileIdle: true },
-          sound: "default",
-          channelId: ANDROID_REMINDERS_CHANNEL_ID
+          ...scheduledLocalReminderPayload({
+            title: "Reminder ⏰",
+            body: String(reminder.message || t("reminderDefaultBody")),
+            at: when
+          })
         }
       ]
     });
@@ -520,10 +574,7 @@ function dailyPlannerMaybeTriggerNotifications() {
     const mins = Number(m[1]) * 60 + Number(m[2]);
     if (mins !== nowMins) continue;
     try {
-      const n = new Notification(t("webNotificationTitle"), {
-        body: task.text,
-        icon: "/icons/icon-192.png"
-      });
+      const n = new Notification(t("webNotificationTitle"), webReminderNotificationOpts(task.text, `planner-${task.id}`));
       n.onclick = () => {
         window.focus();
         n.close();
@@ -1710,6 +1761,21 @@ function mergePremiumStatusIntoCurrentUser(data) {
   });
 }
 
+/** Loads coin status once after auth; triggers server-side daily streak + referral finalization. */
+async function tryQuietCoinsBootstrap() {
+  if (!accessToken || !currentUser) return;
+  try {
+    const coins = await apiFetch("/api/coins/status");
+    if (coins && coins.balance != null) {
+      currentUser.coinBalance = Number(coins.balance) || 0;
+      persistCurrentUserToStorage();
+      updatePremiumUi();
+    }
+  } catch {
+    /* offline / stale token */
+  }
+}
+
 async function tryConsumePendingInviteCode() {
   if (!accessToken || !currentUser) return;
   let pending = "";
@@ -1750,6 +1816,7 @@ async function mergePremiumFromServer() {
     persistCurrentUserToStorage();
     updatePremiumUi();
     await tryConsumePendingInviteCode();
+    await tryQuietCoinsBootstrap();
     maybeShowTrialGiftWelcome();
     return true;
   } catch {
@@ -3423,16 +3490,23 @@ async function refreshCoinsHubUi() {
   }
 
   const claimedToday = Boolean(coins.dailyLogin && coins.dailyLogin.claimedToday);
+  const videoPassive = Boolean(coins.videoRewards && coins.videoRewards.passive);
   if (videoLbl && typeof t === "function") {
-    videoLbl.textContent = t("coinsHubVideoGo");
+    videoLbl.textContent = videoPassive ? t("coinsHubVideoSoon") : t("coinsHubVideoGo");
   }
-  if (videoRowMeta && typeof t === "function" && coins.videoRewards) {
-    const cnt = Number(coins.videoRewards.countToday) || 0;
-    const maxv = Number(coins.videoRewards.maxToday) || 0;
-    videoRowMeta.textContent = t("coinsHubVideoRowMeta")
-      .replace("{n}", String(cnt))
-      .replace("{max}", String(maxv))
-      .replace("{reward}", String(vReward));
+  if (videoRowMeta && typeof t === "function") {
+    if (videoPassive) {
+      videoRowMeta.textContent = t("coinsHubVideoRowMetaPassive");
+    } else if (coins.videoRewards) {
+      const cnt = Number(coins.videoRewards.countToday) || 0;
+      const maxv = Number(coins.videoRewards.maxToday) || 0;
+      videoRowMeta.textContent = t("coinsHubVideoRowMeta")
+        .replace("{n}", String(cnt))
+        .replace("{max}", String(maxv))
+        .replace("{reward}", String(vReward));
+    } else {
+      videoRowMeta.textContent = "";
+    }
   } else if (videoRowMeta) {
     videoRowMeta.textContent = "";
   }
@@ -3452,13 +3526,22 @@ async function refreshCoinsHubUi() {
   }
 
   if (btnVideo) {
-    const vCap = Boolean(coins.videoRewards && coins.videoRewards.countToday >= coins.videoRewards.maxToday);
-    btnVideo.disabled = vCap;
-    btnVideo.classList.toggle("coins-hub-task__go--disabled", vCap);
+    if (videoPassive) {
+      btnVideo.disabled = true;
+      btnVideo.classList.add("coins-hub-task__go--disabled");
+    } else {
+      const vCap = Boolean(coins.videoRewards && coins.videoRewards.countToday >= coins.videoRewards.maxToday);
+      btnVideo.disabled = vCap;
+      btnVideo.classList.toggle("coins-hub-task__go--disabled", vCap);
+    }
   }
   if (videoMeta && typeof t === "function") {
-    const capHit = Boolean(coins.videoRewards && coins.videoRewards.countToday >= coins.videoRewards.maxToday);
-    videoMeta.textContent = capHit ? t("coinsHubVideoCappedFoot") : "";
+    if (videoPassive) {
+      videoMeta.textContent = t("coinsHubVideoFootPassive");
+    } else {
+      const capHit = Boolean(coins.videoRewards && coins.videoRewards.countToday >= coins.videoRewards.maxToday);
+      videoMeta.textContent = capHit ? t("coinsHubVideoCappedFoot") : "";
+    }
   }
   if (btnRedeem) {
     btnRedeem.disabled = coins.lifecycle === "premium" || balance < cost;
@@ -3535,21 +3618,7 @@ async function coinsHubClaimDaily() {
 
 async function coinsHubWatchVideoAd() {
   if (!requireAuth("watch rewarded ads")) return;
-  const vidRow = document.querySelector(".coins-hub-task--video");
-  try {
-    await apiFetch("/api/coins/rewarded-ad", { method: "POST", body: JSON.stringify({}) });
-  } catch (e) {
-    showToast(e && e.message ? e.message : t("coinsActionFailed"));
-    return;
-  }
-  if (vidRow) {
-    vidRow.classList.remove("coins-hub-task--burst");
-    void vidRow.offsetWidth;
-    vidRow.classList.add("coins-hub-task--burst");
-    window.setTimeout(() => vidRow.classList.remove("coins-hub-task--burst"), 600);
-  }
-  await refreshCoinsHubUi();
-  coinsHubPulseHero();
+  showToast(typeof t === "function" ? t("coinsHubVideoSoonToast") : "Rewarded videos are not available yet.");
 }
 
 async function coinsHubRedeemStandard() {
@@ -6277,6 +6346,7 @@ function requestNotificationPermission() {
   requestNotificationPermissionIfNeeded(true).then((granted) => {
     if (granted) {
       setWebReminderNotificationsAppEnabled(true);
+      void ensureNativeNotificationChannel();
       showToast(t("notificationsEnabledToast"));
       void syncPlannerLocalNotifications();
       if (currentUser && accessToken) {
@@ -6471,10 +6541,10 @@ function showWebNotification(reminder) {
   if (Notification.permission === "granted") {
     webNotificationLock.add(id);
     try {
-      const notification = new Notification(t("webNotificationTitle"), {
-        body: reminder.message || t("reminderDefaultBody"),
-        tag: id
-      });
+      const notification = new Notification(
+        t("webNotificationTitle"),
+        webReminderNotificationOpts(reminder.message || t("reminderDefaultBody"), id)
+      );
       notification.onclick = () => {
         window.focus();
         notification.close();
@@ -8122,7 +8192,11 @@ async function updateSettingsNotificationStatus() {
   if (perm === "granted") {
     el.textContent = appOn ? t("settingsNotifStatusGranted") : t("settingsNotifStatusGrantedPaused");
   } else if (perm === "denied") {
-    el.textContent = t("settingsNotifStatusDenied");
+    /** Web uses Notification.permission (per-origin); Capacitor app uses OS plugin—messages can disagree across devices legitimately. */
+    let deniedText = t("settingsNotifStatusDenied");
+    if (!isNativeLocalNotificationsAvailable())
+      deniedText += " " + t("settingsNotifDeniedBrowserNote");
+    el.textContent = deniedText;
   } else {
     el.textContent = t("settingsNotifStatusDefault");
   }

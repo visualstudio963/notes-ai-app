@@ -192,27 +192,10 @@ async function claimVideoReward(User, userId) {
     err.statusCode = 404;
     throw err;
   }
-
-  const today = utcTodayString();
-  let count = Number(user.videoRewardUtcDate === today ? user.videoRewardCount : 0) || 0;
-  if (user.videoRewardUtcDate !== today) {
-    count = 0;
-    user.videoRewardUtcDate = today;
-  }
-  if (count >= VIDEO_DAILY_MAX) {
-    const err = new Error("Daily video reward limit reached.");
-    err.statusCode = 429;
-    err.code = "VIDEO_CAP";
-    throw err;
-  }
-
-  const gained = scaledReward(VIDEO_REWARD, user.toObject());
-  user.videoRewardCount = count + 1;
-  user.videoRewardUtcDate = today;
-  user.coins = clampCoins((Number(user.coins) || 0) + gained);
-  await user.save();
-
-  return User.findById(userId).lean();
+  const disabledErr = new Error("Rewarded video payouts are disabled for now.");
+  disabledErr.statusCode = 503;
+  disabledErr.code = "VIDEO_DISABLED";
+  throw disabledErr;
 }
 
 async function redeemStandardWithCoins(User, userId) {
@@ -301,6 +284,7 @@ function buildCoinsStatusPayload(userLean) {
       streakStepCoins
     },
     videoRewards: {
+      passive: true,
       countToday: videoCountToday,
       maxToday: VIDEO_DAILY_MAX,
       rewardEach: scaledReward(VIDEO_REWARD, userLean)

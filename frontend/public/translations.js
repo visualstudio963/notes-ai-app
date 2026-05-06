@@ -817,28 +817,26 @@ const translations = {
     offlineSyncComplete: "Notes synced.",
     offlineNoteDeletedPending: "Removed here — will sync when you’re online.",
 
-    // Onboarding tutorial
-    onboardingWelcomeTitle: "Welcome!",
-    onboardingWelcomeBody: "Quick tour of notes, reminders, and rewards.",
-    onboardingNotesTitle: "Your notes",
-    onboardingNotesBody: "Create notes from My notes → New note. Everything syncs to your account.",
-    onboardingRemindersTitle: "Reminders",
-    onboardingRemindersBody: "Reminder History keeps past and upcoming alerts.",
-    onboardingRewardsTitle: "Rewards hub",
-    onboardingRewardsBody: "Earn coins with daily check-ins and videos. Invite friends too.",
-    onboardingInviteTitle: "Invite link",
-    onboardingInviteBody: "Copy your link so friends join — rewards grow together.",
-    onboardingDoneTitle: "You're ready",
-    onboardingDoneBody: "Use the sidebar anytime. Enjoy Notes AI!",
-    onboardingStart: "Start",
-    onboardingNext: "Next",
-    onboardingSkip: "Skip",
-    onboardingFinish: "Start using app",
-    onboardingCloseAria: "Skip tutorial",
-    onboardingStepCount: "{cur} / {total}",
-    onboardingReplayTitle: "Guided tour",
-    onboardingReplayBtn: "Replay tutorial",
-    onboardingReplayDesc: "Run the welcome walkthrough again."
+    // Welcome screen (first login — single sheet, no step tour)
+    welcomeScreenTitle: "Welcome to Notes AI",
+    welcomeScreenSubtitle: "What you can do here:",
+    welcomeBullet1:
+      "📝 Notes — write and sync across devices; categories and search keep the workspace tidy.",
+    welcomeBullet2: "⏰ Reminders — date & time alerts on web and synced to your account.",
+    welcomeBullet3: "💬 Web Chat — ask in chat and save reminders from replies (included with Standard features).",
+    welcomeBullet4: "📷 Scan Cam — capture or upload a document to turn pages into editable text.",
+    welcomeBullet5: "🎁 Rewards — daily check-ins, videos, invites; earn coins toward unlocks.",
+    welcomeBullet6: "📄 Exports & daily planner — PDF, JPG, TXT and planners (when your plan includes them).",
+    welcomeTrialSectionTitle: "🎉 Your 7-day Standard trial",
+    welcomeTrialLead:
+      "New accounts get Standard access free for 7 days (already active). During the trial you can use the features above that need Standard.",
+    welcomeTrialAfter:
+      "When the week ends you return to the Free tier unless you subscribe or redeem Standard with coins. You can open Rewards & coins anytime.",
+    onboardingGotIt: "Got it — close",
+    onboardingCloseAriaWelcome: "Close welcome",
+    onboardingReplayTitle: "Welcome screen",
+    onboardingReplayBtn: "Show welcome again",
+    onboardingReplayDesc: "Open the one-page welcome summary (what the app does + trial info)."
   },
 
   sq: {
@@ -1664,28 +1662,27 @@ const translations = {
     offlineSyncComplete: "Shënimet u sinkronizuan.",
     offlineNoteDeletedPending: "U hoq këtu — sinkronizohet kur të jesh online.",
 
-    onboardingWelcomeTitle: "Mirë se vini!",
-    onboardingWelcomeBody: "Një hap i shpejtë: shënime, kujtime dhe shpërblime.",
-    onboardingNotesTitle: "Shënimet",
-    onboardingNotesBody:
-      "Te «Shënimet e mia», prek «Shënim i ri». Shënimet ruhen në llogarinë tënde.",
-    onboardingRemindersTitle: "Kujtesat",
-    onboardingRemindersBody: "Historia e kujtimeve për të kaluarën dhe ata që vijnë.",
-    onboardingRewardsTitle: "Shpërblimet",
-    onboardingRewardsBody: "Monedha me qëndrim të përditshëm, video dhe ftesa.",
-    onboardingInviteTitle: "Lidhja tënde",
-    onboardingInviteBody: "Kopjo për miqtë — përfitojnë që të dy.",
-    onboardingDoneTitle: "Gati",
-    onboardingDoneBody: "Sidebar-i është gjithnjë në dispozicion. Për qejf!",
-    onboardingStart: "Fillo",
-    onboardingNext: "Vazhdim",
-    onboardingSkip: "Anashkalo",
-    onboardingFinish: "Hape aplikacionin",
-    onboardingCloseAria: "Mbyll udhëzuesin",
-    onboardingStepCount: "{cur} / {total}",
-    onboardingReplayTitle: "Udhëzues",
-    onboardingReplayBtn: "Riluaj tutorialin",
-    onboardingReplayDesc: "Shfaq sërish ecjen e njohjes."
+    welcomeScreenTitle: "Mirë se erdhe në Notes AI",
+    welcomeScreenSubtitle: "Çfarë bën ky aplikacion:",
+    welcomeBullet1:
+      "📝 Shënime — shkruaj dhe sinkronizo nëpër pajisje; kategoritë dhe kërkimi mbajnë gjithçka të rregullt.",
+    welcomeBullet2: "⏰ Kujtesa — sinjalizime me datë dhe kohë në web, të lidhura me llogarinë tënde.",
+    welcomeBullet3:
+      "💬 Web Chat — pyet në chat dhe ruaj kujtesa nga përgjigjet (përfshihet te veçoritë Standard).",
+    welcomeBullet4: "📷 Scan Cam — bëj foto ose ngarko dokument që faqet të bëhen tekst i editueshëm.",
+    welcomeBullet5: "🎁 Shpërblime — hyrje ditore, video, ftesa; fito monedha për zhbllokime.",
+    welcomeBullet6:
+      "📄 Eksporte & plan ditor — PDF, JPG, TXT dhe plane ditore (kur plani yt i përfshin).",
+    welcomeTrialSectionTitle: "🎉 Provë 7-ditore Standard",
+    welcomeTrialLead:
+      "Llogaritë e reja marrin Planin Standard falas për 7 ditë (është aktiv). Gjatë provës përdor veçoritë më lart që kërkojnë Standard.",
+    welcomeTrialAfter:
+      "Kur mbaron java, kthehesh në planin Falas përveç nëse abonon ose zhbllokon Standard me monedha. Hape «Shpërblime & monedha» kur të duash.",
+    onboardingGotIt: "Kuptova, mbyll",
+    onboardingCloseAriaWelcome: "Mbyll mirëseardhjen",
+    onboardingReplayTitle: "Faqja e mirëseardhjes",
+    onboardingReplayBtn: "Shfaq përsëri mirëseardhjen",
+    onboardingReplayDesc: "Hap përmbledhjen me një faqe (çfarë bën app-i + prova 7 ditë)."
   },
 
   de: {

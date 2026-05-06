@@ -1,10 +1,9 @@
 /**
- * Service worker — network-first for HTML/JS/CSS so normal reloads get fresh assets.
- * Falls back to cache only when offline (or network failure).
- * API requests are not intercepted.
+ * Service worker — navigations always network (no HTML shell cache). Other same-origin GET uses
+ * network-first; cache used only as offline fallback. CACHE_NAME includes deploy id after build inject.
  */
 
-const CACHE_NAME = "notes-ai-v3";
+const CACHE_NAME = "notes-ai-__BUILD_HASH__";
 
 self.addEventListener("install", () => {
   self.skipWaiting();
@@ -27,27 +26,45 @@ function shouldHandleFetch(request) {
     const url = new URL(request.url);
     if (url.origin !== self.location.origin) return false;
     if (url.pathname.startsWith("/api")) return false;
+    if (url.pathname === "/sw.js" || url.pathname.startsWith("/sw.js")) return false;
     return true;
   } catch {
     return false;
   }
 }
 
+function isNavigationOrHtml(request) {
+  if (request.mode === "navigate") return true;
+  const accept = request.headers.get("accept") || "";
+  return accept.includes("text/html");
+}
+
 self.addEventListener("fetch", (event) => {
   if (!shouldHandleFetch(event.request)) return;
+  const req = event.request;
+
+  if (isNavigationOrHtml(req)) {
+    event.respondWith(fetch(req));
+    return;
+  }
 
   event.respondWith(
-    fetch(event.request)
+    fetch(req)
       .then((networkResponse) => {
-        if (networkResponse && networkResponse.ok && networkResponse.type === "basic") {
+        if (
+          networkResponse &&
+          networkResponse.ok &&
+          networkResponse.type === "basic" &&
+          req.method === "GET"
+        ) {
           const copy = networkResponse.clone();
           caches
             .open(CACHE_NAME)
-            .then((cache) => cache.put(event.request, copy))
+            .then((cache) => cache.put(req, copy))
             .catch(() => {});
         }
         return networkResponse;
       })
-      .catch(() => caches.match(event.request))
+      .catch(() => caches.match(req))
   );
 });

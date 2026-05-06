@@ -7,10 +7,15 @@
     content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
   />
   <title>Notes AI</title>
-  <link rel="manifest" href="/manifest.json" />
+  <meta name="notes-ai-build" content="__BUILD_HASH__" />
+  <script>
+    window.__NOTES_AI_BUILD__ = "__BUILD_HASH__";
+  </script>
+  <link rel="manifest" href="/manifest.json?v=__BUILD_HASH__" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="stylesheet" href="css/style.css" />
-  <link rel="stylesheet" href="css/settings-theme.css" />
+  <link rel="stylesheet" href="css/style.css?v=__BUILD_HASH__" />
+  <link rel="stylesheet" href="css/settings-theme.css?v=__BUILD_HASH__" />
+  <script defer src="js/sw-register.js?v=__BUILD_HASH__"></script>
 </head>
 <body>
   <div class="background-canvas" aria-hidden="true">
@@ -718,10 +723,11 @@
                         </button>
                       </div>
                       <input id="scanCamUploadInput" type="file" accept="image/*" class="hidden" onchange="scanCamHandlePhotoUpload(this)" />
-                      <!-- Omit accept so Android/WebView opens full storage chooser (e.g. Samsung My Files); handler still allows PDF/images -->
+                      <!-- Document-first MIME list: biases many Android/WebView pickers toward “files/docs” UI (Samsung still chooses the folder; web cannot force a category). Handler keeps PDF/images/Office-ish types. -->
                       <input
                         id="scanCamUploadInputDoc"
                         type="file"
+                        accept="application/pdf,.pdf,image/jpeg,.jpg,.jpeg,image/png,.png,image/gif,.gif,image/webp,.webp,image/bmp,.bmp,image/heic,.heic,image/heif,.heif"
                         class="hidden"
                         onchange="scanCamHandleDocumentUpload(this)"
                       />
@@ -1945,16 +1951,16 @@
   <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="js/config/constants.js"></script>
-  <script src="js/config/api-base.js"></script>
-  <script src="js/features/premium.js"></script>
-  <script src="js/features/note-export.js"></script>
-  <script src="js/features/web-chat-intents.js"></script>
-  <script src="js/services/socket-client.js"></script>
-  <script src="translations.js"></script>
-  <script src="js/components/toast.js"></script>
-  <script src="js/note-rich-editor.bundle.js"></script>
-  <script src="js/app.js"></script>
-  <script src="js/onboarding-tutorial.js"></script>
+  <script src="js/config/constants.js?v=__BUILD_HASH__"></script>
+  <script src="js/config/api-base.js?v=__BUILD_HASH__"></script>
+  <script src="js/features/premium.js?v=__BUILD_HASH__"></script>
+  <script src="js/features/note-export.js?v=__BUILD_HASH__"></script>
+  <script src="js/features/web-chat-intents.js?v=__BUILD_HASH__"></script>
+  <script src="js/services/socket-client.js?v=__BUILD_HASH__"></script>
+  <script src="translations.js?v=__BUILD_HASH__"></script>
+  <script src="js/components/toast.js?v=__BUILD_HASH__"></script>
+  <script src="js/note-rich-editor.bundle.js?v=__BUILD_HASH__"></script>
+  <script src="js/app.js?v=__BUILD_HASH__"></script>
+  <script src="js/onboarding-tutorial.js?v=__BUILD_HASH__"></script>
 </body>
 </html>

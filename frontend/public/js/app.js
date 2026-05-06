@@ -1768,6 +1768,8 @@ function maybeShowTrialGiftWelcome() {
   if (!currentUser || !accessToken) return;
   const life = currentUser.lifecycle;
   if (life !== "trial") return;
+  /** Trial copy is bundled into the first-time welcome sheet — avoid stacking two overlays. */
+  if (currentUser.hasSeenTutorial === false) return;
   try {
     if (typeof localStorage !== "undefined" && localStorage.getItem(trialGiftDismissStorageKey()) === "1") {
       return;
@@ -1780,6 +1782,16 @@ function maybeShowTrialGiftWelcome() {
   el.classList.remove("hidden");
   document.body.classList.add("trial-gift-modal-open");
   if (typeof applyTranslations === "function") applyTranslations();
+}
+
+/** After welcome closes for trial users, suppress the standalone trial gift popup. */
+function markTrialGiftAnnounceIfNeeded() {
+  if (!currentUser || currentUser.lifecycle !== "trial") return;
+  try {
+    localStorage.setItem(trialGiftDismissStorageKey(), "1");
+  } catch {
+    /* ignore */
+  }
 }
 
 function dismissTrialGiftModal() {
@@ -4363,7 +4375,11 @@ function scanCamUploadDocument() {
   scanCamDocPickFromFilesDevice();
 }
 
-/** PDF-focused picker (downloads / Files app on mobile). */
+/**
+ * Opens the system document picker (best effort). Web/PWA APIs cannot pin Samsung “Dokumente” /
+ * a specific OEM category — only a native Android WebChromeClient EXTRA_INITIAL_URI can try that.
+ * `accept` on the hidden input nudges toward document-like MIME groups on many devices.
+ */
 function scanCamDocPickFromFilesDevice() {
   scanCamCloseDocSourceSheet();
   const inp = document.getElementById("scanCamUploadInputDoc");
@@ -5932,7 +5948,21 @@ function settingsSearchInputChanged(value) {
     { key: "security", words: ["security", "password", "login", "session", "siguri", "fjalekalim"] },
     {
       key: "appearance",
-      words: ["appearance", "theme", "language", "look", "dukje", "gjuha", "tema", "tutorial", "tour", "guid", "udhëz"]
+      words: [
+        "appearance",
+        "theme",
+        "language",
+        "look",
+        "dukje",
+        "gjuha",
+        "tema",
+        "welcome",
+        "mirëseardhje",
+        "tutorial",
+        "tour",
+        "guid",
+        "udhëz"
+      ]
     },
     { key: "notifications", words: ["notifications", "notification", "alerts", "njoftime", "sinjalizime"] },
     { key: "premium", words: ["premium", "plan", "subscription", "abonim"] },
@@ -8680,13 +8710,3 @@ socket.on("noteUpdated", () => {
 socket.on("noteDeleted", () => {
   scheduleSocketNotesResync();
 });
-
-// Register service worker for PWA
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker
-    .register("/sw.js", { updateViaCache: "none" })
-    .catch((error) => {
-      console.log("Service Worker registration failed:", error);
-    });
-}
-

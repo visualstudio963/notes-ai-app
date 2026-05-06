@@ -18,7 +18,8 @@
     "cap:open:ios": "npx cap open ios",
     "cap:sync:dev": "node scripts/capacitor-dev.mjs sync",
     "cap:copy:dev": "node scripts/capacitor-dev.mjs copy",
-    "cap:run:android:dev": "node scripts/capacitor-dev.mjs run android"
+    "cap:run:android:dev": "node scripts/capacitor-dev.mjs run android",
+    "vercel-build": "node scripts/inject-build-hash.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.1",

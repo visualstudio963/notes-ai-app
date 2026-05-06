@@ -4,8 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin — Notes AI</title>
+  <meta name="notes-ai-build" content="__BUILD_HASH__" />
+  <script>
+    window.__NOTES_AI_BUILD__ = "__BUILD_HASH__";
+  </script>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="stylesheet" href="css/admin.css" />
+  <link rel="stylesheet" href="css/admin.css?v=__BUILD_HASH__" />
 </head>
 <body>
   <div id="adminGate" class="admin-root">
@@ -452,7 +456,7 @@
     </div>
   </div>
 
-  <script src="js/config/api-base.js"></script>
-  <script src="js/admin-dashboard.js"></script>
+  <script src="js/config/api-base.js?v=__BUILD_HASH__"></script>
+  <script src="js/admin-dashboard.js?v=__BUILD_HASH__"></script>
 </body>
 </html>

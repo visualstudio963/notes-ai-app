@@ -282,8 +282,8 @@ app.get(
       }
 
       /**
-       * Land on site root so static hosts always serve index.html (avoids Vercel 404 on /dashboard if SPA rewrites fail).
-       * Optional local password is set later in Settings — not forced on first login.
+       * Never redirect to /set-password after Google — user sets optional password from Settings.
+       * Root URL ensures SPA index.html on Vercel without fragile deep-link rewrites.
        */
       const nextSegment = "/";
       const oauthCookieOpts = getOAuthHandoffSetCookieOptions(sessionCookieSecure);

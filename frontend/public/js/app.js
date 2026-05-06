@@ -4069,7 +4069,8 @@ async function finalizeGoogleOAuthSession(payload) {
   }
 
   storeCurrentUser(u, at, rt, true, { skipUi: authBootstrapPhaseActive });
-  history.replaceState(null, "", window.location.pathname);
+  /** OAuth success always lands on home URL — never /set-password from Google flow. */
+  history.replaceState(null, "", "/");
 
   if (authBootstrapPhaseActive) {
     pendingPostOAuthPresentation = true;
@@ -4090,18 +4091,8 @@ function presentPostGoogleOAuthChrome(u) {
     });
   };
 
-  if (isSetPasswordPath() && !userHasLocalPasswordFlag()) {
-    showToast(`Welcome, ${welcomeUser}`);
-    finishGoogleOAuthSuccess();
-    syncAuthShellVisibility();
-    return;
-  }
-
   showToast(`Welcome, ${welcomeUser}`);
   goHome();
-  if (/\/dashboard\/?$/.test(window.location.pathname || "")) {
-    history.replaceState(null, "", "/" + (window.location.search || ""));
-  }
   finishGoogleOAuthSuccess();
   if (typeof scheduleOnboardingTutorialAfterAuth === "function") scheduleOnboardingTutorialAfterAuth();
 }

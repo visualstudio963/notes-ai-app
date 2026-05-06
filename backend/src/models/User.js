@@ -100,9 +100,16 @@ userSchema.pre("validate", function syncLegacyEmailOrPhone(next) {
       this.email = eop;
     }
 
-    const u = typeof this.username === "string" ? this.username.trim().toLowerCase() : "";
-    if ((!this.email || this.email === "") && u) {
+    let u = typeof this.username === "string" ? this.username.trim().toLowerCase() : "";
+    /* Strip characters invalid in the local-part first segment — keeps synthetic email sane */
+    u = u.replace(/[^a-z0-9_]/g, "");
+    if ((!this.email || this.email === "") && u.length >= 1) {
       this.email = `${u}@${SYNTHETIC_EMAIL_DOMAIN}`;
+    }
+
+    /* Absolute fallback: authenticated docs always have _id (legacy rows missing email/username) */
+    if ((!this.email || this.email === "") && this._id && mongoose.Types.ObjectId.isValid(this._id)) {
+      this.email = `u${String(this._id)}@${SYNTHETIC_EMAIL_DOMAIN}`;
     }
 
     if ((!this.emailOrPhone || String(this.emailOrPhone).trim() === "") && this.email) {

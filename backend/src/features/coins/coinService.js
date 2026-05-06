@@ -56,7 +56,7 @@ async function ensureReferralCode(User, userDoc) {
       return await User.findByIdAndUpdate(
         userDoc._id,
         { $set: { referralCode: code } },
-        { new: true, runValidators: true }
+        { new: true, runValidators: false }
       );
     } catch (e) {
       if (e && e.code === 11000) continue;
@@ -151,15 +151,15 @@ async function bindReferralCode(User, inviteeId, rawCode) {
 }
 
 async function claimDailyLogin(User, userId) {
-  const user = await User.findById(userId);
-  if (!user) {
+  const userLean = await User.findById(userId).lean();
+  if (!userLean) {
     const err = new Error("User not found");
     err.statusCode = 404;
     throw err;
   }
 
   const today = utcTodayString();
-  const last = user.dailyLoginUtcDate ? String(user.dailyLoginUtcDate) : "";
+  const last = userLean.dailyLoginUtcDate ? String(userLean.dailyLoginUtcDate) : "";
 
   if (last === today) {
     const err = new Error("Daily reward already claimed today.");
@@ -168,7 +168,7 @@ async function claimDailyLogin(User, userId) {
     throw err;
   }
 
-  let nextIdx = Number(user.loginStreakNextIndex) || 1;
+  let nextIdx = Number(userLean.loginStreakNextIndex) || 1;
   if (nextIdx < 1 || nextIdx > 7) nextIdx = 1;
 
   if (last && last !== utcYesterdayString()) {
@@ -176,13 +176,42 @@ async function claimDailyLogin(User, userId) {
   }
 
   const base = DAILY_STREAK_REWARDS[nextIdx - 1] ?? DAILY_STREAK_REWARDS[0];
-  const gained = scaledReward(base, user.toObject());
-  user.loginStreakNextIndex = nextIdx >= 7 ? 1 : nextIdx + 1;
-  user.dailyLoginUtcDate = today;
-  user.coins = clampCoins((Number(user.coins) || 0) + gained);
-  await user.save();
+  const gained = scaledReward(base, userLean);
+  const nextAfter = nextIdx >= 7 ? 1 : nextIdx + 1;
+  const newCoins = clampCoins((Number(userLean.coins) || 0) + gained);
 
-  return User.findById(userId).lean();
+  /* Atomic $set only — skips full-document Mongoose validation (legacy users without email rows). */
+  const updated = await User.findOneAndUpdate(
+    { _id: userId, dailyLoginUtcDate: { $ne: today } },
+    {
+      $set: {
+        dailyLoginUtcDate: today,
+        loginStreakNextIndex: nextAfter,
+        coins: newCoins
+      }
+    },
+    { new: true, runValidators: false, lean: true }
+  );
+
+  if (!updated) {
+    const check = await User.findById(userId).select("dailyLoginUtcDate").lean();
+    if (!check) {
+      const err = new Error("User not found");
+      err.statusCode = 404;
+      throw err;
+    }
+    if (String(check.dailyLoginUtcDate || "") === today) {
+      const err = new Error("Daily reward already claimed today.");
+      err.statusCode = 409;
+      err.code = "DAILY_CLAIMED";
+      throw err;
+    }
+    const err = new Error("Daily reward failed.");
+    err.statusCode = 500;
+    throw err;
+  }
+
+  return updated;
 }
 
 async function claimVideoReward(User, userId) {
@@ -199,14 +228,14 @@ async function claimVideoReward(User, userId) {
 }
 
 async function redeemStandardWithCoins(User, userId) {
-  const user = await User.findById(userId);
-  if (!user) {
+  const userLean = await User.findById(userId).lean();
+  if (!userLean) {
     const err = new Error("User not found");
     err.statusCode = 404;
     throw err;
   }
 
-  const coins = Number(user.coins) || 0;
+  const coins = Number(userLean.coins) || 0;
   if (coins < STANDARD_COIN_COST) {
     const err = new Error(`Need ${STANDARD_COIN_COST} coins to unlock Standard for 30 days.`);
     err.statusCode = 400;
@@ -216,15 +245,31 @@ async function redeemStandardWithCoins(User, userId) {
 
   const now = Date.now();
   let base = now;
-  const existingCoin = user.standardCoinExpiresAt ? new Date(user.standardCoinExpiresAt).getTime() : 0;
+  const existingCoin = userLean.standardCoinExpiresAt ? new Date(userLean.standardCoinExpiresAt).getTime() : 0;
   if (Number.isFinite(existingCoin) && existingCoin > base) base = existingCoin;
 
-  /** Add 30 days from max(now, coin expiry); Stripe-paid standard still keeps features via plan — coin window stacks for downgrade buffer */
-  user.standardCoinExpiresAt = new Date(base + STANDARD_COIN_DURATION_MS);
-  user.coins = clampCoins(coins - STANDARD_COIN_COST);
-  await user.save();
+  const standardCoinExpiresAt = new Date(base + STANDARD_COIN_DURATION_MS);
+  const newCoins = clampCoins(coins - STANDARD_COIN_COST);
 
-  return User.findById(userId).lean();
+  const updated = await User.findOneAndUpdate(
+    { _id: userId, coins: { $gte: STANDARD_COIN_COST } },
+    {
+      $set: {
+        standardCoinExpiresAt,
+        coins: newCoins
+      }
+    },
+    { new: true, runValidators: false, lean: true }
+  );
+
+  if (!updated) {
+    const err = new Error(`Need ${STANDARD_COIN_COST} coins to unlock Standard for 30 days.`);
+    err.statusCode = 400;
+    err.code = "INSUFFICIENT_COINS";
+    throw err;
+  }
+
+  return updated;
 }
 
 /**

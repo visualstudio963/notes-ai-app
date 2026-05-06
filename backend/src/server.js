@@ -287,10 +287,12 @@ app.get(
        */
       const nextSegment = "/";
       const oauthCookieOpts = getOAuthHandoffSetCookieOptions(sessionCookieSecure);
+      const redirectUrl = `${frontendBase.replace(/\/$/, "")}${nextSegment}`;
       const finish = () => {
         res.cookie(OAUTH_HANDOFF_AT, accessToken, oauthCookieOpts);
         res.cookie(OAUTH_HANDOFF_RT, refreshToken, oauthCookieOpts);
-        res.redirect(302, `${frontendBase}${nextSegment}`);
+        console.log("[auth/google/callback] HTTP 302 Location:", redirectUrl);
+        res.redirect(302, redirectUrl);
       };
 
       if (typeof req.logout === "function") {

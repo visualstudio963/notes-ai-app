@@ -2,6 +2,14 @@
   box-sizing: border-box;
 }
 
+html.auth-bootstrap-pending body > * {
+  visibility: hidden !important;
+}
+
+html.auth-bootstrap-pending body {
+  background: #050814;
+}
+
 html,
 body {
   margin: 0;
@@ -12246,10 +12254,6 @@ body.floating-scrolled .discord-fab:hover {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
-}
-
-body.oauth-session-restore-pending {
-  cursor: wait;
 }
 
 body.auth-shell-locked .app,

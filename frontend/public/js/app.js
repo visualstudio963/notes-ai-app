@@ -1302,6 +1302,7 @@ function toggleMobileNav() {
 }
 
 function syncMobileHeaderActionUi() {
+  if (authBootstrapPhaseActive) return;
   const btn = document.getElementById("mobileHeaderActionBtn");
   if (!btn) return;
   const show = isMobileViewport();
@@ -1658,7 +1659,8 @@ function getStoredUser() {
   }
 }
 
-function storeCurrentUser(user, token, refresh, remember) {
+function storeCurrentUser(user, token, refresh, remember, options) {
+  const skipUi = options && options.skipUi === true;
   if (remember) {
     localStorage.setItem("accessToken", token);
     localStorage.setItem("refreshToken", refresh);
@@ -1682,14 +1684,17 @@ function storeCurrentUser(user, token, refresh, remember) {
     applyTheme(user.theme);
     updateThemeSelector();
   }
-  updateAccountUI();
-  updatePremiumUi();
+  if (!skipUi) {
+    updateAccountUI();
+    updatePremiumUi();
+  }
   if (token) {
     if (typeof socket !== "undefined" && socket && typeof socket.emit === "function") {
       socket.emit("authenticate", token);
     }
-    // Load user settings from server
-    loadUserSettings();
+    if (!skipUi) {
+      loadUserSettings();
+    }
   }
 }
 
@@ -2853,10 +2858,20 @@ let chooseUsernameInitStarted = false;
 /** When true, guest user intentionally opened the login/sign-up overlay (sidebar Account / requireAuth). */
 let authLoginModalOpen = false;
 
-/** True while waiting for POST /api/auth/oauth-handoff on /set-password (avoids false "guest on set-password" redirect). */
-let oauthSessionRestorePending = false;
+/** True during blocking auth bootstrap (storage + optional oauth handoff); UI updates must no-op. */
+let authBootstrapPhaseActive = false;
+
+/** After quiet OAuth persist during bootstrap, run welcome / goHome once the shell is visible. */
+let pendingPostOAuthPresentation = false;
+
+function refreshClientAuthFromStorage() {
+  currentUser = getStoredUser();
+  accessToken = getStoredAccessToken();
+  refreshToken = getStoredRefreshToken();
+}
 
 function syncAuthShellVisibility() {
+  if (authBootstrapPhaseActive) return;
   const landing = document.getElementById("authLanding");
   const choose = document.getElementById("chooseUsernameScreen");
   const setPwd = document.getElementById("setPasswordScreen");
@@ -2865,7 +2880,7 @@ function syncAuthShellVisibility() {
   const fab = document.getElementById("dailyPlannerFab");
   const loggedIn = Boolean(currentUser && accessToken);
 
-  if (!loggedIn && isSetPasswordPath() && !oauthSessionRestorePending) {
+  if (!loggedIn && isSetPasswordPath()) {
     history.replaceState(null, "", "/" + (window.location.search || ""));
     setPwd?.classList.add("hidden");
   }
@@ -3150,6 +3165,7 @@ async function submitChooseUsername() {
 }
 
 function updateAccountUI() {
+  if (authBootstrapPhaseActive) return;
   const accountButton = document.getElementById("accountButton");
   const logoutButton = document.getElementById("logoutButton");
 
@@ -4045,17 +4061,27 @@ async function finalizeGoogleOAuthSession(payload) {
   const rt = payload && payload.refreshToken;
   const u = payload && payload.user;
   if (!at || !rt || !u) {
-    showToast("Google sign-in could not be completed.");
-    history.replaceState(null, "", window.location.pathname + window.location.search);
+    if (!authBootstrapPhaseActive) {
+      showToast("Google sign-in could not be completed.");
+      history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
     return;
   }
-  accessToken = at;
-  refreshToken = rt;
-  localStorage.setItem("accessToken", at);
-  localStorage.setItem("refreshToken", rt);
-  storeCurrentUser(u, at, rt, true);
-  syncMobileHeaderActionUi();
+
+  storeCurrentUser(u, at, rt, true, { skipUi: authBootstrapPhaseActive });
   history.replaceState(null, "", window.location.pathname);
+
+  if (authBootstrapPhaseActive) {
+    pendingPostOAuthPresentation = true;
+    return;
+  }
+
+  syncMobileHeaderActionUi();
+  presentPostGoogleOAuthChrome(u);
+}
+
+function presentPostGoogleOAuthChrome(u) {
+  const welcomeUser = (u && u.username) || (currentUser && currentUser.username) || "";
   const finishGoogleOAuthSuccess = () => {
     refreshReminderRelatedViews();
     void mergePremiumFromServer().then(() => {
@@ -4065,13 +4091,13 @@ async function finalizeGoogleOAuthSession(payload) {
   };
 
   if (isSetPasswordPath() && !userHasLocalPasswordFlag()) {
-    showToast(`Welcome, ${u.username}`);
+    showToast(`Welcome, ${welcomeUser}`);
     finishGoogleOAuthSuccess();
     syncAuthShellVisibility();
     return;
   }
 
-  showToast(`Welcome, ${u.username}`);
+  showToast(`Welcome, ${welcomeUser}`);
   goHome();
   if (/\/dashboard\/?$/.test(window.location.pathname || "")) {
     history.replaceState(null, "", "/" + (window.location.search || ""));
@@ -4080,81 +4106,103 @@ async function finalizeGoogleOAuthSession(payload) {
   if (typeof scheduleOnboardingTutorialAfterAuth === "function") scheduleOnboardingTutorialAfterAuth();
 }
 
-async function applyGoogleOAuthLanding() {
+/** After shell is visible: toast + navigation for a session that was persisted during bootstrap. */
+async function presentPendingPostOAuthLandingIfAny() {
+  if (!pendingPostOAuthPresentation) return;
+  pendingPostOAuthPresentation = false;
+  await loadUserSettings();
+  if ("Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission();
+  }
+  startWebNotificationScheduler();
+  syncMobileHeaderActionUi();
+  presentPostGoogleOAuthChrome(currentUser);
+}
+
+function handleGoogleOAuthQueryParams() {
   const params = new URLSearchParams(window.location.search);
   const qErr = params.get("google_oauth_error");
-  if (qErr) {
-    const raw = decodeURIComponent(qErr);
-    const friendly =
-      raw === "account_exists"
-        ? typeof t === "function"
-          ? t("accountAlreadyExistsToast")
-          : "Account already exists. Please log in."
-        : raw === "account_conflict"
-          ? "This email is linked to another sign-in method."
-          : `Google sign-in: ${raw}`;
-    showToast(friendly);
-    params.delete("google_oauth_error");
-    const qs = params.toString();
-    history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : ""));
+  if (!qErr) return;
+  const raw = decodeURIComponent(qErr);
+  const friendly =
+    raw === "account_exists"
+      ? typeof t === "function"
+        ? t("accountAlreadyExistsToast")
+        : "Account already exists. Please log in."
+      : raw === "account_conflict"
+        ? "This email is linked to another sign-in method."
+        : `Google sign-in: ${raw}`;
+  showToast(friendly);
+  params.delete("google_oauth_error");
+  const qs = params.toString();
+  history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : ""));
+}
+
+/**
+ * Blocking auth bootstrap: storage, optional /api/me when tokens exist without user, then oauth cookie handoff.
+ * (Query OAuth errors are handled after the shell is shown — see handleGoogleOAuthQueryParams.)
+ */
+async function runAuthBootstrap() {
+  refreshClientAuthFromStorage();
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("google_oauth_error")) {
     return;
   }
 
-  const hasStoredPair =
-    window.localStorage.getItem("accessToken") && window.localStorage.getItem("refreshToken");
-  const emptyTokens = !hasStoredPair;
-  const onSetPasswordRoute = isSetPasswordPath();
-
-  if (emptyTokens && onSetPasswordRoute) {
-    oauthSessionRestorePending = true;
-    document.body.classList.add("oauth-session-restore-pending");
+  const hasPair = Boolean(accessToken && refreshToken);
+  if (hasPair && !currentUser) {
+    try {
+      const data = await apiFetch("/api/me", { method: "GET" });
+      if (data && data.user) {
+        const remember = Boolean(
+          typeof localStorage !== "undefined" && localStorage.getItem("refreshToken")
+        );
+        storeCurrentUser(data.user, accessToken, refreshToken, remember, { skipUi: true });
+      }
+    } catch {
+      /* keep tokens */
+    }
   }
 
-  try {
-    if (hasStoredPair) return;
+  if (accessToken && refreshToken) return;
 
-    if (window.sessionStorage.getItem("oauth_handoff_tried")) return;
-    window.sessionStorage.setItem("oauth_handoff_tried", "1");
+  if (window.sessionStorage.getItem("oauth_handoff_tried")) return;
+  window.sessionStorage.setItem("oauth_handoff_tried", "1");
 
-    const url = buildApiUrl("/api/auth/oauth-handoff");
-    let lastRes = /** @type {Response | null} */ (null);
-    let data = {};
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      if (attempt > 0) {
-        await new Promise((r) => setTimeout(r, 100 * attempt));
-      }
-      try {
-        lastRes = await fetch(url, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: "{}"
-        });
-        data = await lastRes.json().catch(() => ({}));
-      } catch (netErr) {
-        console.warn("[oauth-handoff] attempt", attempt + 1, netErr);
-        lastRes = null;
-        data = {};
-        continue;
-      }
-      if (lastRes && lastRes.ok && data.accessToken && data.refreshToken && data.user) break;
-    }
-
-    if (!lastRes || !lastRes.ok || !data.accessToken || !data.refreshToken || !data.user) {
-      window.sessionStorage.removeItem("oauth_handoff_tried");
-      return;
+  const url = buildApiUrl("/api/auth/oauth-handoff");
+  let lastRes = /** @type {Response | null} */ (null);
+  let data = {};
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (attempt > 0) {
+      await new Promise((r) => setTimeout(r, 100 * attempt));
     }
     try {
-      await finalizeGoogleOAuthSession(data);
-    } catch (finErr) {
-      console.error(finErr);
-      window.sessionStorage.removeItem("oauth_handoff_tried");
+      lastRes = await fetch(url, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: "{}"
+      });
+      data = await lastRes.json().catch(() => ({}));
+    } catch (netErr) {
+      console.warn("[oauth-handoff] attempt", attempt + 1, netErr);
+      lastRes = null;
+      data = {};
+      continue;
     }
-  } finally {
-    if (emptyTokens && onSetPasswordRoute) {
-      oauthSessionRestorePending = false;
-      document.body.classList.remove("oauth-session-restore-pending");
-    }
+    if (lastRes && lastRes.ok && data.accessToken && data.refreshToken && data.user) break;
+  }
+
+  if (!lastRes || !lastRes.ok || !data.accessToken || !data.refreshToken || !data.user) {
+    window.sessionStorage.removeItem("oauth_handoff_tried");
+    return;
+  }
+  try {
+    await finalizeGoogleOAuthSession(data);
+  } catch (finErr) {
+    console.error(finErr);
+    window.sessionStorage.removeItem("oauth_handoff_tried");
   }
 }
 
@@ -8636,11 +8684,22 @@ function updateThemeSelector() {
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
-  captureInviteCodeFromLocation();
-  if (window.NoteRichEditor && typeof window.NoteRichEditor.initNoteRichEditorBridge === "function") {
-    window.NoteRichEditor.initNoteRichEditorBridge();
+  authBootstrapPhaseActive = true;
+  try {
+    captureInviteCodeFromLocation();
+    if (window.NoteRichEditor && typeof window.NoteRichEditor.initNoteRichEditorBridge === "function") {
+      window.NoteRichEditor.initNoteRichEditorBridge();
+    }
+    await runAuthBootstrap();
+  } catch (err) {
+    console.error("[auth-bootstrap]", err);
+  } finally {
+    authBootstrapPhaseActive = false;
+    document.documentElement.classList.remove("auth-bootstrap-pending");
   }
-  await applyGoogleOAuthLanding();
+
+  handleGoogleOAuthQueryParams();
+
   initAuthLandingUi();
   void ensureNativeNotificationChannel();
   // Initialize theme and language
@@ -8650,8 +8709,12 @@ window.addEventListener("DOMContentLoaded", async () => {
   coinsHubEnsureStreakDelegate();
 
   updateAccountUI();
+  syncAuthShellVisibility();
+  updatePremiumUi();
 
-  if (currentUser && accessToken) {
+  if (pendingPostOAuthPresentation) {
+    await presentPendingPostOAuthLandingIfAny();
+  } else if (currentUser && accessToken) {
     await loadUserSettings();
     startWebNotificationScheduler();
     if ("Notification" in window && Notification.permission === "default") {

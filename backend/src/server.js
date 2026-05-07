@@ -21,7 +21,8 @@ const { createApiRouter } = require("./routes");
 const { createIssueSessionTokens, createPasswordLoginHandler } = require("./routes/auth.routes");
 const { configurePassport, passport } = require("./config/passport");
 const session = require("express-session");
-const MongoStore = require("connect-mongo");
+const MongoStoreModule = require("connect-mongo");
+const MongoStore = MongoStoreModule && MongoStoreModule.default ? MongoStoreModule.default : MongoStoreModule;
 const { createStripeWebhookHandler } = require("./features/premium/stripeWebhook");
 const { createReminderChecker } = require("./jobs/reminderScheduler");
 const { createPurgePastReminders } = require("./jobs/purgePastReminders");
@@ -156,14 +157,20 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 const sessionCookieSecure = process.env.NODE_ENV === "production";
+const mongoSessionStoreOptions = {
+  mongoUrl: process.env.MONGO_URI || config.mongoUri,
+  collectionName: "sessions",
+  ttl: 14 * 24 * 60 * 60
+};
+const sessionStore =
+  MongoStore && typeof MongoStore.create === "function"
+    ? MongoStore.create(mongoSessionStoreOptions)
+    : new MongoStore(mongoSessionStoreOptions);
+
 app.use(
   session({
     secret: config.sessionSecret,
-    store: MongoStore.create({
-      mongoUrl: process.env.MONGO_URI || config.mongoUri,
-      collectionName: "sessions",
-      ttl: 14 * 24 * 60 * 60
-    }),
+    store: sessionStore,
     resave: false,
     saveUninitialized: false,
     name: "notes.sid",

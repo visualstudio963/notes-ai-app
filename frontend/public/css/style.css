@@ -16590,6 +16590,116 @@ body:has(#webChat:not(.hidden)) .web-chat-fab {
   }
 }
 
+/* Web Chat practical fixes: input width, center send, clean mobile */
+#webChat .web-chat-model-lock-banner {
+  display: none !important;
+}
+
+#webChat .web-chat-messenger__footer {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+#webChat .web-chat-composer-bar {
+  width: 100% !important;
+}
+
+#webChat .web-chat-composer {
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  column-gap: 8px !important;
+  min-height: 58px !important;
+  padding: 6px 6px 6px 10px !important;
+  overflow: hidden !important;
+}
+
+#webChat #webChatInput,
+#webChat .web-chat-composer textarea {
+  width: 100% !important;
+  min-height: 44px !important;
+  max-height: 88px !important;
+  height: auto !important;
+  padding: 10px 2px !important;
+  margin: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  overflow-y: auto !important;
+  scrollbar-width: none !important;
+}
+
+#webChat #webChatInput::-webkit-scrollbar,
+#webChat .web-chat-composer textarea::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+}
+
+#webChat .web-chat-send,
+#webChat .web-chat-send--inline {
+  position: static !important;
+  align-self: center !important;
+  justify-self: center !important;
+  margin: 0 !important;
+  transform: none !important;
+}
+
+#webChat .web-chat-chip-strip {
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  padding-bottom: 2px !important;
+}
+
+body:has(#webChat:not(.hidden)) .web-chat-fab {
+  bottom: max(18px, env(safe-area-inset-bottom, 0px) + 8px) !important;
+}
+
+body:has(#webChat:not(.hidden)) .daily-planner-fab {
+  bottom: max(76px, env(safe-area-inset-bottom, 0px) + 52px) !important;
+}
+
+#webChat .web-chat-messages {
+  padding-bottom: 236px !important;
+}
+
+@media (max-width: 430px) {
+  #webChat .web-chat-messenger__footer {
+    left: 8px !important;
+    right: 8px !important;
+    bottom: 8px !important;
+    padding: 8px !important;
+  }
+  #webChat .web-chat-composer {
+    min-height: 52px !important;
+    padding: 5px 5px 5px 8px !important;
+  }
+  #webChat #webChatInput,
+  #webChat .web-chat-composer textarea {
+    min-height: 40px !important;
+    max-height: 74px !important;
+    font-size: 0.84rem !important;
+  }
+  #webChat .web-chat-send,
+  #webChat .web-chat-send--inline {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+  }
+  #webChat .web-chat-mode-pills {
+    width: 100% !important;
+  }
+  #webChat .web-chat-messages {
+    padding-bottom: 212px !important;
+  }
+  .web-chat-fab,
+  .daily-planner-fab {
+    right: max(8px, env(safe-area-inset-right, 0px) + 6px) !important;
+  }
+}
+
 /* Coins header edge-to-edge balance layout */
 #coins-hub .page-shell.coins-dash-shell {
   width: 100%;

@@ -1,0 +1,20 @@
+{
+  "rewrites": [
+    {
+      "source": "/auth/:path*",
+      "destination": "https://notes-ai-app.onrender.com/auth/:path*"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://notes-ai-app.onrender.com/api/:path*"
+    },
+    {
+      "source": "/invite/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/:path*",
+      "destination": "/index.html"
+    }
+  ]
+}

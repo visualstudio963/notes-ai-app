@@ -1763,6 +1763,30 @@
         <button type="button" class="close-button" onclick="closeNoteExportModal()" aria-label="Close">✕</button>
       </div>
       <p class="note-export-lead" data-t="noteExportChooseFormat">Zgjidh formatin</p>
+      <div class="note-export-theme-block" role="group" aria-labelledby="noteExportThemeLabelText">
+        <div id="noteExportThemeLabelText" class="note-export-theme-label" data-t="noteExportThemeLabel">Export look</div>
+        <div class="note-export-theme-seg">
+          <button
+            type="button"
+            id="noteExportThemeLight"
+            class="note-export-theme-btn"
+            aria-pressed="true"
+            onclick="event.stopPropagation(); noteExportSetTheme('light');"
+          >
+            <span data-t="noteExportThemeLight">Light</span>
+          </button>
+          <button
+            type="button"
+            id="noteExportThemeDark"
+            class="note-export-theme-btn"
+            aria-pressed="false"
+            onclick="event.stopPropagation(); noteExportSetTheme('dark');"
+          >
+            <span data-t="noteExportThemeDark">Dark</span>
+          </button>
+        </div>
+        <p class="note-export-theme-hint" data-t="noteExportThemeHint">For PDF and JPG.</p>
+      </div>
       <ul class="note-export-options">
         <li>
           <button type="button" id="noteExportBtnPdf" class="note-export-option" onclick="runNoteExportAction('pdf')">
@@ -1937,6 +1961,7 @@
   </div>
 
   <div class="toast hidden" id="toast"></div>
+  <div class="reminder-foreground-toast hidden" id="reminderForegroundToast" role="status" aria-live="polite" aria-hidden="true"></div>
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>

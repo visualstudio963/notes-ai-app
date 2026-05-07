@@ -2402,6 +2402,32 @@ body.modal-open {
   background: rgba(30, 41, 59, 0.75);
 }
 
+/* Scan Cam OCR result: keep a light “paper” sheet so text stays readable on all themes & breakpoints */
+#scanCamResultPanel .scan-cam-result__sheet {
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  box-shadow: 0 32px 64px rgba(15, 23, 42, 0.35);
+}
+
+#scanCamResultPanel .scan-cam-result__title {
+  color: #0f172a;
+  background: transparent;
+  border-bottom-color: rgba(15, 23, 42, 0.1);
+}
+
+#scanCamResultPanel .scan-cam-result__title::placeholder {
+  color: #64748b;
+}
+
+#scanCamResultPanel .scan-cam-result__body {
+  color: #0f172a;
+  background: rgba(248, 250, 252, 0.95);
+  border-radius: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
 /* Scan Cam — document source chooser bottom sheet (mounted on body — avoid overflow/transform clipping). */
 .scan-cam-doc-sheet {
   position: fixed;
@@ -3192,6 +3218,63 @@ body.modal-open {
   margin: 0 0 16px;
   font-size: 0.92rem;
   color: #94a3b8;
+}
+
+.note-export-theme-block {
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.note-export-theme-label {
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 10px;
+}
+
+.note-export-theme-seg {
+  display: flex;
+  gap: 8px;
+}
+
+.note-export-theme-btn {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(30, 41, 59, 0.6);
+  color: #e2e8f0;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.note-export-theme-btn:hover {
+  border-color: rgba(56, 189, 248, 0.45);
+  background: rgba(56, 189, 248, 0.12);
+}
+
+.note-export-theme-btn.is-active {
+  border-color: rgba(56, 189, 248, 0.65);
+  background: rgba(56, 189, 248, 0.22);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.15);
+}
+
+.note-export-theme-hint {
+  margin: 10px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: #64748b;
 }
 
 .note-export-options {
@@ -5264,6 +5347,41 @@ button.save-button.secondary:hover {
   opacity: 1;
 }
 
+.reminder-foreground-toast {
+  position: fixed;
+  left: 50%;
+  top: 22px;
+  transform: translateX(-50%);
+  max-width: min(92vw, 420px);
+  padding: 12px 18px;
+  border-radius: 14px;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: #f8fafc;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 25;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease;
+}
+
+.reminder-foreground-toast:not(.hidden) {
+  opacity: 1;
+}
+
+.reminder-status-overdue {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #fbbf24;
+  vertical-align: middle;
+}
+
 .modal {
   position: fixed;
   inset: 0;
@@ -7198,7 +7316,6 @@ button.save-button.secondary:hover {
   .note-card,
   .modal-content,
   .scan-cam-tool,
-  .scan-cam-result__sheet,
   .premium-preview-card {
     background: linear-gradient(165deg, rgba(14, 24, 46, 0.9), rgba(10, 19, 38, 0.94));
     border-color: rgba(148, 163, 184, 0.18);

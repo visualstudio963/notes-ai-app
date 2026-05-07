@@ -53,3 +53,39 @@ self.addEventListener("fetch", (event) => {
       .catch(() => caches.match(req))
   );
 });
+
+/** Focus an open client or open the start URL; never use window.open from the page for notifications. */
+self.addEventListener("notificationclick", (event) => {
+  const n = event.notification;
+  if (n) n.close();
+  const data = (n && n.data) || {};
+  const rawUrl = typeof data.url === "string" && data.url ? data.url : self.registration.scope;
+  let targetUrl = rawUrl;
+  try {
+    targetUrl = new URL(rawUrl, self.registration.scope).href;
+  } catch {
+    /* use rawUrl */
+  }
+  const reminderId = data.reminderId != null ? data.reminderId : undefined;
+
+  event.waitUntil(
+    (async () => {
+      const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      const scopeOrigin = new URL(self.registration.scope).origin;
+      for (const client of all) {
+        try {
+          if (String(client.url || "").startsWith(scopeOrigin) && "focus" in client) {
+            await client.focus();
+            client.postMessage({ type: "NOTIFICATION_CLICK", reminderId, url: targetUrl });
+            return;
+          }
+        } catch {
+          /* try next */
+        }
+      }
+      if (self.clients.openWindow) {
+        await self.clients.openWindow(targetUrl);
+      }
+    })()
+  );
+});

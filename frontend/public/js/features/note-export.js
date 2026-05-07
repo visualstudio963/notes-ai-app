@@ -7,6 +7,23 @@
   "use strict";
 
   var pendingNote = null;
+  var EXPORT_THEME_KEY = "noteExportTheme";
+
+  var ALLOWED_EXPORT_TAGS = {
+    p: true,
+    div: true,
+    br: true,
+    ul: true,
+    ol: true,
+    li: true,
+    strong: true,
+    b: true,
+    em: true,
+    i: true,
+    u: true,
+    span: true,
+    blockquote: true
+  };
 
   function sanitizeExportBasename(note) {
     var title = "";
@@ -28,7 +45,8 @@
     );
   }
 
-  function triggerDownloadBlob(blob, filename) {
+  function downloadBlob(blob, filename) {
+    if (!blob) return;
     var url = URL.createObjectURL(blob);
     var a = document.createElement("a");
     a.href = url;
@@ -42,36 +60,304 @@
     }, 2500);
   }
 
+  function canvasToBlob(canvas, type, quality) {
+    return new Promise(function (resolve) {
+      canvas.toBlob(function (blob) {
+        resolve(blob || null);
+      }, type, quality);
+    });
+  }
+
+  function getNoteStoredRaw(note) {
+    return (note && note.text) != null ? String(note.text) : "";
+  }
+
+  function getNoteHtmlBody(note) {
+    var raw = getNoteStoredRaw(note);
+    if (!raw) return "";
+    if (
+      typeof window !== "undefined" &&
+      window.NoteRichEditor &&
+      typeof window.NoteRichEditor.storedToHtml === "function"
+    ) {
+      return window.NoteRichEditor.storedToHtml(raw);
+    }
+    return raw.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\n/g, "<br>");
+  }
+
+  function sanitizeExportHtml(html) {
+    var parser = new DOMParser();
+    var doc = parser.parseFromString(String(html || ""), "text/html");
+    var body = doc.body;
+    if (!body) return "";
+
+    function cleanNode(node) {
+      if (!node || !node.childNodes) return;
+      var children = Array.prototype.slice.call(node.childNodes);
+      for (var i = 0; i < children.length; i++) {
+        var child = children[i];
+        if (!child) continue;
+        if (child.nodeType === 8) {
+          node.removeChild(child);
+          continue;
+        }
+        if (child.nodeType !== 1) continue;
+        var tag = String(child.tagName || "").toLowerCase();
+        if (tag === "script" || tag === "style") {
+          node.removeChild(child);
+          continue;
+        }
+        if (!ALLOWED_EXPORT_TAGS[tag]) {
+          var parent = child.parentNode;
+          if (parent) {
+            while (child.firstChild) parent.insertBefore(child.firstChild, child);
+            parent.removeChild(child);
+          }
+          continue;
+        }
+        var attrs = Array.prototype.slice.call(child.attributes || []);
+        for (var ai = 0; ai < attrs.length; ai++) {
+          var name = String(attrs[ai].name || "").toLowerCase();
+          if (name.indexOf("on") === 0 || name === "style" || name === "class" || name === "id") {
+            child.removeAttribute(attrs[ai].name);
+          }
+        }
+        cleanNode(child);
+      }
+    }
+
+    cleanNode(body);
+    return body.innerHTML;
+  }
+
+  function sanitizeExportText(text) {
+    return String(text || "")
+      .replace(/\u00a0/g, " ")
+      .replace(/\r\n?/g, "\n")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+
+  function getTxtBodyFromHtml(html) {
+    var parser = new DOMParser();
+    var doc = parser.parseFromString("<div>" + String(html || "") + "</div>", "text/html");
+    var root = doc.body && doc.body.firstElementChild ? doc.body.firstElementChild : doc.body;
+    if (!root) return "";
+
+    function walk(node, out, depth) {
+      if (!node) return;
+      if (node.nodeType === 3) {
+        out.push(node.nodeValue || "");
+        return;
+      }
+      if (node.nodeType !== 1) return;
+      var tag = String(node.tagName || "").toLowerCase();
+      if (tag === "br") {
+        out.push("\n");
+        return;
+      }
+      if (tag === "li") out.push("• ");
+      var children = Array.prototype.slice.call(node.childNodes || []);
+      for (var i = 0; i < children.length; i++) walk(children[i], out, depth + 1);
+      if (tag === "li" || tag === "p" || tag === "div" || tag === "blockquote") out.push("\n");
+      if (tag === "ul" || tag === "ol") out.push("\n");
+    }
+
+    var out = [];
+    walk(root, out, 0);
+    return sanitizeExportText(out.join(""));
+  }
+
+  function buildExportTemplateHtml(note) {
+    var title =
+      (typeof noteTitleTrim === "function" ? noteTitleTrim(note) : "") ||
+      (typeof t === "function" ? t("noteCardUntitled") : "Note");
+    var safeTitle = title.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    var safeContent = sanitizeExportHtml(getNoteHtmlBody(note));
+    return (
+      '<div class="note-export-sheet">' +
+      '<header class="note-export-head"><h1>' + safeTitle + "</h1></header>" +
+      '<main class="note-export-content">' +
+      (safeContent || "<p>—</p>") +
+      "</main>" +
+      "</div>"
+    );
+  }
+
+  function getNoteExportTheme() {
+    try {
+      var v = localStorage.getItem(EXPORT_THEME_KEY);
+      if (v === "dark" || v === "light") return v;
+    } catch (e) {
+      /* ignore */
+    }
+    return "light";
+  }
+
+  function setNoteExportTheme(theme) {
+    if (theme !== "dark" && theme !== "light") theme = "light";
+    try {
+      localStorage.setItem(EXPORT_THEME_KEY, theme);
+    } catch (e) {
+      /* ignore */
+    }
+    syncNoteExportThemeUi();
+  }
+
+  function syncNoteExportThemeUi() {
+    var theme = getNoteExportTheme();
+    var light = document.getElementById("noteExportThemeLight");
+    var dark = document.getElementById("noteExportThemeDark");
+    if (light) {
+      light.classList.toggle("is-active", theme === "light");
+      light.setAttribute("aria-pressed", theme === "light" ? "true" : "false");
+    }
+    if (dark) {
+      dark.classList.toggle("is-active", theme === "dark");
+      dark.setAttribute("aria-pressed", theme === "dark" ? "true" : "false");
+    }
+  }
+
+  window.noteExportSetTheme = function (theme) {
+    setNoteExportTheme(theme);
+  };
+
+  function buildExportStyleBlock(theme) {
+    var isDark = theme === "dark";
+    var pageBg = isDark ? "#0b1220" : "#ffffff";
+    var sheetBg = isDark ? "#0b1220" : "#ffffff";
+    var headBg = isDark ? "#020617" : "#0f172a";
+    var headColor = "#f8fafc";
+    var bodyColor = isDark ? "#e2e8f0" : "#111827";
+    var bqRule = isDark
+      ? ".note-export-content blockquote{margin:0 0 10px;border-left:3px solid rgba(148,163,184,0.35);padding-left:14px;color:#cbd5e1;}"
+      : ".note-export-content blockquote{margin:0 0 10px;border-left:3px solid rgba(148,163,184,0.45);padding-left:14px;color:#334155;}";
+
+    return (
+      "<style>" +
+      "html,body{margin:0;padding:0;background:" + pageBg + ";color:" + bodyColor + ";font-family:Segoe UI,system-ui,-apple-system,Roboto,Arial,sans-serif;}" +
+      ".note-export-sheet{width:794px;box-sizing:border-box;background:" + sheetBg + ";}" +
+      ".note-export-head{background:" + headBg + ";color:" + headColor + ";padding:26px 44px 20px;" +
+      (isDark ? "border-bottom:1px solid rgba(148,163,184,0.15);" : "") +
+      "}" +
+      ".note-export-head h1{margin:0;font-size:28px;line-height:1.25;font-weight:700;word-break:break-word;}" +
+      ".note-export-content{padding:26px 44px 34px;font-size:18px;line-height:1.62;color:" + bodyColor + ";word-break:break-word;}" +
+      ".note-export-content p,.note-export-content div{margin:0 0 10px;}" +
+      bqRule +
+      ".note-export-content ul,.note-export-content ol{margin:0 0 10px;padding-left:22px;}" +
+      ".note-export-content li{margin:0 0 8px;}" +
+      ".note-export-content strong,.note-export-content b{font-weight:700;}" +
+      ".note-export-content em,.note-export-content i{font-style:italic;}" +
+      ".note-export-content u{text-decoration:underline;}" +
+      "</style>"
+    );
+  }
+
+  function buildExportInnerHtml(note, theme) {
+    return buildExportStyleBlock(theme) + buildExportTemplateHtml(note);
+  }
+
+  function withExportMeasure(note, theme, fn) {
+    var host = document.createElement("div");
+    host.style.position = "fixed";
+    host.style.left = "-10000px";
+    host.style.top = "0";
+    host.style.width = "794px";
+    host.style.zIndex = "-1";
+    host.style.pointerEvents = "none";
+    host.style.opacity = "0";
+    host.innerHTML = buildExportInnerHtml(note, theme);
+    document.body.appendChild(host);
+    try {
+      return fn(host);
+    } finally {
+      document.body.removeChild(host);
+    }
+  }
+
+  function canvasPageBackground(theme) {
+    return theme === "dark" ? "#0b1220" : "#ffffff";
+  }
+
+  function renderExportCanvas(note, theme) {
+    theme = theme || getNoteExportTheme();
+    return new Promise(function (resolve, reject) {
+      var innerHtml = buildExportInnerHtml(note, theme);
+      var dims = withExportMeasure(note, theme, function (host) {
+        var sheet = host.querySelector(".note-export-sheet");
+        var node = sheet || host;
+        var w = Math.max(794, Math.ceil(node.scrollWidth || 794));
+        var h = Math.max(400, Math.ceil(node.scrollHeight || 1123));
+        return { width: w, height: h };
+      });
+
+      var wrapBg = canvasPageBackground(theme);
+      var markup =
+        '<div xmlns="http://www.w3.org/1999/xhtml" style="width:' +
+        dims.width +
+        "px;height:" +
+        dims.height +
+        "px;background:" +
+        wrapBg +
+        ';overflow:hidden">' +
+        innerHtml +
+        "</div>";
+
+      var svg =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="' + dims.width + '" height="' + dims.height + '">' +
+        '<foreignObject x="0" y="0" width="100%" height="100%">' +
+        markup +
+        "</foreignObject></svg>";
+
+      var svgBlob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+      var url = URL.createObjectURL(svgBlob);
+      var img = new Image();
+      img.onload = function () {
+        var canvas = document.createElement("canvas");
+        canvas.width = dims.width;
+        canvas.height = dims.height;
+        var ctx = canvas.getContext("2d");
+        if (!ctx) {
+          URL.revokeObjectURL(url);
+          reject(new Error("Canvas unsupported"));
+          return;
+        }
+        ctx.fillStyle = wrapBg;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+        resolve(canvas);
+      };
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        reject(new Error("Failed to render export image"));
+      };
+      img.src = url;
+    });
+  }
+
   function getNotePlainBody(note) {
     if (
       typeof window !== "undefined" &&
       window.NoteRichEditor &&
       typeof window.NoteRichEditor.storedToPreviewText === "function"
     ) {
-      return window.NoteRichEditor.storedToPreviewText((note && note.text) || "", 100000);
+      return window.NoteRichEditor.storedToPreviewText(getNoteStoredRaw(note), 100000);
     }
-    return (note && note.text) || "";
-  }
-
-  function triggerDownloadDataUrl(dataUrl, filename) {
-    var a = document.createElement("a");
-    a.href = dataUrl;
-    a.download = filename;
-    a.rel = "noopener";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    return getNoteStoredRaw(note);
   }
 
   function exportNoteTxt(note) {
     var title = typeof noteTitleTrim === "function" ? noteTitleTrim(note) : "";
-    var body = getNotePlainBody(note);
-    var content = title ? title + "\r\n\r\n" + body : body;
+    var body = getTxtBodyFromHtml(sanitizeExportHtml(getNoteHtmlBody(note))) || sanitizeExportText(getNotePlainBody(note));
+    var content = sanitizeExportText(title ? title + "\n\n" + body : body);
     var blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    triggerDownloadBlob(blob, sanitizeExportBasename(note) + ".txt");
+    downloadBlob(blob, sanitizeExportBasename(note) + ".txt");
   }
 
   function exportNotePdf(note) {
+    return (async function () {
     var JsPDF =
       (typeof window !== "undefined" && window.jspdf && window.jspdf.jsPDF) ||
       (typeof window !== "undefined" && window.jsPDF);
@@ -79,126 +365,66 @@
       if (typeof showToast === "function") {
         showToast(typeof t === "function" ? t("noteExportPdfUnavailable") : "PDF unavailable");
       }
-      return;
+      return false;
     }
+    var theme = getNoteExportTheme();
+    var pageFill = canvasPageBackground(theme);
     var doc = new JsPDF({ unit: "mm", format: "a4" });
-    var title = typeof noteTitleTrim === "function" ? noteTitleTrim(note) : "";
-    var text = getNotePlainBody(note);
-    var margin = 18;
-    doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, 210, 38, "F");
-    doc.setTextColor(248, 250, 252);
-    doc.setFontSize(15);
-    doc.text(
-      title || (typeof t === "function" ? t("noteCardUntitled") : "Note"),
-      margin,
-      24
-    );
-    doc.setTextColor(30, 41, 59);
-    doc.setFontSize(11);
-    var y = 48;
-    var lines = doc.splitTextToSize(text, 210 - margin * 2);
-    doc.text(lines, margin, y);
+    var canvas = await renderExportCanvas(note, theme);
+    var margin = 12;
+    var pageW = 210;
+    var pageH = 297;
+    var innerW = pageW - margin * 2;
+    var innerH = pageH - margin * 2;
+    var slicePx = Math.max(1, Math.floor((innerH * canvas.width) / innerW));
+    var offsetY = 0;
+    var pageIndex = 0;
+
+    while (offsetY < canvas.height) {
+      if (pageIndex > 0) doc.addPage();
+      var currentSlicePx = Math.min(slicePx, canvas.height - offsetY);
+      var sliceCanvas = document.createElement("canvas");
+      sliceCanvas.width = canvas.width;
+      sliceCanvas.height = currentSlicePx;
+      var sctx = sliceCanvas.getContext("2d");
+      if (!sctx) break;
+      sctx.fillStyle = pageFill;
+      sctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+      sctx.drawImage(canvas, 0, offsetY, canvas.width, currentSlicePx, 0, 0, canvas.width, currentSlicePx);
+      var imgData = sliceCanvas.toDataURL("image/jpeg", 0.94);
+      var renderH = (currentSlicePx * innerW) / canvas.width;
+      doc.addImage(imgData, "JPEG", margin, margin, innerW, Math.min(innerH, renderH), undefined, "FAST");
+      offsetY += currentSlicePx;
+      pageIndex += 1;
+    }
+
     doc.save(sanitizeExportBasename(note) + ".pdf");
+    return true;
+    })().catch(function () {
+      if (typeof showToast === "function") {
+        showToast(typeof t === "function" ? t("noteExportPdfUnavailable") : "PDF unavailable");
+      }
+      return false;
+    });
   }
 
-  function wrapLines(ctx, text, maxWidth) {
-    var words = String(text || "").split(/\s+/);
-    var lines = [];
-    var line = "";
-    for (var i = 0; i < words.length; i++) {
-      var w = words[i];
-      var test = line ? line + " " + w : w;
-      if (ctx.measureText(test).width > maxWidth && line) {
-        lines.push(line);
-        line = w;
-      } else {
-        line = test;
-      }
-    }
-    if (line) lines.push(line);
-    return lines;
-  }
-
-  function exportNoteJpg(note, done) {
-    var w = 880;
-    var h = 1120;
-    var canvas = document.createElement("canvas");
-    canvas.width = w;
-    canvas.height = h;
-    var ctx = canvas.getContext("2d");
-    if (!ctx) {
-      if (typeof done === "function") done(null);
-      return;
-    }
-    var grd = ctx.createLinearGradient(0, 0, w, h);
-    grd.addColorStop(0, "#0f172a");
-    grd.addColorStop(0.5, "#312e81");
-    grd.addColorStop(1, "#1e1b4b");
-    ctx.fillStyle = grd;
-    ctx.fillRect(0, 0, w, h);
-
-    var pad = 44;
-    var title =
-      (typeof noteTitleTrim === "function" ? noteTitleTrim(note) : "") ||
-      (typeof t === "function" ? t("noteCardUntitled") : "Note");
-    var body = getNotePlainBody(note);
-    var imgSrc = note && note.scanCamImageDataUrl;
-
-    function drawTextCard(topY) {
-      var x = pad;
-      var y0 = topY;
-      var cw = w - 2 * pad;
-      var cardH = h - topY - pad;
-      ctx.fillStyle = "rgba(15, 23, 42, 0.92)";
-      ctx.fillRect(x, y0, cw, cardH);
-
-      ctx.fillStyle = "#f1f5f9";
-      ctx.font = "600 26px Segoe UI, system-ui, sans-serif";
-      ctx.fillText(title.length > 42 ? title.slice(0, 40) + "…" : title, x + 24, y0 + 42);
-
-      ctx.fillStyle = "#cbd5e1";
-      ctx.font = "17px Segoe UI, system-ui, sans-serif";
-      var lines = wrapLines(ctx, body, cw - 48);
-      var ly = y0 + 78;
-      var maxLines = Math.min(lines.length, 38);
-      for (var li = 0; li < maxLines; li++) {
-        ctx.fillText(lines[li], x + 24, ly);
-        ly += 24;
-      }
-      if (lines.length > maxLines) {
-        ctx.fillStyle = "#94a3b8";
-        ctx.font = "italic 15px Segoe UI, system-ui, sans-serif";
-        ctx.fillText("…", x + 24, ly);
-      }
-    }
-
-    if (imgSrc) {
-      var im = new Image();
-      im.onload = function () {
-        var maxW = w - 2 * pad;
-        var maxImgH = 420;
-        var sc = Math.min(maxW / im.width, maxImgH / im.height, 1);
-        var dw = im.width * sc;
-        var dh = im.height * sc;
-        var ix = pad + (maxW - dw) / 2;
-        ctx.save();
-        ctx.shadowColor = "rgba(0,0,0,0.4)";
-        ctx.shadowBlur = 28;
-        ctx.drawImage(im, ix, pad, dw, dh);
-        ctx.restore();
-        drawTextCard(pad + dh + 28);
-        if (typeof done === "function") done(canvas.toDataURL("image/jpeg", 0.9));
-      };
-      im.onerror = function () {
-        drawTextCard(pad + 24);
-        if (typeof done === "function") done(canvas.toDataURL("image/jpeg", 0.9));
-      };
-      im.src = imgSrc;
-    } else {
-      drawTextCard(pad + 24);
-      if (typeof done === "function") done(canvas.toDataURL("image/jpeg", 0.9));
-    }
+  function exportNoteJpg(note) {
+    var theme = getNoteExportTheme();
+    return renderExportCanvas(note, theme)
+      .then(function (canvas) {
+        return canvasToBlob(canvas, "image/jpeg", 0.92);
+      })
+      .then(function (blob) {
+        if (!blob) throw new Error("JPG export failed");
+        downloadBlob(blob, sanitizeExportBasename(note) + ".jpg");
+        return true;
+      })
+      .catch(function () {
+        if (typeof showToast === "function") {
+          showToast(typeof t === "function" ? t("noteExportJpgUnavailable") : "JPG unavailable");
+        }
+        return false;
+      });
   }
 
   window.openNoteExportModal = function (note) {
@@ -237,6 +463,7 @@
     modal.classList.remove("hidden");
     document.body.classList.add("modal-open");
     if (typeof applyTranslations === "function") applyTranslations();
+    syncNoteExportThemeUi();
   };
 
   window.closeNoteExportModal = function () {
@@ -247,6 +474,7 @@
   };
 
   window.runNoteExportAction = function (kind) {
+    return (async function () {
     var note = pendingNote;
     if (!note) return;
     var u = typeof currentUser !== "undefined" ? currentUser : null;
@@ -268,7 +496,7 @@
         if (typeof openBot === "function") openBot();
         return;
       }
-      exportNotePdf(note);
+      await exportNotePdf(note);
       window.closeNoteExportModal();
       return;
     }
@@ -279,12 +507,9 @@
         if (typeof openBot === "function") openBot();
         return;
       }
-      exportNoteJpg(note, function (dataUrl) {
-        if (dataUrl) {
-          triggerDownloadDataUrl(dataUrl, sanitizeExportBasename(note) + ".jpg");
-        }
-        window.closeNoteExportModal();
-      });
+      await exportNoteJpg(note);
+      window.closeNoteExportModal();
     }
+    })();
   };
 })();

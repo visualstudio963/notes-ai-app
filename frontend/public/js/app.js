@@ -108,17 +108,119 @@ function notificationIconUrlHint() {
   }
 }
 
-function webReminderNotificationOpts(body, tag) {
+function webReminderNotificationOpts(body, tag, dataExtra) {
   const iconSrc = notificationIconUrlHint();
+  const extra = dataExtra && typeof dataExtra === "object" ? dataExtra : {};
+  const rid = extra.reminderId != null ? String(extra.reminderId) : undefined;
+  const openUrl = typeof extra.url === "string" && extra.url ? extra.url : buildAppHomeHashUrl();
   /** @type {NotificationOptions & { vibrate?: number[] }} */
   const o = {
     body: String(body || "").slice(0, 260),
     tag: String(tag || "reminder"),
+    renotify: true,
     silent: false,
     ...(iconSrc ? { icon: iconSrc, badge: iconSrc } : {}),
-    vibrate: [260, 100, 280]
+    vibrate: [260, 100, 280],
+    data: {
+      ...(rid ? { reminderId: rid } : {}),
+      url: openUrl
+    }
   };
   return o;
+}
+
+function buildAppHomeHashUrl() {
+  try {
+    const u = new URL(window.location.href);
+    u.hash = "#home";
+    return u.href;
+  } catch {
+    try {
+      return `${window.location.origin}/#home`;
+    } catch {
+      return "/#home";
+    }
+  }
+}
+
+/**
+ * Prefer service worker `showNotification` so taps and background behavior match PWA expectations.
+ */
+async function showReminderSystemNotification(title, options) {
+  if (!("Notification" in window) || Notification.permission !== "granted") {
+    throw new Error("notifications unavailable");
+  }
+  try {
+    if ("serviceWorker" in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      if (reg && typeof reg.showNotification === "function") {
+        await reg.showNotification(title, options);
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn("[reminder] service worker showNotification failed", e);
+  }
+  const n = new Notification(title, options);
+  n.onclick = () => {
+    try {
+      window.focus();
+    } catch {
+      /* ignore */
+    }
+    n.close();
+  };
+}
+
+async function maybePromptReminderNotificationPermission() {
+  if (isNativeLocalNotificationsAvailable()) return true;
+  if (!("Notification" in window)) {
+    showToast(t("notificationsNotSupported"));
+    return false;
+  }
+  if (Notification.permission === "granted") return true;
+  if (Notification.permission === "denied") {
+    showToast(t("reminderNotifyEnableInBrowser"));
+    return false;
+  }
+  try {
+    const p = await Notification.requestPermission();
+    if (p === "denied") showToast(t("reminderNotifyEnableInBrowser"));
+    else if (p === "granted") showToast(t("notificationsEnabledToast"));
+    return p === "granted";
+  } catch {
+    return false;
+  }
+}
+
+let serviceWorkerNotificationRoutingInitialized = false;
+
+function initServiceWorkerNotificationRouting() {
+  if (serviceWorkerNotificationRoutingInitialized) return;
+  if (!("serviceWorker" in navigator)) return;
+  serviceWorkerNotificationRoutingInitialized = true;
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    const d = event && event.data;
+    if (!d || d.type !== "NOTIFICATION_CLICK") return;
+    goHome();
+    try {
+      const u = new URL(window.location.href);
+      u.hash = "#home";
+      history.replaceState(null, "", `${u.pathname}${u.search}${u.hash}`);
+    } catch {
+      /* ignore */
+    }
+    requestAnimationFrame(() => {
+      const el = document.getElementById("homeRemindersEmbed");
+      if (el) {
+        try {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        } catch {
+          /* ignore */
+        }
+      }
+    });
+  });
 }
 
 function webReminderNotificationsAppEnabled() {
@@ -563,7 +665,7 @@ async function syncReminderLocalNotifications(reminders) {
   }
 }
 
-function dailyPlannerMaybeTriggerNotifications() {
+async function dailyPlannerMaybeTriggerNotifications() {
   if (isNativeLocalNotificationsAvailable()) return;
   if (!webReminderNotificationsAppEnabled()) return;
   if (!("Notification" in window) || Notification.permission !== "granted") return;
@@ -581,11 +683,14 @@ function dailyPlannerMaybeTriggerNotifications() {
     const mins = Number(m[1]) * 60 + Number(m[2]);
     if (mins !== nowMins) continue;
     try {
-      const n = new Notification(t("webNotificationTitle"), webReminderNotificationOpts(task.text, `planner-${task.id}`));
-      n.onclick = () => {
-        window.focus();
-        n.close();
-      };
+      const title = t("webNotificationTitle");
+      const opts = webReminderNotificationOpts(task.text, `planner-${task.id}`, {
+        url: buildAppHomeHashUrl()
+      });
+      await showReminderSystemNotification(title, opts);
+      if (document.visibilityState === "visible") {
+        showReminderForegroundToast(task.text);
+      }
     } catch {
       /* ignore */
     }
@@ -601,8 +706,10 @@ function scheduleDailyPlannerNotificationLoop() {
     return;
   }
   if (dailyPlannerNotifyTimer) window.clearInterval(dailyPlannerNotifyTimer);
-  dailyPlannerNotifyTimer = window.setInterval(dailyPlannerMaybeTriggerNotifications, 30000);
-  dailyPlannerMaybeTriggerNotifications();
+  dailyPlannerNotifyTimer = window.setInterval(() => {
+    void dailyPlannerMaybeTriggerNotifications();
+  }, 30000);
+  void dailyPlannerMaybeTriggerNotifications();
 }
 
 function scheduleDailyPlannerMidnightReset() {
@@ -3131,9 +3238,6 @@ function authPostLoginShellSuccess(data, rememberMe) {
     displayAccountInfo();
     void updateHomeDashboardStats();
   });
-  if ("Notification" in window && Notification.permission === "default") {
-    Notification.requestPermission();
-  }
   startWebNotificationScheduler();
   if (typeof scheduleOnboardingTutorialAfterAuth === "function") scheduleOnboardingTutorialAfterAuth();
 }
@@ -3275,9 +3379,6 @@ async function submitChooseUsername() {
       displayAccountInfo();
       void updateHomeDashboardStats();
     });
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
     startWebNotificationScheduler();
     if (typeof scheduleOnboardingTutorialAfterAuth === "function") scheduleOnboardingTutorialAfterAuth();
   } catch (e) {
@@ -4241,9 +4342,6 @@ async function presentPendingPostOAuthLandingIfAny() {
   }
   pendingPostOAuthPresentation = false;
   await loadUserSettings();
-  if ("Notification" in window && Notification.permission === "default") {
-    Notification.requestPermission();
-  }
   startWebNotificationScheduler();
   syncMobileHeaderActionUi();
   presentPostGoogleOAuthChrome(currentUser);
@@ -6024,6 +6122,7 @@ async function webChatNaturalReminderHandler(trimmed) {
     });
     refreshReminderRelatedViews();
     webChatLastReminderUserRaw = String(trimmed || "").trim();
+    void maybePromptReminderNotificationPermission();
     const summary = webChatFormatReminderConfirmSummary(when, body.toLowerCase());
     const line = t("webChatReminderSavedLine").replace("{when}", summary);
     const detail =
@@ -6429,6 +6528,7 @@ async function saveWebReminder() {
     msgEl.value = "";
     
     refreshReminderRelatedViews();
+    void maybePromptReminderNotificationPermission();
   } catch (err) {
     showToast("Error: " + err.message);
   }
@@ -6468,6 +6568,7 @@ async function saveStandaloneWebReminder(messageInputId, timeInputId) {
     msgEl.value = "";
     timeEl.value = "";
     refreshReminderRelatedViews();
+    void maybePromptReminderNotificationPermission();
   } catch (err) {
     showToast(err.message);
   }
@@ -6505,6 +6606,13 @@ async function loadWebRemindersIntoList(containerId) {
       const timeDiv = document.createElement("div");
       timeDiv.className = "reminder-time";
       timeDiv.textContent = new Date(reminder.time).toLocaleString();
+      if (!reminder.sent && new Date(reminder.time).getTime() <= Date.now()) {
+        const overdueEl = document.createElement("span");
+        overdueEl.className = "reminder-status-overdue";
+        overdueEl.textContent = t("reminderStatusOverdue");
+        timeDiv.appendChild(document.createTextNode(" "));
+        timeDiv.appendChild(overdueEl);
+      }
       const msgDiv = document.createElement("div");
       msgDiv.className = "reminder-msg";
       msgDiv.textContent = reminder.message || "";
@@ -6657,6 +6765,7 @@ async function submitReminderEdit() {
     showToast(t("reminderUpdatedToast"));
     closeReminderEditModal();
     refreshReminderRelatedViews();
+    void maybePromptReminderNotificationPermission();
   } catch (err) {
     showToast(err.message);
   }
@@ -6690,6 +6799,13 @@ async function loadWebReminders() {
       const timeEl = document.createElement("div");
       timeEl.className = "reminder-time";
       timeEl.textContent = new Date(reminder.time).toLocaleString();
+      if (!reminder.sent && new Date(reminder.time).getTime() <= Date.now()) {
+        const overdueEl = document.createElement("span");
+        overdueEl.className = "reminder-status-overdue";
+        overdueEl.textContent = t("reminderStatusOverdue");
+        timeEl.appendChild(document.createTextNode(" "));
+        timeEl.appendChild(overdueEl);
+      }
       const msgEl = document.createElement("div");
       msgEl.className = "reminder-msg";
       msgEl.textContent = reminder.message || "";
@@ -6732,93 +6848,100 @@ function startWebNotificationScheduler() {
     void syncPlannerLocalNotifications();
     return;
   }
-  const intervalMs = 15000;
-  webNotificationSchedulerIntervalId = window.setInterval(checkForDueReminders, intervalMs);
+  const intervalMs = 10000;
+  webNotificationSchedulerIntervalId = window.setInterval(() => {
+    void checkForDueReminders();
+  }, intervalMs);
   if (!webNotificationVisibilityHooked) {
     webNotificationVisibilityHooked = true;
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible" && currentUser && accessToken) {
-        checkForDueReminders();
+        void checkForDueReminders();
       }
     });
   }
-  checkForDueReminders();
+  void checkForDueReminders();
 }
 
 async function checkForDueReminders() {
   if (isNativeLocalNotificationsAvailable()) return;
   if (!webReminderNotificationsAppEnabled()) return;
   if (!currentUser || !accessToken) return;
-  
+
   try {
     const data = await fetchWebRemindersListDeduped();
     const reminders = data.reminders || [];
-    
+
     const now = new Date();
-    
-    reminders.forEach(reminder => {
-      if (reminder.sent) return; // Already sent
-      
+
+    for (const reminder of reminders) {
+      if (reminder.sent) continue;
+      if (!isReminderNotificationEnabled(reminder._id)) continue;
       const reminderTime = new Date(reminder.time);
-      
-      // If reminder time has passed, show notification
       if (reminderTime <= now) {
-        showWebNotification(reminder);
+        void showWebNotification(reminder);
       }
-    });
+    }
   } catch (err) {
     console.warn("Error checking for due reminders:", err);
   }
 }
 
-function showWebNotification(reminder) {
+async function showWebNotification(reminder) {
   if (isNativeLocalNotificationsAvailable()) return;
   if (!webReminderNotificationsAppEnabled()) return;
   const id = String(reminder._id);
   if (webNotificationLock.has(id)) return;
+  if (!isReminderNotificationEnabled(reminder._id)) return;
 
   if (!("Notification" in window)) {
     showToast(t("notificationsNotSupported"));
     return;
   }
 
+  const title = t("webNotificationTitle");
+  const body = reminder.message || t("reminderDefaultBody");
+  const tag = `reminder-${id}`;
+  const opts = webReminderNotificationOpts(body, tag, {
+    reminderId: id,
+    url: buildAppHomeHashUrl()
+  });
+
   if (Notification.permission === "granted") {
     webNotificationLock.add(id);
     try {
-      const notification = new Notification(
-        t("webNotificationTitle"),
-        webReminderNotificationOpts(reminder.message || t("reminderDefaultBody"), id)
-      );
-      notification.onclick = () => {
-        window.focus();
-        notification.close();
-      };
-      markReminderAsSent(reminder._id)
-        .catch(() => {})
-        .finally(() => {
-          webNotificationLock.delete(id);
-          refreshReminderRelatedViews();
-        });
+      await showReminderSystemNotification(title, opts);
+      if (document.visibilityState === "visible") {
+        showReminderForegroundToast(body);
+      }
+      await markReminderAsSent(reminder._id).catch(() => {});
     } catch {
+      /* non-fatal */
+    } finally {
       webNotificationLock.delete(id);
+      refreshReminderRelatedViews();
     }
   } else if (Notification.permission === "denied") {
     webNotificationLock.add(id);
-    showToast(`${reminder.message || t("reminderDefaultBody")} — ${t("notificationsDeniedHint")}`);
-    markReminderAsSent(reminder._id)
-      .catch(() => {})
-      .finally(() => {
-        webNotificationLock.delete(id);
-        refreshReminderRelatedViews();
-      });
+    showToast(t("reminderNotifyEnableInBrowser"));
+    await markReminderAsSent(reminder._id).catch(() => {});
+    webNotificationLock.delete(id);
+    refreshReminderRelatedViews();
   } else {
-    Notification.requestPermission().then((permission) => {
-      if (permission === "granted") {
-        showWebNotification(reminder);
-      } else if (permission === "denied") {
-        showToast(t("notificationsDenied"));
+    try {
+      const p = await Notification.requestPermission();
+      if (p === "granted") {
+        await showWebNotification(reminder);
+        return;
       }
-    });
+      showToast(t("reminderNotifyEnableInBrowser"));
+    } catch {
+      showToast(t("reminderNotifyEnableInBrowser"));
+    }
+    webNotificationLock.add(id);
+    await markReminderAsSent(reminder._id).catch(() => {});
+    webNotificationLock.delete(id);
+    refreshReminderRelatedViews();
   }
 }
 
@@ -8771,6 +8894,7 @@ function updateThemeSelector() {
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
+  initServiceWorkerNotificationRouting();
   normalizeSpaShellPaths();
   authBootstrapPhaseActive = true;
   try {
@@ -8806,9 +8930,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   } else if (isAuthSessionReady()) {
     await loadUserSettings();
     startWebNotificationScheduler();
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
     goHome();
     if (typeof scheduleOnboardingTutorialAfterAuth === "function") scheduleOnboardingTutorialAfterAuth();
   }

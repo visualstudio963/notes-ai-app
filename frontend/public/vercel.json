@@ -65,7 +65,7 @@
       "destination": "/index.html"
     },
     {
-      "source": "/invite/:code*",
+      "source": "/invite/(.*)",
       "destination": "/index.html"
     },
     {

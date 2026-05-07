@@ -43,19 +43,24 @@ function randomReferralCode() {
   return crypto.randomBytes(6).toString("hex").slice(0, 10).toUpperCase();
 }
 
+/** Invite code can be attached only shortly after account creation. */
+const INVITE_BIND_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
 /**
  * Ensures referralCode exists (lazy backfill).
  * @param {import("mongoose").Model} User
  */
 async function ensureReferralCode(User, userDoc) {
-  const existing = userDoc && userDoc.referralCode ? String(userDoc.referralCode).trim() : "";
+  const existingA = userDoc && userDoc.referralCode ? String(userDoc.referralCode).trim() : "";
+  const existingB = userDoc && userDoc.inviteCode ? String(userDoc.inviteCode).trim() : "";
+  const existing = existingA || existingB;
   if (existing) return userDoc;
   for (let i = 0; i < 8; i += 1) {
     const code = randomReferralCode();
     try {
       return await User.findByIdAndUpdate(
         userDoc._id,
-        { $set: { referralCode: code } },
+        { $set: { referralCode: code, inviteCode: code } },
         { new: true, runValidators: false }
       );
     } catch (e) {
@@ -74,12 +79,28 @@ function trialDaysRemainingMs(user, nowMs = Date.now()) {
 
 async function finalizeInviteBonus(User, inviteeDoc) {
   if (!inviteeDoc || !inviteeDoc.referredByUserId) return null;
-  if (inviteeDoc.inviteBonusCreditedAt) return null;
+  if (inviteeDoc.inviteBonusCreditedAt || inviteeDoc.referralRewarded === true) return null;
 
   const inviterOid = inviteeDoc.referredByUserId;
+  const now = new Date();
+  const lockedInvitee = await User.findOneAndUpdate(
+    {
+      _id: inviteeDoc._id,
+      referredByUserId: { $exists: true, $ne: null },
+      inviteBonusCreditedAt: null,
+      referralRewarded: { $ne: true }
+    },
+    { $set: { inviteBonusCreditedAt: now, referralRewarded: true } },
+    { new: true, runValidators: false }
+  );
+  if (!lockedInvitee) return null;
+
   if (String(inviterOid) === String(inviteeDoc._id)) {
-    inviteeDoc.inviteBonusCreditedAt = new Date();
-    await inviteeDoc.save();
+    await User.updateOne(
+      { _id: inviteeDoc._id },
+      { $set: { referredByUserId: null, invitedBy: null } },
+      { runValidators: false }
+    );
     return null;
   }
 
@@ -101,9 +122,6 @@ async function finalizeInviteBonus(User, inviteeDoc) {
   inviter.inviteFriendMonthCount = monthCount + 1;
   inviter.coins = clampCoins((Number(inviter.coins) || 0) + reward);
   await inviter.save();
-
-  inviteeDoc.inviteBonusCreditedAt = new Date();
-  await inviteeDoc.save();
 
   return { rewarded: reward };
 }
@@ -131,12 +149,23 @@ async function bindReferralCode(User, inviteeId, rawCode) {
 
   invitee = await ensureReferralCode(User, invitee);
 
+  const createdMs = invitee && invitee.createdAt ? new Date(invitee.createdAt).getTime() : 0;
+  const nowMs = Date.now();
+  const isNewAccountWindow = Number.isFinite(createdMs) && nowMs - createdMs >= 0 && nowMs - createdMs <= INVITE_BIND_MAX_AGE_MS;
+  if (!isNewAccountWindow) {
+    const err = new Error("Invite code can only be applied to a new account.");
+    err.statusCode = 409;
+    throw err;
+  }
+
   if (invitee.referredByUserId) {
     await finalizeInviteBonus(User, invitee);
     return User.findById(invitee._id).lean();
   }
 
-  const inviter = await User.findOne({ referralCode: normalized }).select("_id referralCode coins");
+  const inviter = await User.findOne({ $or: [{ referralCode: normalized }, { inviteCode: normalized }] }).select(
+    "_id referralCode inviteCode coins"
+  );
   if (!inviter || String(inviter._id) === String(invitee._id)) {
     const err = new Error("Invalid invite code.");
     err.statusCode = 400;
@@ -144,6 +173,7 @@ async function bindReferralCode(User, inviteeId, rawCode) {
   }
 
   invitee.referredByUserId = inviter._id;
+  invitee.invitedBy = inviter._id;
   await invitee.save();
 
   await finalizeInviteBonus(User, invitee);
@@ -334,7 +364,7 @@ function buildCoinsStatusPayload(userLean) {
       maxToday: VIDEO_DAILY_MAX,
       rewardEach: scaledReward(VIDEO_REWARD, userLean)
     },
-    referralCode: userLean.referralCode ? String(userLean.referralCode) : "",
+    referralCode: userLean.referralCode ? String(userLean.referralCode) : userLean.inviteCode ? String(userLean.inviteCode) : "",
     inviteMonthlyCap: INVITE_MONTHLY_CAP,
     invitedRewardCoins: INVITE_REWARD,
     earnMultiplierPreview: earningMultiplierForUser(userLean)

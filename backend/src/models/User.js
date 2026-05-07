@@ -69,8 +69,14 @@ const userSchema = new mongoose.Schema(
     videoRewardUtcDate: { type: String, default: "" },
     videoRewardCount: { type: Number, default: 0 },
     referralCode: { type: String, default: "", trim: true },
+    /** Alias for referralCode (kept for clearer API semantics in invite links). */
+    inviteCode: { type: String, default: "", trim: true },
     referredByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    /** Alias for referredByUserId. */
+    invitedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     inviteBonusCreditedAt: { type: Date, default: null },
+    /** True once invite reward has been processed (idempotency guard). */
+    referralRewarded: { type: Boolean, default: false },
     inviteFriendMonthYm: { type: String, default: "" },
     inviteFriendMonthCount: { type: Number, default: 0 },
     /** False = show first-time onboarding; missing on legacy users is treated as “seen” in serializers */
@@ -116,6 +122,15 @@ userSchema.pre("validate", function syncLegacyEmailOrPhone(next) {
       this.emailOrPhone = this.email;
     }
 
+    const codeA = typeof this.referralCode === "string" ? this.referralCode.trim().toUpperCase() : "";
+    const codeB = typeof this.inviteCode === "string" ? this.inviteCode.trim().toUpperCase() : "";
+    if (codeA && !codeB) this.inviteCode = codeA;
+    if (codeB && !codeA) this.referralCode = codeB;
+    if (codeA && codeB && codeA !== codeB) this.inviteCode = codeA;
+
+    if (this.referredByUserId && !this.invitedBy) this.invitedBy = this.referredByUserId;
+    if (this.invitedBy && !this.referredByUserId) this.referredByUserId = this.invitedBy;
+
     next();
   } catch (e) {
     next(e);
@@ -150,6 +165,14 @@ userSchema.index(
   {
     unique: true,
     partialFilterExpression: { referralCode: { $exists: true, $type: "string", $gt: "" } }
+  }
+);
+
+userSchema.index(
+  { inviteCode: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { inviteCode: { $exists: true, $type: "string", $gt: "" } }
   }
 );
 

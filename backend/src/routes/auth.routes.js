@@ -9,7 +9,7 @@ const {
 } = require("../config/oauthHandoffCookies");
 const { publicUser } = require("../utils/serializers");
 const { TRIAL_DURATION_MS } = require("../features/coins/coinConstants");
-const { bindReferralCode } = require("../features/coins/coinService");
+const { bindReferralCode, ensureReferralCode } = require("../features/coins/coinService");
 
 /** Synthetic email domain for accounts created via username/password only (RFC 2606 .invalid). */
 const LOCAL_ACCOUNT_EMAIL_DOMAIN = "users.notesai.invalid";
@@ -203,6 +203,7 @@ async function upsertGoogleUserFromIdTokenPayload(User, payload, cleanDeviceId) 
       hasSeenTutorial: false,
       trialEndsAt: new Date(Date.now() + TRIAL_DURATION_MS)
     });
+    user = await ensureReferralCode(User, user);
   }
 
   return User.findById(user._id);
@@ -369,6 +370,7 @@ function createAuthRouter({
         hasSeenTutorial: false,
         trialEndsAt: new Date(Date.now() + TRIAL_DURATION_MS)
       });
+      await ensureReferralCode(User, user);
 
       const referralTry = String((req.body && req.body.referralCode) || "").trim();
       if (referralTry) {

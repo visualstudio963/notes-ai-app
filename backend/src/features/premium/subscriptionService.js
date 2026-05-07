@@ -397,6 +397,8 @@ function getPremiumStatusPayload(user) {
     referralCode:
       user && user.referralCode != null && String(user.referralCode).trim()
         ? String(user.referralCode).trim()
+        : user && user.inviteCode != null && String(user.inviteCode).trim()
+        ? String(user.inviteCode).trim()
         : "",
 
     capabilities: {

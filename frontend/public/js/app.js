@@ -1953,8 +1953,10 @@ function syncWebChatOpenAiUsageUi() {
   const track = document.getElementById("webChatOpenAiUsageTrack");
   const warn = document.getElementById("webChatOpenAiUsageWarn");
   if (!wrap || !labelEl || !countsEl || !fill) return;
+  const mode = String(getWebChatMode ? getWebChatMode() : "chatbot").toLowerCase();
+  const showInThisMode = mode === "auto" || mode === "openai";
   const canAi = typeof userHasWebChatOpenAiAccess === "function" && userHasWebChatOpenAiAccess(currentUser);
-  if (!canAi) {
+  if (!canAi || !showInThisMode) {
     wrap.classList.add("hidden");
     return;
   }

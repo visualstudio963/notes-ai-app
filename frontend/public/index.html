@@ -957,6 +957,7 @@
               type="button"
               class="web-chat-soft-lock__dismiss"
               onclick="this.closest('#webChatSoftLockHint')?.classList.add('hidden')"
+              data-t-aria-label="webChatSoftLockDismissAria"
               aria-label="Close upgrade message"
             >
               ×
@@ -1051,7 +1052,8 @@
                 <textarea
                   id="webChatInput"
                   rows="1"
-                  placeholder="Shkruaj mesazhin…"
+                  data-t-placeholder="webChatPlaceholder"
+                  placeholder="Write a message..."
                   onkeydown="webChatInputKeydown(event)"
                 ></textarea>
                 <button type="button" class="web-chat-send web-chat-send--inline" onclick="sendWebChatMessage()" aria-label="Send message">➤</button>

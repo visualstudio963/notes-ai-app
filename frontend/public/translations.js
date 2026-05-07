@@ -217,8 +217,8 @@ const translations = {
     webChatSubtitleAuto: "Hybrid mode: local bot first, OpenAI can step in on hard requests.",
     webChatSubtitleOpenAi: "OpenAI-first mode: advanced AI responses while monthly quota is available.",
     webChatInputLabel: "Message",
-    webChatPlaceholder:
-      "E.g. Remind me tomorrow at 12:00 to buy groceries — or write in your own words.",
+    webChatPlaceholder: "Write a message...",
+    webChatSoftLockDismissAria: "Close upgrade message",
     webChatSmartSuggestionsLabel: "Examples — tap to edit, then Send",
     webChatQuickExamplesToolbar: "Tap an example to fill the box — edit the text, then Send.",
     webChatRecentCommandsLabel: "Recently sent",
@@ -1066,8 +1066,8 @@ const translations = {
     webChatSubtitleAuto: "Modalitet hibrid: bot lokal fillimisht, OpenAI hyn për pyetje më të vështira.",
     webChatSubtitleOpenAi: "Modalitet OpenAI: përgjigje të avancuara AI sa kohë ka kuotë mujore.",
     webChatInputLabel: "Mesazh",
-    webChatPlaceholder:
-      "P.sh. Më kujto nesër në 12:00 të blej ushqime — ose shkruaj me fjalët e tua.",
+    webChatPlaceholder: "Shkruaj mesazhin...",
+    webChatSoftLockDismissAria: "Mbyll njoftimin e përmirësimit",
     webChatSmartSuggestionsLabel: "Shembuj — shtyp, ndrysho, pastaj Dërgo",
     webChatQuickExamplesToolbar: "Shtyp një shembull për ta futur në fushë — ndrysho tekstin, pastaj Dërgo.",
     webChatRecentCommandsLabel: "Të fundit",

@@ -8,8 +8,11 @@
   />
   <title>Notes AI</title>
   <meta name="notes-ai-build" content="__BUILD_HASH__" />
+  <meta name="notes-ai-api-base" content="__API_BASE_URL__" />
   <script>
     window.__NOTES_AI_BUILD__ = "__BUILD_HASH__";
+    window.__APP_ENV__ = window.__APP_ENV__ || {};
+    window.__APP_ENV__.VITE_API_URL = "__API_BASE_URL__";
   </script>
   <link rel="manifest" href="/manifest.json?v=__BUILD_HASH__" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -2016,6 +2019,7 @@
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="/js/config/platform-native.js?v=__BUILD_HASH__"></script>
   <script src="/js/config/constants.js?v=__BUILD_HASH__"></script>
   <script src="/js/config/api-base.js?v=__BUILD_HASH__"></script>
   <script src="/js/features/premium.js?v=__BUILD_HASH__"></script>

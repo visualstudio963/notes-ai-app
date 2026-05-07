@@ -148,7 +148,7 @@
     );
   }
 
-  function downloadBlob(blob, filename) {
+  function downloadBlobWithAnchor(blob, filename) {
     if (!blob) return;
     var url = URL.createObjectURL(blob);
     var a = document.createElement("a");
@@ -161,6 +161,42 @@
     setTimeout(function () {
       URL.revokeObjectURL(url);
     }, 2500);
+  }
+
+  /**
+   * WebView / Android: anchor download is unreliable. Try Web Share API (files) first in native app.
+   */
+  function downloadBlob(blob, filename) {
+    if (!blob) return;
+    var name = String(filename || "download").replace(/[\\/:*?"<>|]+/g, "-");
+    var useNativeShare =
+      typeof window !== "undefined" &&
+      typeof window.isNativeApp === "function" &&
+      window.isNativeApp();
+    if (!useNativeShare) {
+      downloadBlobWithAnchor(blob, name);
+      return;
+    }
+    try {
+      if (
+        typeof navigator !== "undefined" &&
+        navigator.share &&
+        typeof File !== "undefined"
+      ) {
+        var file = new File([blob], name, {
+          type: blob.type || "application/octet-stream"
+        });
+        if (!navigator.canShare || navigator.canShare({ files: [file] })) {
+          navigator.share({ files: [file], title: name }).catch(function () {
+            downloadBlobWithAnchor(blob, name);
+          });
+          return;
+        }
+      }
+    } catch (e) {
+      /* fall through */
+    }
+    downloadBlobWithAnchor(blob, name);
   }
 
   function canvasToBlob(canvas, type, quality) {

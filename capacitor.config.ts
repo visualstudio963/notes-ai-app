@@ -8,6 +8,14 @@ const config: CapacitorConfig = {
   appName: "Notes AI",
   webDir: "frontend/public",
   bundledWebRuntime: false,
+  /** Matches default auth shell / splash tone; avoids brief white flash on cold start */
+  backgroundColor: "#050814",
+  android: {
+    allowMixedContent: false
+  },
+  ios: {
+    contentInset: "automatic"
+  },
   server: useLiveServer
     ? {
         url: serverUrl,

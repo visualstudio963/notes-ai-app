@@ -14,8 +14,20 @@ html,
 body {
   margin: 0;
   min-height: 100%;
+  min-height: 100dvh;
   font-family: Inter, Arial, sans-serif;
   color: #e5e7eb;
+}
+
+/* Capacitor WebView: lighter decorative blur for smoother scrolling */
+html.capacitor-native .depth-blob {
+  filter: blur(52px);
+  opacity: 0.16;
+}
+
+html.capacitor-native .background-canvas {
+  transform: none;
+  will-change: auto;
 }
 
 body {
@@ -167,6 +179,7 @@ button {
 .app {
   display: flex;
   min-height: 100vh;
+  min-height: 100dvh;
   position: relative;
   z-index: 1;
 }

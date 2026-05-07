@@ -1551,11 +1551,19 @@ body.theme-normal .site-footer {
 
 /* ===== Theme normal readability pass (global) ===== */
 body.theme-normal {
-  --journal-text-strong: #3a2818;
-  --journal-text: #4a3523;
-  --journal-text-muted: #6a5038;
-  --journal-border: rgba(113, 84, 54, 0.26);
-  --journal-paper: rgba(249, 238, 216, 0.92);
+  --journal-text-strong: #241c14;
+  --journal-text: #3d3229;
+  --journal-text-muted: #5c4d42;
+  --journal-border: rgba(82, 64, 48, 0.16);
+  --journal-paper: rgba(255, 252, 246, 0.94);
+  --journal-surface: rgba(255, 255, 255, 0.82);
+  --journal-accent-teal: #0d9488;
+  --journal-accent-teal-soft: rgba(13, 148, 136, 0.14);
+  --journal-accent-brown: #8b5a2b;
+  --journal-shadow-card: 0 1px 2px rgba(45, 35, 28, 0.04), 0 8px 28px rgba(45, 35, 28, 0.07);
+  --journal-radius: 18px;
+  --journal-radius-sm: 14px;
+  --journal-radius-lg: 20px;
 }
 
 body.theme-normal .topbar-heading,
@@ -1621,8 +1629,15 @@ body.theme-normal .premium-checkout-panel,
 body.theme-normal .premium-payment-method,
 body.theme-normal .modal-content,
 body.theme-normal .web-chat-messenger {
-  background: linear-gradient(168deg, rgba(250, 241, 221, 0.96), rgba(239, 224, 195, 0.92)) !important;
+  background: linear-gradient(
+    165deg,
+    rgba(255, 252, 246, 0.97) 0%,
+    rgba(252, 246, 236, 0.94) 45%,
+    rgba(245, 236, 224, 0.92) 100%
+  ) !important;
   border: 1px solid var(--journal-border) !important;
+  border-radius: var(--journal-radius) !important;
+  box-shadow: var(--journal-shadow-card) !important;
 }
 
 body.theme-normal .menu-item,
@@ -1643,9 +1658,11 @@ body.theme-normal .primaryBtn,
 body.theme-normal .web-chat-send,
 body.theme-normal .premium-plan-cta,
 body.theme-normal .premium-payment-tier-btn {
-  background: linear-gradient(135deg, #8e6843, #6b4b2e) !important;
-  border: 1px solid rgba(87, 60, 35, 0.55) !important;
-  color: #f8edd8 !important;
+  background: linear-gradient(135deg, #9a6f46 0%, #7a5538 55%, #5c422a 100%) !important;
+  border: 1px solid rgba(74, 52, 34, 0.42) !important;
+  color: #fffbf5 !important;
+  border-radius: var(--journal-radius-sm) !important;
+  box-shadow: 0 2px 8px rgba(74, 52, 34, 0.12), 0 1px 2px rgba(45, 35, 28, 0.06) !important;
 }
 
 body.theme-normal .save-button.secondary,
@@ -1908,12 +1925,14 @@ body.theme-normal .scan-cam-features-list__item {
 }
 
 body.theme-normal .scan-cam-side-card__summary-label {
-  color: #f8edd8 !important;
+  color: var(--journal-text-strong) !important;
 }
 
 body.theme-normal .scan-cam-side-card__summary {
-  background: rgba(87, 65, 42, 0.88) !important;
-  border: 1px solid rgba(70, 52, 34, 0.35) !important;
+  background: linear-gradient(180deg, rgba(255, 252, 246, 0.98), rgba(248, 240, 228, 0.95)) !important;
+  border: 1px solid var(--journal-border) !important;
+  border-radius: var(--journal-radius-sm) !important;
+  box-shadow: var(--journal-shadow-card) !important;
 }
 
 body.theme-normal .scan-cam-mini-card {
@@ -2015,6 +2034,213 @@ body.theme-normal .daily-checkin-slot__meta--locked {
 
 body.theme-normal .coins-dash-hero-aura {
   opacity: 0.25;
+}
+
+/* ===== Vintage Journal — premium soft cream (layout + legacy zinc overrides) ===== */
+body.theme-normal .app,
+body.theme-normal .page-shell {
+  overflow-x: clip;
+  max-width: 100%;
+}
+
+body.theme-normal .main {
+  overflow-x: clip;
+  max-width: 100%;
+  padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 840px) {
+  body.theme-normal .main {
+    padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+body.theme-normal .topbar {
+  margin-bottom: clamp(18px, 2.5vw, 24px) !important;
+}
+
+body.theme-normal .topbar-inner {
+  gap: clamp(14px, 2vw, 20px);
+}
+
+body.theme-normal .page-header {
+  margin-bottom: clamp(14px, 2vw, 22px) !important;
+  gap: clamp(8px, 1.2vw, 14px) !important;
+}
+
+body.theme-normal .page-header h2 {
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+}
+
+/* Remove leftover “gray app” chrome from early theme-normal rules */
+body.theme-normal .app-page-home .topbar {
+  background: rgba(255, 252, 246, 0.78) !important;
+  border: 1px solid var(--journal-border) !important;
+  border-radius: var(--journal-radius) !important;
+  box-shadow: var(--journal-shadow-card) !important;
+  padding: 10px 14px !important;
+}
+
+body.theme-normal .app-page-home .account-area-top {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+body.theme-normal .topbar-logo {
+  background: linear-gradient(145deg, rgba(255, 252, 246, 0.98), rgba(245, 236, 224, 0.9)) !important;
+  border: 1px solid var(--journal-border) !important;
+  box-shadow: var(--journal-shadow-card) !important;
+}
+
+body.theme-normal .phone-button {
+  background: linear-gradient(135deg, rgba(224, 242, 240, 0.9), rgba(255, 252, 246, 0.95)) !important;
+  border: 1px solid rgba(13, 148, 136, 0.28) !important;
+  color: #0f5c56 !important;
+  box-shadow: 0 1px 4px rgba(45, 35, 28, 0.05) !important;
+}
+
+body.theme-normal .phone-button:hover {
+  border-color: rgba(13, 148, 136, 0.45) !important;
+  background: linear-gradient(135deg, rgba(204, 251, 241, 0.95), rgba(255, 252, 246, 1)) !important;
+}
+
+body.theme-normal .history-summary,
+body.theme-normal .history-toolbar,
+body.theme-normal .history-search-input,
+body.theme-normal .history-sort-select {
+  background: rgba(255, 252, 246, 0.96) !important;
+  border-color: var(--journal-border) !important;
+  color: var(--journal-text-strong) !important;
+  border-radius: var(--journal-radius-sm) !important;
+  box-shadow: var(--journal-shadow-card) !important;
+}
+
+body.theme-normal .history-segment {
+  background: rgba(252, 246, 236, 0.85) !important;
+  border: 1px solid var(--journal-border) !important;
+  border-radius: var(--journal-radius-sm) !important;
+}
+
+body.theme-normal .history-segment-btn {
+  color: var(--journal-text) !important;
+  border-radius: 12px !important;
+}
+
+body.theme-normal .history-segment-btn.is-active {
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.2), rgba(13, 148, 136, 0.08)) !important;
+  color: #0f766e !important;
+  border-color: rgba(13, 148, 136, 0.38) !important;
+}
+
+body.theme-normal .history-stat-label {
+  color: var(--journal-text-muted) !important;
+}
+
+body.theme-normal .premium-plan-card,
+body.theme-normal .premium-plan-card--featured {
+  border-radius: var(--journal-radius-lg) !important;
+  box-shadow: var(--journal-shadow-card) !important;
+}
+
+body.theme-normal .premium-hero-title,
+body.theme-normal .premium-section-heading {
+  color: var(--journal-text-strong) !important;
+}
+
+body.theme-normal .premium-hero-lead,
+body.theme-normal .premium-extras-lead,
+body.theme-normal .premium-plan-list {
+  color: var(--journal-text-muted) !important;
+}
+
+body.theme-normal .premium-channel-pill {
+  background: rgba(255, 252, 246, 0.9) !important;
+  border: 1px solid var(--journal-border) !important;
+  color: var(--journal-text) !important;
+}
+
+body.theme-normal .premium-channel-pill.is-active {
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.18), rgba(139, 90, 43, 0.1)) !important;
+  border-color: rgba(13, 148, 136, 0.35) !important;
+  color: var(--journal-text-strong) !important;
+}
+
+body.theme-normal .modal {
+  background: rgba(36, 28, 20, 0.35) !important;
+}
+
+body.theme-normal .modal-content {
+  border-radius: var(--journal-radius-lg) !important;
+}
+
+body.theme-normal .field-group input:not([type="checkbox"]):not([type="radio"]),
+body.theme-normal .field-group textarea,
+body.theme-normal .field-group select,
+body.theme-normal .auth-shell__input {
+  background: rgba(255, 252, 246, 0.98) !important;
+  border: 1px solid var(--journal-border) !important;
+  border-radius: var(--journal-radius-sm) !important;
+  box-shadow: inset 0 1px 2px rgba(45, 35, 28, 0.04) !important;
+  color: var(--journal-text-strong) !important;
+}
+
+body.theme-normal .field-group input:focus,
+body.theme-normal .field-group textarea:focus,
+body.theme-normal .field-group select:focus,
+body.theme-normal .auth-shell__input:focus {
+  border-color: rgba(13, 148, 136, 0.45) !important;
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12), inset 0 1px 2px rgba(45, 35, 28, 0.04) !important;
+}
+
+body.theme-normal .home-reminders-shell textarea,
+body.theme-normal .home-reminders-shell input[type="datetime-local"] {
+  border-radius: var(--journal-radius-sm) !important;
+}
+
+body.theme-normal .reminder-card {
+  border-radius: var(--journal-radius) !important;
+  box-shadow: var(--journal-shadow-card) !important;
+}
+
+body.theme-normal .note-card {
+  border-radius: var(--journal-radius) !important;
+  box-shadow: var(--journal-shadow-card) !important;
+}
+
+body.theme-normal .scan-cam-tool {
+  border-radius: var(--journal-radius-lg) !important;
+  box-shadow: var(--journal-shadow-card) !important;
+}
+
+body.theme-normal .daily-planner-fab,
+body.theme-normal .web-chat-fab {
+  border: 1px solid rgba(13, 148, 136, 0.35) !important;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.35) 0%, transparent 45%),
+    linear-gradient(155deg, #2dd4bf 0%, #0d9488 42%, #7c6a5c 100%) !important;
+  box-shadow: 0 4px 14px rgba(45, 35, 28, 0.12), 0 2px 6px rgba(13, 148, 136, 0.18) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+body.theme-normal .daily-planner-fab:hover,
+body.theme-normal .web-chat-fab:hover {
+  filter: brightness(1.03);
+  box-shadow: 0 6px 18px rgba(45, 35, 28, 0.14), 0 2px 8px rgba(13, 148, 136, 0.22) !important;
+}
+
+body.theme-normal .notes-search-input,
+body.theme-normal .notes-select-input {
+  border-radius: var(--journal-radius-sm) !important;
+}
+
+body.theme-normal .note-category-badge,
+body.theme-normal .note-category-badge--warm,
+body.theme-normal .note-category-badge--cool,
+body.theme-normal .note-category-badge--fresh {
+  font-weight: 650 !important;
 }
 
 /*

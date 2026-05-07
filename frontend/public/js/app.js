@@ -132,12 +132,29 @@ let googleOAuthClientId = "";
 let googleOAuthConfigLoaded = false;
 /** Coalesces overlapping /api/public/app-config fetches (e.g. DOMContentLoaded + goHome). */
 let loadDiscordCommunityConfigInflight = null;
-const RENDER_BACKEND_ORIGIN = "https://notes-ai-app.onrender.com";
+function getRenderBackendOrigin() {
+  try {
+    if (typeof window !== "undefined" && window.API_BASE_URL) {
+      return String(window.API_BASE_URL).replace(/\/+$/, "");
+    }
+  } catch {
+    /* ignore */
+  }
+  return "https://notes-ai-app.onrender.com";
+}
 const REMINDER_NOTIFY_PREFS_KEY = "webReminderNotificationPrefs";
 /** "0" = user turned off in-app reminder alerts (browser permission may still be "granted"). */
 const WEB_REMINDER_NOTIFICATIONS_APP_ENABLED_KEY = "aiNotesWebReminderNotificationsAppEnabled";
 /** New IDs force fresh Android channels after importance/sound tweaks (channels are immutable per id). */
 const ANDROID_REMINDERS_CHANNEL_ID = "notesai-reminders-v3";
+
+/** Set when user clicks “Continue with Google” — handoff cookies are httpOnly, so we only POST handoff after this signal (or ?oauth_handoff=1). */
+const OAUTH_GOOGLE_RETURN_PENDING_KEY = "oauth_google_return_pending";
+/** After one handoff attempt (success or terminal failure); cleared on next Google click. */
+const OAUTH_HANDOFF_SESSION_DONE_KEY = "oauth_handoff_session_done";
+let oauthHandoffInFlight = false;
+/** Handoff path finished for this bootstrap invocation. */
+let oauthHandoffConsumed = false;
 
 function capacitorPlatform() {
   try {
@@ -203,7 +220,7 @@ async function showReminderSystemNotification(title, options) {
   }
   try {
     if ("serviceWorker" in navigator) {
-      const reg = await navigator.serviceWorker.ready;
+      const reg = await navigator.serviceWorker.getRegistration();
       if (reg && typeof reg.showNotification === "function") {
         await reg.showNotification(title, options);
         return;
@@ -254,6 +271,11 @@ let serviceWorkerNotificationRoutingInitialized = false;
 
 function initServiceWorkerNotificationRouting() {
   if (serviceWorkerNotificationRoutingInitialized) return;
+  try {
+    if (typeof isNativeApp === "function" && isNativeApp()) return;
+  } catch {
+    /* ignore */
+  }
   if (!("serviceWorker" in navigator)) return;
   serviceWorkerNotificationRoutingInitialized = true;
   navigator.serviceWorker.addEventListener("message", (event) => {
@@ -302,7 +324,8 @@ async function registerWebPushSubscription() {
     const pubB64 = data && data.publicKey;
     if (!pubB64) return false;
 
-    const reg = await navigator.serviceWorker.ready;
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg || !reg.pushManager) return false;
     const applicationServerKey = urlBase64ToUint8Array(pubB64);
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
@@ -328,7 +351,8 @@ async function unregisterWebPushSubscriptionFromServerAndBrowser() {
   if (isNativeLocalNotificationsAvailable()) return;
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
   try {
-    const reg = await navigator.serviceWorker.ready;
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg || !reg.pushManager) return;
     const sub = await reg.pushManager.getSubscription();
     if (!sub) return;
     const json = sub.toJSON();
@@ -389,9 +413,10 @@ function hashNotificationId(seed, offset = 0) {
 }
 
 function backendAbsoluteUrl(path) {
+  const base = getRenderBackendOrigin();
   const p = String(path || "").trim();
-  if (!p) return RENDER_BACKEND_ORIGIN;
-  return `${RENDER_BACKEND_ORIGIN}${p.startsWith("/") ? p : `/${p}`}`;
+  if (!p) return base;
+  return `${base}${p.startsWith("/") ? p : `/${p}`}`;
 }
 
 function plannerNotificationId(taskId, dateKey = dailyPlannerTodayKey()) {
@@ -2759,6 +2784,8 @@ function clearCurrentUser() {
   sessionStorage.removeItem("refreshToken");
   sessionStorage.removeItem("currentUser");
   sessionStorage.removeItem("oauth_handoff_tried");
+  sessionStorage.removeItem(OAUTH_GOOGLE_RETURN_PENDING_KEY);
+  sessionStorage.removeItem(OAUTH_HANDOFF_SESSION_DONE_KEY);
   currentUser = null;
   accessToken = null;
   refreshToken = null;
@@ -3513,6 +3540,7 @@ function initAuthLandingUi() {
   });
   document.querySelectorAll("a.auth-google-link").forEach((g) => {
     g.addEventListener("click", () => {
+      markGoogleOAuthFlowDeparting();
       if (googleOAuthConfigLoaded && !googleOAuthClientId) {
         console.warn(
           "[Google sign-in] Public client id missing from app-config — still navigating to backend OAuth. " +
@@ -4618,6 +4646,129 @@ async function presentPendingPostOAuthLandingIfAny() {
   presentPostGoogleOAuthChrome(currentUser);
 }
 
+function markGoogleOAuthFlowDeparting() {
+  try {
+    sessionStorage.setItem(OAUTH_GOOGLE_RETURN_PENDING_KEY, "1");
+    sessionStorage.removeItem(OAUTH_HANDOFF_SESSION_DONE_KEY);
+    oauthHandoffConsumed = false;
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Call POST /api/auth/oauth-handoff only when a Google round-trip was started from this app
+ * (session flag) or the URL explicitly requests it (optional future backend hint).
+ */
+function shouldAttemptOAuthHandoff() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("oauth_handoff") === "1") return true;
+    if (sessionStorage.getItem(OAUTH_HANDOFF_SESSION_DONE_KEY) === "1") return false;
+    return sessionStorage.getItem(OAUTH_GOOGLE_RETURN_PENDING_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function stripOAuthHandoffQueryParam() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("oauth_handoff")) return;
+    params.delete("oauth_handoff");
+    const qs = params.toString();
+    history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash);
+  } catch {
+    /* ignore */
+  }
+}
+
+function oauthHandoffFailCleanup() {
+  try {
+    sessionStorage.removeItem(OAUTH_GOOGLE_RETURN_PENDING_KEY);
+    sessionStorage.setItem(OAUTH_HANDOFF_SESSION_DONE_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+  stripOAuthHandoffQueryParam();
+  oauthHandoffConsumed = true;
+}
+
+/**
+ * Single handoff round-trip: no 401 retry loop, optional second URL only on network failure.
+ */
+async function attemptOAuthHandoffExchange() {
+  if (oauthHandoffInFlight || oauthHandoffConsumed) return;
+  oauthHandoffInFlight = true;
+  const url = buildApiUrl("/api/auth/oauth-handoff");
+  const fallbackUrl = backendAbsoluteUrl("/api/auth/oauth-handoff");
+  let lastRes = /** @type {Response | null} */ (null);
+  let data = /** @type {Record<string, unknown>} */ ({});
+
+  const doFetch = async (target) => {
+    const res = await fetch(target, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: "{}"
+    });
+    const json = await res.json().catch(() => ({}));
+    return { res, json };
+  };
+
+  try {
+    try {
+      const out = await doFetch(url);
+      lastRes = out.res;
+      data = out.json;
+    } catch (netErr) {
+      if (isAuthDevHost()) console.warn("[oauth-handoff] network (primary)", netErr);
+      try {
+        const out = await doFetch(fallbackUrl);
+        lastRes = out.res;
+        data = out.json;
+      } catch (netErr2) {
+        if (isAuthDevHost()) console.warn("[oauth-handoff] network (fallback)", netErr2);
+        oauthHandoffFailCleanup();
+        refreshClientAuthFromStorage();
+        return;
+      }
+    }
+
+    if (!lastRes) {
+      oauthHandoffFailCleanup();
+      refreshClientAuthFromStorage();
+      return;
+    }
+
+    if (lastRes.status === 401) {
+      oauthHandoffFailCleanup();
+      refreshClientAuthFromStorage();
+      return;
+    }
+
+    if (lastRes.ok && data.accessToken && data.refreshToken && data.user) {
+      try {
+        sessionStorage.removeItem(OAUTH_GOOGLE_RETURN_PENDING_KEY);
+        sessionStorage.removeItem(OAUTH_HANDOFF_SESSION_DONE_KEY);
+        stripOAuthHandoffQueryParam();
+        await finalizeGoogleOAuthSession(data);
+        oauthHandoffConsumed = true;
+      } catch (finErr) {
+        if (isAuthDevHost()) console.error("[oauth-handoff] finalize", finErr);
+        oauthHandoffFailCleanup();
+        refreshClientAuthFromStorage();
+      }
+      return;
+    }
+
+    oauthHandoffFailCleanup();
+    refreshClientAuthFromStorage();
+  } finally {
+    oauthHandoffInFlight = false;
+  }
+}
+
 function handleGoogleOAuthQueryParams() {
   const params = new URLSearchParams(window.location.search);
   const qErr = params.get("google_oauth_error");
@@ -4655,6 +4806,11 @@ async function runAuthBootstrap() {
       refreshAccessTokenPromise = null;
       clearCurrentUser();
     } else {
+      try {
+        sessionStorage.removeItem(OAUTH_GOOGLE_RETURN_PENDING_KEY);
+      } catch {
+        /* ignore */
+      }
       return;
     }
   }
@@ -4663,45 +4819,11 @@ async function runAuthBootstrap() {
     return;
   }
 
-  if (window.sessionStorage.getItem("oauth_handoff_tried")) return;
-  window.sessionStorage.setItem("oauth_handoff_tried", "1");
-
-  const url = buildApiUrl("/api/auth/oauth-handoff");
-  const fallbackUrl = backendAbsoluteUrl("/api/auth/oauth-handoff");
-  let lastRes = /** @type {Response | null} */ (null);
-  let data = {};
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    if (attempt > 0) {
-      await new Promise((r) => setTimeout(r, 100 * attempt));
-    }
-    try {
-      const target = attempt === 0 ? url : fallbackUrl;
-      lastRes = await fetch(target, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: "{}"
-      });
-      data = await lastRes.json().catch(() => ({}));
-    } catch (netErr) {
-      console.warn("[oauth-handoff] attempt", attempt + 1, netErr);
-      lastRes = null;
-      data = {};
-      continue;
-    }
-    if (lastRes && lastRes.ok && data.accessToken && data.refreshToken && data.user) break;
-  }
-
-  if (!lastRes || !lastRes.ok || !data.accessToken || !data.refreshToken || !data.user) {
-    window.sessionStorage.removeItem("oauth_handoff_tried");
+  if (!shouldAttemptOAuthHandoff()) {
     return;
   }
-  try {
-    await finalizeGoogleOAuthSession(data);
-  } catch (finErr) {
-    console.error(finErr);
-    window.sessionStorage.removeItem("oauth_handoff_tried");
-  }
+
+  await attemptOAuthHandoffExchange();
 }
 
 function webChatMarkUnreadFromBot() {
@@ -7494,7 +7616,14 @@ function startWebNotificationScheduler() {
     void syncPlannerLocalNotifications();
     return;
   }
-  const intervalMs = REMINDER_POLL_INTERVAL_MS;
+  var intervalMs = REMINDER_POLL_INTERVAL_MS;
+  try {
+    if (typeof isNativeApp === "function" && isNativeApp()) {
+      intervalMs = 60000;
+    }
+  } catch {
+    /* ignore */
+  }
   webNotificationSchedulerIntervalId = window.setInterval(() => {
     void checkForDueReminders();
   }, intervalMs);
@@ -9300,8 +9429,8 @@ async function updateSettingsNotificationStatus() {
       pushLine.classList.remove("hidden");
     } else if (perm === "granted" && appOn) {
       try {
-        const reg = await navigator.serviceWorker.ready;
-        const sub = await reg.pushManager.getSubscription();
+        const reg = await navigator.serviceWorker.getRegistration();
+        const sub = reg && reg.pushManager ? await reg.pushManager.getSubscription() : null;
         pushLine.textContent = sub ? t("settingsPushBackgroundActive") : t("settingsPushBackgroundPending");
       } catch {
         pushLine.textContent = t("settingsPushBackgroundPending");

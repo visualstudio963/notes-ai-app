@@ -15,7 +15,10 @@ var socket;
       };
       return;
     }
-    var targetUrl = "https://notes-ai-app.onrender.com";
+    var targetUrl =
+      typeof window !== "undefined" && window.API_BASE_URL
+        ? String(window.API_BASE_URL).replace(/\/+$/, "")
+        : "https://notes-ai-app.onrender.com";
     socket = io(targetUrl, {
       path: "/socket.io",
       transports: ["websocket", "polling"],

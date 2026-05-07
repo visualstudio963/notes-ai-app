@@ -5,6 +5,19 @@
 (function () {
   "use strict";
 
+  try {
+    if (
+      window.Capacitor &&
+      typeof window.Capacitor.isNativePlatform === "function" &&
+      window.Capacitor.isNativePlatform()
+    ) {
+      return;
+    }
+  } catch {
+    /* ignore */
+  }
+  if (window.__DISABLE_SERVICE_WORKER__ === true) return;
+
   if (!("serviceWorker" in navigator)) return;
 
   var build =

@@ -1932,6 +1932,11 @@
     setBottomNavActive("dashboard");
     hydrateDashboard(dash);
     mergeCapabilityUi();
+    try {
+      await loadDiscordConfig();
+    } catch {
+      /* Community links are optional for dashboard; Settings will retry on navigate. */
+    }
   }
 
   init();

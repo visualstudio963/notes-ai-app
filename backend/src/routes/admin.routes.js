@@ -845,9 +845,8 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
   router.get("/config/discord", requireStaffMin(STAFF_RANK.SUPPORT), async (_req, res) => {
     try {
       res.set("Cache-Control", "no-store, max-age=0");
-      const doc = await AppConfig.findOne({ key: "main" })
-        .select("discordInviteUrl discordUpdatesCount tiktokUrl youtubeUrl supportEmail")
-        .lean();
+      /** Raw collection read so `supportEmail` is never dropped by an in-memory schema mismatch. */
+      const doc = await AppConfig.collection.findOne({ key: "main" });
       return res.json({
         discordInviteUrl: doc && doc.discordInviteUrl ? String(doc.discordInviteUrl) : "",
         discordUpdatesCount: Math.max(0, Number((doc && doc.discordUpdatesCount) || 0)),
@@ -895,8 +894,12 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
       const discordUpdatesCount = Number.isFinite(Number(updatesCountRaw))
         ? Math.max(0, Math.floor(Number(updatesCountRaw)))
         : 0;
-      /** Single upsert + `new: true` so the response always includes `supportEmail` (and other fields) from the written doc. */
-      const fresh = await AppConfig.findOneAndUpdate(
+      const now = new Date();
+      /**
+       * Native driver update: Mongoose `strict` can strip paths not present in the loaded schema until the
+       * process restarts — `supportEmail` would then never persist. Collection writes always reach MongoDB.
+       */
+      await AppConfig.collection.updateOne(
         { key: "main" },
         {
           $set: {
@@ -905,11 +908,14 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
             discordUpdatesCount,
             tiktokUrl: rawTiktok,
             youtubeUrl: rawYoutube,
-            supportEmail: rawSupport
-          }
+            supportEmail: rawSupport,
+            updatedAt: now
+          },
+          $setOnInsert: { createdAt: now }
         },
-        { upsert: true, new: true, setDefaultsOnInsert: true, lean: true }
-      ).exec();
+        { upsert: true }
+      );
+      const fresh = await AppConfig.collection.findOne({ key: "main" });
       return res.json({
         success: true,
         discordInviteUrl: fresh && fresh.discordInviteUrl ? String(fresh.discordInviteUrl) : "",

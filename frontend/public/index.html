@@ -1954,6 +1954,7 @@
     class="daily-planner-fab"
     type="button"
     onclick="openDailyPlannerModal()"
+    data-t-aria-label="dailyPlannerAriaOpenFab"
     aria-label="Open daily planner"
     data-t-title="dailyPlannerFabTitle"
     title="Daily planner"
@@ -1976,7 +1977,7 @@
             <p class="daily-planner-modal__tagline" data-t="dailyPlannerTagline">Organizo ditën tënde, një hap në kohë ✨</p>
           </div>
         </div>
-        <button class="close-button daily-planner-close" type="button" onclick="closeDailyPlannerModal(); event.stopPropagation();" aria-label="Close modal">✕</button>
+        <button class="close-button daily-planner-close" type="button" onclick="closeDailyPlannerModal(); event.stopPropagation();" data-t-aria-label="dailyPlannerAriaClose" aria-label="Close planner">✕</button>
       </div>
       <div class="daily-planner-modal__composer">
         <label class="sr-only" for="dailyPlannerTaskInput" data-t="dailyPlannerTaskLabel">Çfarë do bësh sot?</label>
@@ -1997,7 +1998,7 @@
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.25" stroke="currentColor" stroke-width="1.5"/><path d="M12 8.25V12l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </span>
             <label class="sr-only" for="dailyPlannerTimeInput" data-t="dailyPlannerTimeLabel">Ora (opsionale)</label>
-            <input id="dailyPlannerTimeInput" type="time" aria-label="Time" />
+            <input id="dailyPlannerTimeInput" type="time" data-t-aria-label="dailyPlannerAriaTime" aria-label="Time (optional)" />
           </div>
           <button id="dailyPlannerAddBtn" class="save-button daily-planner-add-btn" type="button" onclick="dailyPlannerAddTask()" data-t="dailyPlannerAddBtn">
             + Shto plan

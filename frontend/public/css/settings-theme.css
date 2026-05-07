@@ -1726,6 +1726,295 @@ body.theme-normal .premium-hero-note {
   body.theme-normal .premium-checkout-trust {
     color: #5d442d !important;
   }
+
+  html:has(body.theme-normal),
+  body.theme-normal {
+    color: var(--journal-text) !important;
+  }
+}
+
+/* Vintage Journal — full surface & contrast pass (beats #home / note / scan specifics) */
+body.theme-normal #home .home-hero-title {
+  color: var(--journal-text-strong) !important;
+}
+
+body.theme-normal #home .home-copy {
+  color: var(--journal-text-muted) !important;
+}
+
+body.theme-normal .home-welcome-line {
+  color: var(--journal-text-strong) !important;
+}
+
+body.theme-normal .note-card-preview,
+body.theme-normal .note-card-preview * {
+  color: var(--journal-text) !important;
+}
+
+body.theme-normal .note-card-preview::after {
+  background: linear-gradient(180deg, rgba(252, 243, 226, 0), rgba(236, 220, 190, 0.98)) !important;
+}
+
+body.theme-normal .note-card-title--placeholder {
+  color: #7a6350 !important;
+}
+
+body.theme-normal .note-actions--toolbar {
+  background: rgba(252, 243, 226, 0.96) !important;
+  border: 1px solid var(--journal-border) !important;
+  backdrop-filter: none;
+}
+
+body.theme-normal .note-action-btn {
+  background: rgba(246, 234, 210, 0.98) !important;
+  border-color: rgba(113, 84, 54, 0.28) !important;
+  color: #5c4229 !important;
+}
+
+body.theme-normal .note-action-btn--edit:hover {
+  border-color: rgba(56, 120, 160, 0.45) !important;
+  background: rgba(220, 236, 248, 0.45) !important;
+  color: #1e4d66 !important;
+}
+
+body.theme-normal .note-action-btn--delete:hover {
+  border-color: rgba(180, 70, 70, 0.45) !important;
+  background: rgba(252, 226, 226, 0.55) !important;
+  color: #8b2e2e !important;
+}
+
+body.theme-normal .note-action-btn--download:hover,
+body.theme-normal .note-action-btn--share:hover {
+  border-color: rgba(100, 80, 140, 0.4) !important;
+  background: rgba(237, 228, 252, 0.45) !important;
+  color: #4a3566 !important;
+}
+
+body.theme-normal .notes-search-input,
+body.theme-normal .notes-select-input {
+  background: rgba(255, 252, 244, 0.94) !important;
+  border: 1px solid var(--journal-border) !important;
+  border-radius: 14px !important;
+  box-shadow: inset 0 1px 2px rgba(92, 70, 44, 0.06) !important;
+  color: var(--journal-text-strong) !important;
+}
+
+body.theme-normal .notes-search-input:focus,
+body.theme-normal .notes-select-input:focus {
+  border-color: rgba(140, 101, 56, 0.55) !important;
+  box-shadow: 0 0 0 3px rgba(140, 101, 56, 0.14) !important;
+}
+
+body.theme-normal .note-card--accent-warm,
+body.theme-normal .note-card--accent-cool,
+body.theme-normal .note-card--accent-fresh,
+body.theme-normal .note-card--accent-lux {
+  background: linear-gradient(168deg, rgba(250, 241, 221, 0.98), rgba(236, 223, 198, 0.94)) !important;
+}
+
+body.theme-normal .note-category-badge--warm {
+  background: rgba(200, 110, 55, 0.14) !important;
+  color: #7a3d18 !important;
+  border-color: rgba(180, 95, 45, 0.38) !important;
+}
+
+body.theme-normal .note-category-badge--cool {
+  background: rgba(55, 120, 160, 0.12) !important;
+  color: #1e4d66 !important;
+  border-color: rgba(55, 120, 160, 0.35) !important;
+}
+
+body.theme-normal .note-category-badge--fresh {
+  background: rgba(45, 130, 95, 0.12) !important;
+  color: #1b5c45 !important;
+  border-color: rgba(45, 130, 95, 0.35) !important;
+}
+
+body.theme-normal .scan-cam-tool__title {
+  color: var(--journal-text-strong) !important;
+}
+
+body.theme-normal .scan-cam-tool__back,
+body.theme-normal .scan-cam-tool__icon {
+  background: rgba(252, 243, 226, 0.95) !important;
+  border-color: var(--journal-border) !important;
+  color: var(--journal-text-strong) !important;
+}
+
+body.theme-normal .scan-cam-tool__back:hover,
+body.theme-normal .scan-cam-tool__icon:hover {
+  border-color: rgba(140, 101, 56, 0.45) !important;
+  color: #2a1f14 !important;
+}
+
+body.theme-normal .scan-cam-tool__status {
+  color: var(--journal-text-muted) !important;
+}
+
+body.theme-normal .scan-cam-scan-zone {
+  background: linear-gradient(165deg, rgba(252, 246, 232, 0.95), rgba(236, 223, 198, 0.88)) !important;
+  border: 2px dashed rgba(120, 88, 52, 0.35) !important;
+  box-shadow: inset 0 0 0 1px rgba(120, 88, 52, 0.08), 0 12px 32px rgba(92, 70, 44, 0.12) !important;
+}
+
+body.theme-normal .scan-cam-scan-zone__hint {
+  color: #5c442d !important;
+}
+
+body.theme-normal .scan-cam-onboarding {
+  background: rgba(250, 241, 221, 0.98) !important;
+  border: 1px solid rgba(120, 88, 52, 0.32) !important;
+  box-shadow: 0 12px 28px rgba(92, 70, 44, 0.14) !important;
+}
+
+body.theme-normal .scan-cam-onboarding__text {
+  color: var(--journal-text) !important;
+}
+
+body.theme-normal .scan-cam-onboarding__btn {
+  background: linear-gradient(135deg, #8e6843, #6b4b2e) !important;
+  border: 1px solid rgba(87, 60, 35, 0.55) !important;
+  color: #f8edd8 !important;
+}
+
+body.theme-normal .scan-cam-chip-btn {
+  background: rgba(246, 234, 210, 0.95) !important;
+  border-color: var(--journal-border) !important;
+  color: var(--journal-text-strong) !important;
+}
+
+body.theme-normal .scan-cam-chip-btn:hover {
+  background: rgba(238, 222, 190, 0.98) !important;
+  color: #2a1f14 !important;
+}
+
+body.theme-normal .scan-cam-chip-btn--primary {
+  background: linear-gradient(135deg, rgba(110, 150, 175, 0.35), rgba(90, 120, 150, 0.28)) !important;
+  border-color: rgba(70, 110, 140, 0.45) !important;
+  color: #1a3240 !important;
+  box-shadow: 0 6px 16px rgba(60, 90, 110, 0.12) !important;
+}
+
+body.theme-normal .scan-cam-side-card__eyebrow {
+  color: #7a5938 !important;
+}
+
+body.theme-normal .scan-cam-side-card__title {
+  color: var(--journal-text-strong) !important;
+}
+
+body.theme-normal .scan-cam-features-list__item {
+  color: var(--journal-text) !important;
+}
+
+body.theme-normal .scan-cam-side-card__summary-label {
+  color: #f8edd8 !important;
+}
+
+body.theme-normal .scan-cam-side-card__summary {
+  background: rgba(87, 65, 42, 0.88) !important;
+  border: 1px solid rgba(70, 52, 34, 0.35) !important;
+}
+
+body.theme-normal .scan-cam-mini-card {
+  background: rgba(252, 243, 226, 0.92) !important;
+  border: 1px solid var(--journal-border) !important;
+}
+
+body.theme-normal .scan-cam-mini-card__title {
+  color: var(--journal-text-strong) !important;
+}
+
+body.theme-normal .scan-cam-mini-card__body,
+body.theme-normal .scan-cam-mini-card__steps {
+  color: var(--journal-text-muted) !important;
+}
+
+body.theme-normal .scan-cam-category-banner {
+  background: linear-gradient(135deg, rgba(230, 210, 180, 0.65), rgba(245, 232, 210, 0.92)) !important;
+  border: 1px solid var(--journal-border) !important;
+}
+
+body.theme-normal .scan-cam-category-banner__text {
+  color: var(--journal-text) !important;
+}
+
+body.theme-normal .sidebar-social {
+  background: rgba(252, 243, 226, 0.9) !important;
+  border: 1px solid var(--journal-border) !important;
+}
+
+body.theme-normal .sidebar-social__label {
+  color: var(--journal-text-strong) !important;
+}
+
+body.theme-normal .home-bottom-info-bar {
+  background: rgba(252, 243, 226, 0.92) !important;
+  border: 1px solid var(--journal-border) !important;
+  backdrop-filter: none;
+}
+
+body.theme-normal .home-bottom-info-bar__title {
+  color: var(--journal-text-strong) !important;
+}
+
+body.theme-normal .home-bottom-info-bar__sub {
+  color: var(--journal-text-muted) !important;
+}
+
+body.theme-normal .daily-planner-fab::after,
+body.theme-normal .web-chat-fab::after,
+body.theme-normal .discord-fab::after {
+  background: rgba(252, 243, 226, 0.98) !important;
+  border: 1px solid var(--journal-border) !important;
+  color: var(--journal-text-strong) !important;
+}
+
+/* Coins / rewards on parchment (readable with journal palette) */
+body.theme-normal .page.coins-dash-page {
+  background:
+    radial-gradient(120% 70% at 50% -10%, rgba(255, 248, 234, 0.75), transparent 62%),
+    linear-gradient(170deg, #f3e8d4 0%, #ebdcc2 52%, #e4d1b2 100%) !important;
+}
+
+body.theme-normal .coins-dash-card {
+  background: linear-gradient(168deg, rgba(250, 241, 221, 0.97), rgba(236, 223, 198, 0.94)) !important;
+  border: 1px solid var(--journal-border) !important;
+  box-shadow: 0 8px 24px rgba(92, 70, 44, 0.12) !important;
+  backdrop-filter: none;
+}
+
+body.theme-normal .coins-dash-balance-caption,
+body.theme-normal .coins-daily-balance-hero__label {
+  color: #6a5038 !important;
+}
+
+body.theme-normal .coins-dash-page-title,
+body.theme-normal .coins-hub-task__title,
+body.theme-normal .coins-daily-checkin-head__title,
+body.theme-normal .coins-dash-balance-num {
+  color: var(--journal-text-strong) !important;
+}
+
+body.theme-normal .coins-hub-task__meta,
+body.theme-normal .coins-daily-checkin-head__streak,
+body.theme-normal .coins-dash-card p {
+  color: var(--journal-text-muted) !important;
+}
+
+body.theme-normal .coins-hub-task--video {
+  background: linear-gradient(148deg, rgba(210, 230, 210, 0.45) 0%, rgba(245, 236, 218, 0.95) 100%) !important;
+  border-color: rgba(90, 130, 90, 0.28) !important;
+}
+
+body.theme-normal .coins-dash-muted,
+body.theme-normal .daily-checkin-slot__amt--muted,
+body.theme-normal .daily-checkin-slot__meta--locked {
+  color: #6a5a48 !important;
+}
+
+body.theme-normal .coins-dash-hero-aura {
+  opacity: 0.25;
 }
 
 /*

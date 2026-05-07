@@ -857,6 +857,12 @@ function renderDailyPlannerList() {
   const list = document.getElementById("dailyPlannerList");
   const progress = document.getElementById("dailyPlannerProgress");
   if (!list) return;
+  const axBell = escapeHtmlAttr(t("dailyPlannerAriaReminderToggle"));
+  const axKebab = escapeHtmlAttr(t("dailyPlannerAriaTaskMenu"));
+  const axMarkDone = escapeHtmlAttr(t("dailyPlannerAriaMarkDone"));
+  const axMarkUndone = escapeHtmlAttr(t("dailyPlannerAriaMarkUndone"));
+  const txSectionTodo = escapeHtml(t("dailyPlannerSectionTodo"));
+  const txSectionCompleted = escapeHtml(t("dailyPlannerSectionCompleted"));
   const tasks = readDailyPlannerTasks();
   const doneCount = tasks.filter((x) => x.done).length;
   const total = tasks.length;
@@ -886,16 +892,16 @@ function renderDailyPlannerList() {
       const bellHtml = hasTime
         ? `<button type="button" class="daily-planner-item__bell${
             task.notificationEnabled ? " is-on" : ""
-          }" onclick="dailyPlannerToggleNotification('${escapeHtmlAttr(task.id)}', this)" aria-label="Toggle reminder bell">🔔</button>`
+          }" onclick="dailyPlannerToggleNotification('${escapeHtmlAttr(task.id)}', this)" aria-label="${axBell}">🔔</button>`
         : "";
       const kebabHtml = `<button type="button" class="daily-planner-item__kebab" onclick="dailyPlannerToggleTask('${escapeHtmlAttr(
         task.id
-      )}')" aria-label="Toggle task"><span class="daily-planner-item__kebab-dot" aria-hidden="true"></span><span class="daily-planner-item__kebab-dot" aria-hidden="true"></span><span class="daily-planner-item__kebab-dot" aria-hidden="true"></span></button>`;
+      )}')" aria-label="${axKebab}"><span class="daily-planner-item__kebab-dot" aria-hidden="true"></span><span class="daily-planner-item__kebab-dot" aria-hidden="true"></span><span class="daily-planner-item__kebab-dot" aria-hidden="true"></span></button>`;
       const justAdded = task.id === dailyPlannerLastAddedTaskId ? " daily-planner-item--new" : "";
       return `<div class="daily-planner-item${doneClass}${justAdded}" data-daily-task-id="${escapeHtmlAttr(task.id)}">
         <button type="button" class="daily-planner-item__toggle" onclick="dailyPlannerToggleTask('${escapeHtmlAttr(
           task.id
-        )}')" aria-label="Mark task complete" aria-pressed="false"><span class="daily-planner-item__toggle-check">✓</span></button>
+        )}')" aria-label="${axMarkDone}" aria-pressed="false"><span class="daily-planner-item__toggle-check">✓</span></button>
         <div class="daily-planner-item__text-wrap">
           <span class="daily-planner-item__text">${escapeHtml(task.text)}</span>
           ${timeHtml}
@@ -914,16 +920,16 @@ function renderDailyPlannerList() {
       const bellHtml = hasTime
         ? `<button type="button" class="daily-planner-item__bell${
             task.notificationEnabled ? " is-on" : ""
-          }" onclick="dailyPlannerToggleNotification('${escapeHtmlAttr(task.id)}', this)" aria-label="Toggle reminder bell">🔔</button>`
+          }" onclick="dailyPlannerToggleNotification('${escapeHtmlAttr(task.id)}', this)" aria-label="${axBell}">🔔</button>`
         : "";
       const kebabHtml = `<button type="button" class="daily-planner-item__kebab" onclick="dailyPlannerToggleTask('${escapeHtmlAttr(
         task.id
-      )}')" aria-label="Toggle task"><span class="daily-planner-item__kebab-dot" aria-hidden="true"></span><span class="daily-planner-item__kebab-dot" aria-hidden="true"></span><span class="daily-planner-item__kebab-dot" aria-hidden="true"></span></button>`;
+      )}')" aria-label="${axKebab}"><span class="daily-planner-item__kebab-dot" aria-hidden="true"></span><span class="daily-planner-item__kebab-dot" aria-hidden="true"></span><span class="daily-planner-item__kebab-dot" aria-hidden="true"></span></button>`;
       const moved = task.id === dailyPlannerMovedTaskId ? " daily-planner-item--moved" : "";
       return `<div class="daily-planner-item${doneClass}${moved}" data-daily-task-id="${escapeHtmlAttr(task.id)}">
         <button type="button" class="daily-planner-item__toggle" onclick="dailyPlannerToggleTask('${escapeHtmlAttr(
           task.id
-        )}')" aria-label="Mark task not done" aria-pressed="true"><span class="daily-planner-item__toggle-check">✓</span></button>
+        )}')" aria-label="${axMarkUndone}" aria-pressed="true"><span class="daily-planner-item__toggle-check">✓</span></button>
         <div class="daily-planner-item__text-wrap">
           <span class="daily-planner-item__text">${escapeHtml(task.text)}</span>
           ${timeHtml}
@@ -935,12 +941,12 @@ function renderDailyPlannerList() {
     })
     .join("");
   list.innerHTML = `<section class="daily-planner-group daily-planner-group--pending">
-    <div class="daily-planner-group__head daily-planner-group__head--pending"><h3>Për t'u bërë</h3><span class="daily-planner-group__count">${todo.length}</span></div>
+    <div class="daily-planner-group__head daily-planner-group__head--pending"><h3>${txSectionTodo}</h3><span class="daily-planner-group__count">${todo.length}</span></div>
     <div class="daily-planner-group__body">${todoHtml || `<p class="daily-planner-empty">${escapeHtml(t("dailyPlannerEmpty"))}</p>`}</div>
   </section>
   <section class="daily-planner-group daily-planner-group--completed">
     <button type="button" class="daily-planner-group__head daily-planner-group__head--completed daily-planner-group__toggle" onclick="toggleDailyPlannerCompleted()">
-      <h3>Të përfunduara</h3><span class="daily-planner-group__count">${completed.length}<span class="daily-planner-group__chev" aria-hidden="true">${dailyPlannerCompletedOpen ? "▾" : "▸"}</span></span>
+      <h3>${txSectionCompleted}</h3><span class="daily-planner-group__count">${completed.length}<span class="daily-planner-group__chev" aria-hidden="true">${dailyPlannerCompletedOpen ? "▾" : "▸"}</span></span>
     </button>
     <div class="daily-planner-group__body${dailyPlannerCompletedOpen ? "" : " hidden"}">${completedHtml || ""}</div>
   </section>`;
@@ -9483,6 +9489,13 @@ function changeLanguage(lang) {
   }
   if (!document.getElementById("reminder-history")?.classList.contains("hidden")) {
     applyHistoryFilterAndRender();
+  }
+  const dailyPlannerModal = document.getElementById("dailyPlannerModal");
+  if (dailyPlannerModal && !dailyPlannerModal.classList.contains("hidden")) {
+    renderDailyPlannerList();
+  }
+  if (typeof syncDailyPlannerAccessUi === "function") {
+    syncDailyPlannerAccessUi();
   }
 }
 

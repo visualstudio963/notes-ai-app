@@ -1,12 +1,12 @@
 {
   "rewrites": [
     {
-      "source": "/auth/(.*)",
-      "destination": "https://notes-ai-app.onrender.com/auth/$1"
+      "source": "/auth/:path*",
+      "destination": "https://notes-ai-app.onrender.com/auth/:path*"
     },
     {
-      "source": "/api/(.*)",
-      "destination": "https://notes-ai-app.onrender.com/api/$1"
+      "source": "/api/:path*",
+      "destination": "https://notes-ai-app.onrender.com/api/:path*"
     },
     {
       "source": "/admin",
@@ -65,11 +65,11 @@
       "destination": "/index.html"
     },
     {
-      "source": "/invite/(.*)",
+      "source": "/invite/:path*",
       "destination": "/index.html"
     },
     {
-      "source": "/(.*)",
+      "source": "/:path*",
       "destination": "/index.html"
     }
   ]

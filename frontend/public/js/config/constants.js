@@ -1,8 +1,9 @@
 /** @type {Record<string, string>} */
+/** English fallback when `t()` is unavailable (keys match i18n in translations.js). */
 var categories = {
-  shtepia: "Shtepia",
-  puna: "Puna",
-  shkolla: "Shkolla",
+  shtepia: "Home",
+  puna: "Work",
+  shkolla: "School",
   scan_cam: "Scan Cam"
 };
 

@@ -428,26 +428,26 @@
 
               <div class="hex-grid home-categories-grid">
                 <div class="hex-card hex-warm">
-                  <button type="button" class="hex-card-main" onclick="openCategory('shtepia')" aria-label="Shtepia category">
+                  <button type="button" class="hex-card-main" onclick="openCategory('shtepia')" data-t-aria-label="categoryAriaShtepia" aria-label="Home category">
                     <div class="category-icon" aria-hidden="true">🏠</div>
-                    <strong data-t="shtepia">Shtepia</strong>
-                    <span class="card-subtitle" data-t="shtetiaSubtitle">Personal notes & home tasks</span>
+                    <strong data-t="shtepia">Home</strong>
+                    <span class="card-subtitle" data-t="shtepiaSubtitle">Personal notes & home tasks</span>
                   </button>
                   <button type="button" class="hex-card-add" onclick="openNoteEditorCreate('home','shtepia')" data-t="homeCardAddNote">+ Add note</button>
                 </div>
                 <div class="hex-card hex-cool">
-                  <button type="button" class="hex-card-main" onclick="openCategory('puna')" aria-label="Puna category">
+                  <button type="button" class="hex-card-main" onclick="openCategory('puna')" data-t-aria-label="categoryAriaPuna" aria-label="Work category">
                     <div class="category-icon" aria-hidden="true">💼</div>
-                    <strong data-t="puna">Puna</strong>
+                    <strong data-t="puna">Work</strong>
                     <span class="card-subtitle" data-t="punaSubtitle">Professional work plans & meetings</span>
                   </button>
                   <button type="button" class="hex-card-add" onclick="openNoteEditorCreate('home','puna')" data-t="homeCardAddNote">+ Add note</button>
                 </div>
                 <div class="hex-card hex-fresh">
-                  <button type="button" class="hex-card-main" onclick="openCategory('shkolla')" aria-label="Shkolla category">
+                  <button type="button" class="hex-card-main" onclick="openCategory('shkolla')" data-t-aria-label="categoryAriaShkolla" aria-label="School category">
                     <div class="category-icon" aria-hidden="true">📚</div>
-                    <strong data-t="shkolla">Shkolla</strong>
-                    <span class="card-subtitle" data-t="skollaSubtitle">Study notes, lessons, and focus goals</span>
+                    <strong data-t="shkolla">School</strong>
+                    <span class="card-subtitle" data-t="shkollaSubtitle">Study notes, lessons, and focus goals</span>
                   </button>
                   <button type="button" class="hex-card-add" onclick="openNoteEditorCreate('home','shkolla')" data-t="homeCardAddNote">+ Add note</button>
                 </div>
@@ -993,7 +993,12 @@
                 data-t-title="webChatModeTooltipAuto"
                 onclick="webChatModelSelectOption(event, 'auto')"
               >
-                <span data-t="webChatModeAuto">Auto</span>
+                <span class="web-chat-mode-pill__inner">
+                  <span data-t="webChatModeAuto">Auto</span>
+                  <span class="web-chat-mode-pill__lock" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                  </span>
+                </span>
               </button>
               <button
                 type="button"
@@ -1005,7 +1010,12 @@
                 data-t-title="webChatModeTooltipOpenAi"
                 onclick="webChatModelSelectOption(event, 'openai')"
               >
-                <span data-t="webChatModeOpenAi">OpenAI</span>
+                <span class="web-chat-mode-pill__inner">
+                  <span data-t="webChatModeOpenAi">OpenAI</span>
+                  <span class="web-chat-mode-pill__lock" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                  </span>
+                </span>
               </button>
             </div>
             <select id="webChatModelMode" class="visually-hidden" tabindex="-1" aria-hidden="true" onchange="webChatModelModeChanged()">

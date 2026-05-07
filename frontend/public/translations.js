@@ -248,6 +248,7 @@ const translations = {
     webChatModelLockedUpgrade: "Upgrade to unlock this feature.",
     webChatModelUpgradeCta: "Upgrade",
     webChatModelLockDismissTip: "Dismiss",
+    webChatPremiumTabTooltip: "Switch to Premium for this option.",
     webChatModeAuto: "Auto",
     webChatModeChatbot: "Chat Bot",
     webChatModeOpenAi: "OpenAI",
@@ -366,12 +367,15 @@ const translations = {
     socialAriaTiktok: "TikTok (opens in a new tab)",
     socialAriaYoutube: "YouTube (opens in a new tab)",
     homeCardAddNote: "+ Add note",
-    shtepia: "Shtepia",
-    shtetiaSubtitle: "Personal notes & home tasks",
-    puna: "Puna",
+    shtepia: "Home",
+    shtepiaSubtitle: "Personal notes & home tasks",
+    puna: "Work",
     punaSubtitle: "Professional work plans & meetings",
-    shkolla: "Shkolla",
-    skollaSubtitle: "Study notes, lessons, and focus goals",
+    shkolla: "School",
+    shkollaSubtitle: "Study notes, lessons, and focus goals",
+    categoryAriaShtepia: "Home category",
+    categoryAriaPuna: "Work category",
+    categoryAriaShkolla: "School category",
     scan_cam: "Scan Cam",
     scanCamSubtitle: "Scan a document — text becomes notes (Standard or Premium).",
     menuScanCam: "Scan Cam",
@@ -1097,6 +1101,7 @@ const translations = {
     webChatModelLockedUpgrade: "Përmirëso për të zhbllokuar këtë veçori.",
     webChatModelUpgradeCta: "Përmirëso",
     webChatModelLockDismissTip: "Mbyll",
+    webChatPremiumTabTooltip: "Kalo në Premium për këtë opsion",
     webChatModeAuto: "Auto",
     webChatModeChatbot: "Chat Bot",
     webChatModeOpenAi: "OpenAI",
@@ -1214,12 +1219,15 @@ const translations = {
     socialAriaTiktok: "TikTok (hapet në një skedë të re)",
     socialAriaYoutube: "YouTube (hapet në një skedë të re)",
     homeCardAddNote: "+ Shënim i ri",
-    shtepia: "Shtepia",
-    shtetiaSubtitle: "Shënime personale dhe detyra të shtëpisë",
+    shtepia: "Shtëpia",
+    shtepiaSubtitle: "Shënime personale dhe detyra të shtëpisë",
     puna: "Puna",
     punaSubtitle: "Planet e punës dhe takimet profesionale",
     shkolla: "Shkolla",
-    skollaSubtitle: "Shënime studimi, mësime dhe qëllime fokusi",
+    shkollaSubtitle: "Shënime studimi, mësime dhe qëllime fokusi",
+    categoryAriaShtepia: "Kategoria Shtëpi",
+    categoryAriaPuna: "Kategoria Punë",
+    categoryAriaShkolla: "Kategoria Shkollë",
     scan_cam: "Scan Cam",
     scanCamSubtitle: "Skano dokument — teksti bëhet shënime (Standard ose Premium).",
     menuScanCam: "Scan Cam",
@@ -1725,7 +1733,17 @@ const translations = {
     themeClassic: "Klassisch",
     themeNormal: "Minimal hell",
     themeAdvanced: "Neon / futuristisch",
-    preferences: "Einstellungen"
+    preferences: "Einstellungen",
+    shtepia: "Zuhause",
+    shtepiaSubtitle: "Persönliche Notizen & Aufgaben zu Hause",
+    puna: "Arbeit",
+    punaSubtitle: "Berufliche Pläne und Besprechungen",
+    shkolla: "Schule",
+    shkollaSubtitle: "Lernnotizen, Unterricht und Fokusziele",
+    scan_cam: "Scan Cam",
+    categoryAriaShtepia: "Kategorie Zuhause",
+    categoryAriaPuna: "Kategorie Arbeit",
+    categoryAriaShkolla: "Kategorie Schule"
   },
   
   fr: {
@@ -1754,7 +1772,17 @@ const translations = {
     themeClassic: "Classique",
     themeNormal: "Clair minimal",
     themeAdvanced: "Néon / futuriste",
-    preferences: "Préférences"
+    preferences: "Préférences",
+    shtepia: "Maison",
+    shtepiaSubtitle: "Notes personnelles et tâches à la maison",
+    puna: "Travail",
+    punaSubtitle: "Plans professionnels et réunions",
+    shkolla: "École",
+    shkollaSubtitle: "Notes d’étude, cours et objectifs",
+    scan_cam: "Scan Cam",
+    categoryAriaShtepia: "Catégorie Maison",
+    categoryAriaPuna: "Catégorie Travail",
+    categoryAriaShkolla: "Catégorie École"
   },
   
   it: {
@@ -1783,7 +1811,17 @@ const translations = {
     themeClassic: "Classico",
     themeNormal: "Chiaro minimale",
     themeAdvanced: "Neon / futuristico",
-    preferences: "Preferenze"
+    preferences: "Preferenze",
+    shtepia: "Casa",
+    shtepiaSubtitle: "Note personali e mansioni di casa",
+    puna: "Lavoro",
+    punaSubtitle: "Piani di lavoro e riunioni",
+    shkolla: "Scuola",
+    shkollaSubtitle: "Appunti di studio, lezioni e obiettivi",
+    scan_cam: "Scan Cam",
+    categoryAriaShtepia: "Categoria Casa",
+    categoryAriaPuna: "Categoria Lavoro",
+    categoryAriaShkolla: "Categoria Scuola"
   },
   
   es: {
@@ -1812,7 +1850,17 @@ const translations = {
     themeClassic: "Clásico",
     themeNormal: "Claro minimal",
     themeAdvanced: "Neón / futurista",
-    preferences: "Preferencias"
+    preferences: "Preferencias",
+    shtepia: "Hogar",
+    shtepiaSubtitle: "Notas personales y tareas del hogar",
+    puna: "Trabajo",
+    punaSubtitle: "Planes profesionales y reuniones",
+    shkolla: "Escuela",
+    shkollaSubtitle: "Apuntes, clases y metas de estudio",
+    scan_cam: "Scan Cam",
+    categoryAriaShtepia: "Categoría Hogar",
+    categoryAriaPuna: "Categoría Trabajo",
+    categoryAriaShkolla: "Categoría Escuela"
   },
   
   pt: {
@@ -1841,7 +1889,17 @@ const translations = {
     themeClassic: "Clássico",
     themeNormal: "Claro minimal",
     themeAdvanced: "Neon / futurista",
-    preferences: "Preferências"
+    preferences: "Preferências",
+    shtepia: "Casa",
+    shtepiaSubtitle: "Notas pessoais e tarefas em casa",
+    puna: "Trabalho",
+    punaSubtitle: "Planos de trabalho e reuniões",
+    shkolla: "Escola",
+    shkollaSubtitle: "Notas de estudo, aulas e metas",
+    scan_cam: "Scan Cam",
+    categoryAriaShtepia: "Categoria Casa",
+    categoryAriaPuna: "Categoria Trabalho",
+    categoryAriaShkolla: "Categoria Escola"
   },
   
   pl: {
@@ -1870,7 +1928,17 @@ const translations = {
     themeClassic: "Klasyczny",
     themeNormal: "Jasny minimal",
     themeAdvanced: "Neon / futurystyczny",
-    preferences: "Preferencje"
+    preferences: "Preferencje",
+    shtepia: "Dom",
+    shtepiaSubtitle: "Notatki osobiste i zadania domowe",
+    puna: "Praca",
+    punaSubtitle: "Plany zawodowe i spotkania",
+    shkolla: "Szkoła",
+    shkollaSubtitle: "Notatki, lekcje i cele nauki",
+    scan_cam: "Scan Cam",
+    categoryAriaShtepia: "Kategoria Dom",
+    categoryAriaPuna: "Kategoria Praca",
+    categoryAriaShkolla: "Kategoria Szkoła"
   },
   
   nl: {
@@ -1899,7 +1967,17 @@ const translations = {
     themeClassic: "Klassiek",
     themeNormal: "Licht minimaal",
     themeAdvanced: "Neon / futuristisch",
-    preferences: "Voorkeuren"
+    preferences: "Voorkeuren",
+    shtepia: "Thuis",
+    shtepiaSubtitle: "Persoonlijke notities en klusjes thuis",
+    puna: "Werk",
+    punaSubtitle: "Werkplannen en vergaderingen",
+    shkolla: "School",
+    shkollaSubtitle: "Studienotities, lessen en focusdoelen",
+    scan_cam: "Scan Cam",
+    categoryAriaShtepia: "Categorie Thuis",
+    categoryAriaPuna: "Categorie Werk",
+    categoryAriaShkolla: "Categorie School"
   },
   
   sv: {
@@ -1928,7 +2006,17 @@ const translations = {
     themeClassic: "Klassisk",
     themeNormal: "Ljust minimal",
     themeAdvanced: "Neon / futuristisk",
-    preferences: "Preferenser"
+    preferences: "Preferenser",
+    shtepia: "Hem",
+    shtepiaSubtitle: "Personliga anteckningar och göromål hemma",
+    puna: "Arbete",
+    punaSubtitle: "Arbetsplaner och möten",
+    shkolla: "Skola",
+    shkollaSubtitle: "Studieanteckningar, lektioner och mål",
+    scan_cam: "Scan Cam",
+    categoryAriaShtepia: "Kategori Hem",
+    categoryAriaPuna: "Kategori Arbete",
+    categoryAriaShkolla: "Kategori Skola"
   }
 };
 
@@ -2047,5 +2135,8 @@ function applyTranslations() {
   }
   if (typeof applyDiscordCommunityUi === "function") {
     applyDiscordCommunityUi();
+  }
+  if (typeof syncCategoryDependentUi === "function") {
+    syncCategoryDependentUi();
   }
 }

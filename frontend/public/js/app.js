@@ -2203,6 +2203,84 @@ function webChatModelSyncCustomUi() {
   }
 }
 
+function webChatDismissPremiumTabTooltip() {
+  if (window.__webChatPremiumTabTooltipHideTimer) {
+    clearTimeout(window.__webChatPremiumTabTooltipHideTimer);
+    window.__webChatPremiumTabTooltipHideTimer = null;
+  }
+  if (window.__webChatPremiumTabTooltipRemoveTimer) {
+    clearTimeout(window.__webChatPremiumTabTooltipRemoveTimer);
+    window.__webChatPremiumTabTooltipRemoveTimer = null;
+  }
+  const el = window.__webChatPremiumTabTooltipEl;
+  if (el && el.parentNode) {
+    el.classList.remove("is-visible");
+    try {
+      el.parentNode.removeChild(el);
+    } catch (_) {}
+  }
+  window.__webChatPremiumTabTooltipEl = null;
+}
+
+/** Small floating hint when a non-Premium user taps Auto or OpenAI; does not block the screen. */
+function webChatShowPremiumTabTooltip(anchor) {
+  if (!anchor || !document.body) return;
+  webChatDismissPremiumTabTooltip();
+
+  const tip = document.createElement("div");
+  tip.className = "web-chat-premium-tab-tooltip";
+  tip.setAttribute("role", "status");
+  tip.textContent = typeof t === "function" ? t("webChatPremiumTabTooltip") : "Switch to Premium for this option.";
+  document.body.appendChild(tip);
+  window.__webChatPremiumTabTooltipEl = tip;
+
+  const rect = anchor.getBoundingClientRect();
+  const margin = 8;
+  const gap = 10;
+  const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+
+  let w = tip.offsetWidth;
+  let h = tip.offsetHeight;
+  if (!w) {
+    w = tip.getBoundingClientRect().width;
+    h = tip.getBoundingClientRect().height;
+  }
+
+  let left = rect.left + rect.width / 2 - w / 2;
+  left = Math.max(margin, Math.min(left, vw - w - margin));
+
+  let placeBelow = false;
+  let top = rect.top - h - gap;
+  if (top < margin) {
+    placeBelow = true;
+    top = rect.bottom + gap;
+  }
+  if (placeBelow) tip.classList.add("web-chat-premium-tab-tooltip--below");
+
+  const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+  if (vh && top + h > vh - margin) top = Math.max(margin, vh - h - margin);
+  if (top < margin) top = margin;
+
+  tip.style.left = `${Math.round(left)}px`;
+  tip.style.top = `${Math.round(top)}px`;
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      tip.classList.add("is-visible");
+    });
+  });
+
+  window.__webChatPremiumTabTooltipHideTimer = setTimeout(() => {
+    window.__webChatPremiumTabTooltipHideTimer = null;
+    tip.classList.remove("is-visible");
+    window.__webChatPremiumTabTooltipRemoveTimer = setTimeout(() => {
+      window.__webChatPremiumTabTooltipRemoveTimer = null;
+      if (tip.parentNode) try { tip.parentNode.removeChild(tip); } catch (_) {}
+      if (window.__webChatPremiumTabTooltipEl === tip) window.__webChatPremiumTabTooltipEl = null;
+    }, 280);
+  }, 2000);
+}
+
 function webChatModelSelectOption(ev, value) {
   if (ev) {
     ev.preventDefault();
@@ -2221,8 +2299,12 @@ function webChatModelSelectOption(ev, value) {
   const canAi = typeof userHasWebChatOpenAiAccess === "function" && userHasWebChatOpenAiAccess(currentUser);
   if (value === "openai" && canAi && webChatIsOpenAiLimitReached()) {
     webChatModelShowLockBanner("limit");
-  } else {
-    webChatModelShowLockBanner("upgrade");
+    return;
+  }
+  if (!canAi && (value === "auto" || value === "openai")) {
+    webChatModelDismissLockBanner();
+    const pill = document.getElementById(value === "auto" ? "webChatPill-auto" : "webChatPill-openai");
+    if (pill) webChatShowPremiumTabTooltip(pill);
   }
 }
 
@@ -3305,7 +3387,7 @@ function openCategory(cat) {
   document.getElementById("settings").classList.add("hidden");
   hideScanCamPage();
   hideCoinsHubPage();
-  document.getElementById("catTitle").innerText = categories[cat] || cat;
+  document.getElementById("catTitle").innerText = getCategoryDisplayLabel(cat);
   const scanBanner = document.getElementById("scanCamCategoryBanner");
   if (scanBanner) scanBanner.classList.toggle("hidden", cat !== "scan_cam" || !currentUser);
 
@@ -6866,9 +6948,27 @@ function populateNoteEditorCategorySelect() {
   Object.keys(categories).forEach((key) => {
     const option = document.createElement("option");
     option.value = key;
-    option.textContent = categories[key] || key;
+    option.textContent = getCategoryDisplayLabel(key);
     select.appendChild(option);
   });
+}
+
+function syncCategoryDependentUi() {
+  try {
+    const catPage = document.getElementById("category");
+    if (catPage && !catPage.classList.contains("hidden") && currentCategory) {
+      const el = document.getElementById("catTitle");
+      if (el) el.textContent = getCategoryDisplayLabel(currentCategory);
+    }
+    populateNoteEditorCategorySelect();
+    if (typeof allNotes !== "undefined" && Array.isArray(allNotes)) {
+      populateAllNotesCategoryFilter(allNotes);
+    }
+    const notesAll = document.getElementById("notes-all");
+    if (notesAll && !notesAll.classList.contains("hidden") && typeof filterAllNotesList === "function") {
+      filterAllNotesList();
+    }
+  } catch (_) {}
 }
 
 async function noteRichEditorPersistRequest(payload) {
@@ -7370,10 +7470,21 @@ function normalizeNoteCategoryKey(note) {
   return note && note.category != null ? String(note.category).trim() : "";
 }
 
+function getCategoryDisplayLabel(key) {
+  if (key == null || key === "") return "";
+  const k = String(key).trim();
+  if (typeof categories !== "undefined" && Object.prototype.hasOwnProperty.call(categories, k)) {
+    return typeof t === "function" ? t(k) : categories[k] || k;
+  }
+  return k;
+}
+
 function normalizeNoteCategoryLabel(note) {
   const key = normalizeNoteCategoryKey(note);
   if (!key) return t("myNotesUncategorizedBadge");
-  if (typeof categories !== "undefined" && categories[key]) return categories[key];
+  if (typeof categories !== "undefined" && Object.prototype.hasOwnProperty.call(categories, key)) {
+    return getCategoryDisplayLabel(key);
+  }
   return key;
 }
 
@@ -7549,7 +7660,7 @@ function appendMyNoteCard(container, note) {
   badge.className = `note-category-badge note-category-badge--${theme}`;
   const rawCat = note.category && String(note.category).trim();
   badge.textContent = rawCat
-    ? (typeof categories !== "undefined" && categories[rawCat]) || rawCat
+    ? getCategoryDisplayLabel(rawCat)
     : t("myNotesUncategorizedBadge");
   content.appendChild(badge);
   appendNoteCardHeadingAndBody(content, note);

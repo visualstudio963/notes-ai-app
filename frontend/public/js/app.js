@@ -81,6 +81,7 @@ let googleOAuthClientId = "";
 let googleOAuthConfigLoaded = false;
 /** Coalesces overlapping /api/public/app-config fetches (e.g. DOMContentLoaded + goHome). */
 let loadDiscordCommunityConfigInflight = null;
+const RENDER_BACKEND_ORIGIN = "https://notes-ai-app.onrender.com";
 const REMINDER_NOTIFY_PREFS_KEY = "webReminderNotificationPrefs";
 /** "0" = user turned off in-app reminder alerts (browser permission may still be "granted"). */
 const WEB_REMINDER_NOTIFICATIONS_APP_ENABLED_KEY = "aiNotesWebReminderNotificationsAppEnabled";
@@ -161,6 +162,12 @@ function hashNotificationId(seed, offset = 0) {
   }
   const positive = Math.abs(h);
   return (positive % 1000000000) + 1000 + offset;
+}
+
+function backendAbsoluteUrl(path) {
+  const p = String(path || "").trim();
+  if (!p) return RENDER_BACKEND_ORIGIN;
+  return `${RENDER_BACKEND_ORIGIN}${p.startsWith("/") ? p : `/${p}`}`;
 }
 
 function plannerNotificationId(taskId, dateKey = dailyPlannerTodayKey()) {
@@ -4044,11 +4051,19 @@ async function loadDiscordCommunityConfig() {
   if (loadDiscordCommunityConfigInflight) return loadDiscordCommunityConfigInflight;
   loadDiscordCommunityConfigInflight = (async () => {
     try {
-      const res = await fetch(buildApiUrl("/api/public/app-config"), {
+      const primaryUrl = buildApiUrl("/api/public/app-config");
+      let res = await fetch(primaryUrl, {
         method: "GET",
         credentials: "include",
         cache: "no-store"
       });
+      if (res.status === 404) {
+        res = await fetch(backendAbsoluteUrl("/api/public/app-config"), {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store"
+        });
+      }
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to load app config");
       discordCommunityUrl = String((data && data.discordInviteUrl) || "").trim();
@@ -4187,6 +4202,7 @@ async function runAuthBootstrap() {
   window.sessionStorage.setItem("oauth_handoff_tried", "1");
 
   const url = buildApiUrl("/api/auth/oauth-handoff");
+  const fallbackUrl = backendAbsoluteUrl("/api/auth/oauth-handoff");
   let lastRes = /** @type {Response | null} */ (null);
   let data = {};
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -4194,7 +4210,8 @@ async function runAuthBootstrap() {
       await new Promise((r) => setTimeout(r, 100 * attempt));
     }
     try {
-      lastRes = await fetch(url, {
+      const target = attempt === 0 ? url : fallbackUrl;
+      lastRes = await fetch(target, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

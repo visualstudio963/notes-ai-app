@@ -16590,3 +16590,56 @@ body:has(#webChat:not(.hidden)) .web-chat-fab {
   }
 }
 
+/* Coins header edge-to-edge balance layout */
+#coins-hub .page-shell.coins-dash-shell {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+#coins-hub .coins-dash-topbar--balanced {
+  width: 100%;
+  margin: 0 0 12px;
+  padding: 10px 12px 12px;
+  border-radius: 0 0 22px 22px;
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) 88px;
+  align-items: start;
+  column-gap: 8px;
+}
+
+#coins-hub .coins-dash-topbar--balanced .coins-dash-back-btn {
+  justify-self: start;
+}
+
+#coins-hub .coins-dash-topbar--balanced .coins-dash-topbar-text {
+  justify-self: center;
+  width: 100%;
+  max-width: 320px;
+  text-align: center;
+}
+
+#coins-hub .coins-dash-topbar--balanced .coins-dash-page-title,
+#coins-hub .coins-dash-topbar--balanced .coins-dash-topbar-text .eyebrow,
+#coins-hub .coins-dash-subtitle {
+  text-align: center;
+}
+
+#coins-hub .coins-dash-top-action {
+  justify-self: end;
+}
+
+@media (max-width: 560px) {
+  #coins-hub .coins-dash-topbar--balanced {
+    margin-bottom: 10px;
+    padding: 9px 10px 11px;
+    border-radius: 0 0 18px 18px;
+    grid-template-columns: 82px minmax(0, 1fr) 82px;
+  }
+  #coins-hub .coins-dash-topbar--balanced .coins-dash-topbar-text {
+    max-width: 290px;
+  }
+}
+

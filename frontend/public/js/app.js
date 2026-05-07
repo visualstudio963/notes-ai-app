@@ -1219,6 +1219,15 @@ function createNoteActionToolbar(note, origin) {
   return tools;
 }
 
+function buildNoteCardPreviewHtml(note) {
+  const raw = note && note.text != null ? String(note.text) : "";
+  if (!raw) return "";
+  if (window.NoteRichEditor && typeof window.NoteRichEditor.storedToHtml === "function") {
+    return window.NoteRichEditor.storedToHtml(raw);
+  }
+  return escapeHtml(raw).replace(/\n/g, "<br>");
+}
+
 function appendNoteCardHeadingAndBody(content, note) {
   const titleRow = document.createElement("div");
   titleRow.className = "note-card-title-row";
@@ -1234,17 +1243,11 @@ function appendNoteCardHeadingAndBody(content, note) {
   titleRow.appendChild(titleEl);
   content.appendChild(titleRow);
 
-  const body = document.createElement("p");
-  body.className = "note-card-text";
-  let preview = "";
-  if (window.NoteRichEditor && typeof window.NoteRichEditor.storedToPreviewText === "function") {
-    preview = window.NoteRichEditor.storedToPreviewText(note.text || "", 4000);
-  } else {
-    const text = note.text || "";
-    preview = text.length > 4000 ? `${text.slice(0, 4000)}…` : text;
-  }
-  body.textContent = preview;
-  content.appendChild(body);
+  const previewWrap = document.createElement("div");
+  previewWrap.className = "note-card-preview";
+  const previewHtml = buildNoteCardPreviewHtml(note);
+  previewWrap.innerHTML = previewHtml || `<p>—</p>`;
+  content.appendChild(previewWrap);
 
   const dateP = document.createElement("p");
   dateP.className = "note-card-date";

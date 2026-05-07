@@ -2982,18 +2982,51 @@ body.modal-open {
   color: #64748b;
 }
 
-.note-card-text {
+.note-card-preview {
+  position: relative;
   margin: 0;
+  max-height: 5.2em;
+  overflow: hidden;
   font-size: 0.95rem;
   line-height: 1.55;
   color: #cbd5e1;
-  white-space: pre-line;
   word-break: break-word;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
+}
+
+.note-card-preview > *:first-child {
+  margin-top: 0;
+}
+
+.note-card-preview > *:last-child {
+  margin-bottom: 0;
+}
+
+.note-card-preview p,
+.note-card-preview ul,
+.note-card-preview ol,
+.note-card-preview blockquote,
+.note-card-preview pre {
+  margin: 0 0 0.38em;
+}
+
+.note-card-preview ul,
+.note-card-preview ol {
+  padding-left: 1.15em;
+}
+
+.note-card-preview li {
+  margin: 0.02em 0;
+}
+
+.note-card-preview::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1.55em;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0), rgba(15, 23, 42, 0.92));
 }
 
 .note-card-date {

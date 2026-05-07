@@ -20,13 +20,28 @@
     return injected || "";
   }
 
-  const rawBaseUrl = readViteApiUrl() || FALLBACK_API_URL;
-  const normalizedBaseUrl = rawBaseUrl.replace(/\/+$/, "");
+  function shouldUseSameOriginApi() {
+    try {
+      const host =
+        globalScope &&
+        globalScope.location &&
+        typeof globalScope.location.hostname === "string"
+          ? globalScope.location.hostname.toLowerCase()
+          : "";
+      return host.endsWith(".vercel.app");
+    } catch {
+      return false;
+    }
+  }
+
+  const resolvedBase = readViteApiUrl() || (shouldUseSameOriginApi() ? "" : FALLBACK_API_URL);
+  const normalizedBaseUrl = String(resolvedBase || "").replace(/\/+$/, "");
 
   function buildApiUrl(path) {
     const normalizedPath = String(path || "").trim();
     if (!normalizedPath) return normalizedBaseUrl;
     if (/^https?:\/\//i.test(normalizedPath)) return normalizedPath;
+    if (!normalizedBaseUrl) return normalizedPath.startsWith("/") ? normalizedPath : `/${normalizedPath}`;
     return `${normalizedBaseUrl}${normalizedPath.startsWith("/") ? normalizedPath : `/${normalizedPath}`}`;
   }
 

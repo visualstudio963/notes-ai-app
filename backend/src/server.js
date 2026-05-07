@@ -114,12 +114,25 @@ const allowedCorsOrigins = new Set([
   "http://127.0.0.1:3000"
 ]);
 
+function isAllowedCorsOrigin(origin) {
+  if (!origin) return true;
+  if (allowedCorsOrigins.has(origin)) return true;
+  try {
+    const u = new URL(origin);
+    if (u.protocol !== "https:" && u.protocol !== "http:") return false;
+    const host = String(u.hostname || "").toLowerCase();
+    if (host.endsWith(".vercel.app")) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin) return callback(null, true);
-      if (allowedCorsOrigins.has(origin)) return callback(null, true);
-      return callback(new Error(`CORS blocked for origin: ${origin}`));
+      if (isAllowedCorsOrigin(origin)) return callback(null, true);
+      return callback(new Error(`CORS blocked for origin: ${origin || "<none>"}`));
     },
     credentials: true
   })

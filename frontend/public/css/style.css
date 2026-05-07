@@ -15463,18 +15463,20 @@ body.welcome-screen-open {
 }
 
 #coins-hub .coins-dash-topbar--balanced .coins-dash-page-title {
-  font-size: clamp(1.72rem, 6.4vw, 2.28rem);
+  font-size: clamp(1.34rem, 4.9vw, 1.62rem);
   font-weight: 850;
-  line-height: 0.98;
-  letter-spacing: -0.02em;
+  line-height: 1;
+  letter-spacing: -0.012em;
   color: #f8fafc;
+  white-space: nowrap;
+  margin: 0;
 }
 
 #coins-hub .coins-dash-subtitle {
-  margin: 8px auto 0;
-  max-width: 31ch;
-  font-size: 0.86rem;
-  line-height: 1.38;
+  margin: 5px auto 0;
+  max-width: 33ch;
+  font-size: 0.77rem;
+  line-height: 1.3;
   color: rgba(203, 213, 225, 0.95);
   text-wrap: balance;
 }
@@ -15545,12 +15547,12 @@ body.welcome-screen-open {
     grid-template-columns: minmax(5.35rem, 5.95rem) minmax(0, 1fr) 2.3rem;
   }
   #coins-hub .coins-dash-subtitle {
-    margin-top: 6px;
-    font-size: 0.8rem;
-    line-height: 1.34;
+    margin-top: 4px;
+    font-size: 0.72rem;
+    line-height: 1.26;
   }
   #coins-hub .coins-dash-topbar--balanced .coins-dash-page-title {
-    font-size: clamp(1.58rem, 8vw, 1.9rem);
+    font-size: clamp(1.16rem, 5.4vw, 1.3rem);
   }
   #coins-hub .coins-dash-topbar--balanced .coins-dash-topbar-text .eyebrow {
     margin-bottom: 8px;

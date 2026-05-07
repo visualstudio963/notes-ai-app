@@ -16243,3 +16243,350 @@ body:has(#webChat:not(.hidden)) .daily-planner-fab {
   }
 }
 
+/* WEB CHAT PREMIUM REDESIGN OVERRIDE - mockup v2 */
+#webChat.web-chat-page--messenger,
+.web-chat,
+.chat-panel,
+.web-chat-panel,
+.chatbot-panel {
+  background:
+    radial-gradient(circle at 50% 52%, rgba(0, 142, 255, 0.22), transparent 34%),
+    radial-gradient(circle at 20% 10%, rgba(116, 70, 255, 0.18), transparent 32%),
+    linear-gradient(180deg, #050816 0%, #07142b 42%, #020611 100%) !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: #f8fbff !important;
+}
+
+#webChat .web-chat-messenger,
+#webChat .web-chat-messenger.chat-container.chat-bot-mode,
+#webChat .web-chat-messenger.chat-container.auto-mode,
+#webChat .web-chat-messenger.chat-container.openai-mode {
+  background:
+    radial-gradient(circle at 50% 56%, rgba(37, 99, 235, 0.18), transparent 42%),
+    linear-gradient(180deg, rgba(6, 12, 30, 0.96) 0%, rgba(5, 10, 24, 0.96) 100%) !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+#webChat .web-chat-messenger::after {
+  opacity: 0.28 !important;
+  filter: blur(1.5px) !important;
+  animation-duration: 92s !important;
+}
+
+/* top app bar */
+.app-header,
+.top-header,
+.mobile-header,
+#webChat .web-chat-messenger__header {
+  background: rgba(5, 8, 22, 0.86) !important;
+  backdrop-filter: blur(18px) !important;
+  border-bottom: 1px solid rgba(120, 140, 255, 0.16) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28) !important;
+}
+
+/* main chatbot card */
+.chatbot-card,
+.chat-lock-card,
+.chat-upgrade-card,
+.web-chat-card,
+#webChat .web-chat-soft-lock {
+  margin: 14px 14px 0 !important;
+  padding: 14px !important;
+  border-radius: 20px !important;
+  background: linear-gradient(145deg, rgba(15, 28, 72, 0.8), rgba(10, 12, 40, 0.9)) !important;
+  border: 1px solid rgba(130, 120, 255, 0.2) !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+/* bot title row */
+.chatbot-title,
+.chat-header-title,
+#webChat .web-chat-messenger__title {
+  font-size: 20px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em !important;
+  color: #ffffff !important;
+}
+
+.chatbot-status,
+.online-status,
+#webChat .web-chat-messenger__status {
+  color: #c8d4ff !important;
+  font-size: 13px !important;
+}
+
+.chatbot-avatar,
+.bot-avatar,
+#webChat .web-chat-messenger__title-icon {
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 18px !important;
+  background: radial-gradient(circle, #1de7ff 0%, #4a4dff 55%, #1a143d 100%) !important;
+  box-shadow: 0 0 28px rgba(50, 120, 255, 0.55) !important;
+}
+
+/* close button */
+.chat-close,
+.close-chat,
+.chatbot-close,
+#webChat .web-chat-messenger__back {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: none !important;
+}
+
+/* upgrade message */
+.upgrade-message,
+.lock-message,
+.chat-access-message,
+#webChat .web-chat-soft-lock__text {
+  color: #d7e0ff !important;
+  line-height: 1.55 !important;
+}
+
+.upgrade-btn,
+.upgrade-plan-btn,
+#webChat .web-chat-soft-lock__cta.save-button.secondary,
+#webChat .web-chat-model-lock-banner__cta {
+  height: 44px !important;
+  margin-top: 10px !important;
+  border-radius: 14px !important;
+  border: none !important;
+  background: linear-gradient(90deg, #1e6bff, #7b28d9) !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+  box-shadow: 0 14px 30px rgba(75, 80, 255, 0.26) !important;
+}
+
+/* chat bubble intro */
+.chat-intro,
+.bot-message,
+.chat-empty-message,
+#webChat .web-chat-bubble--bot {
+  max-width: 78% !important;
+  padding: 16px 18px !important;
+  border-radius: 22px !important;
+  background: rgba(20, 31, 72, 0.62) !important;
+  border: 1px solid rgba(130, 150, 255, 0.16) !important;
+  color: #bcd0ff !important;
+  line-height: 1.55 !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* user bubble by mode */
+#webChat .web-chat-messenger.chat-container.chat-bot-mode .web-chat-bubble--user {
+  background: linear-gradient(135deg, rgba(22, 76, 255, 0.45), rgba(64, 88, 255, 0.35)) !important;
+  border: 1px solid rgba(130, 150, 255, 0.24) !important;
+}
+
+#webChat .web-chat-messenger.chat-container.auto-mode .web-chat-bubble--user {
+  background: linear-gradient(135deg, rgba(30, 107, 255, 0.45), rgba(56, 189, 248, 0.34)) !important;
+  border: 1px solid rgba(125, 170, 255, 0.24) !important;
+}
+
+#webChat .web-chat-messenger.chat-container.openai-mode .web-chat-bubble--user {
+  background: linear-gradient(135deg, rgba(80, 88, 255, 0.48), rgba(123, 40, 217, 0.38)) !important;
+  border: 1px solid rgba(150, 130, 255, 0.26) !important;
+}
+
+/* bottom composer */
+.chat-composer,
+.chat-input-panel,
+.message-composer,
+#webChat .web-chat-messenger__footer {
+  position: absolute !important;
+  left: 14px !important;
+  right: 14px !important;
+  bottom: 14px !important;
+  padding: 12px !important;
+  border-radius: 22px !important;
+  background: rgba(10, 16, 52, 0.82) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(125, 130, 255, 0.22) !important;
+  box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.34) !important;
+  z-index: 50 !important;
+}
+
+/* tabs segmented control */
+.chat-tabs,
+.mode-tabs,
+.chat-mode-tabs,
+#webChat .web-chat-mode-pills {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 6px !important;
+  padding: 5px !important;
+  border-radius: 18px !important;
+  background: rgba(3, 8, 28, 0.72) !important;
+  border: 1px solid rgba(125, 130, 255, 0.12) !important;
+}
+
+.chat-tabs button,
+.mode-tabs button,
+.chat-mode-tabs button,
+#webChat .web-chat-mode-pill {
+  height: 42px !important;
+  border-radius: 14px !important;
+  border: none !important;
+  color: rgba(220, 230, 255, 0.55) !important;
+  background: transparent !important;
+  font-weight: 700 !important;
+}
+
+.chat-tabs button.active,
+.mode-tabs button.active,
+.chat-mode-tabs button.active,
+#webChat .web-chat-mode-pill.is-active {
+  color: #fff !important;
+  background: linear-gradient(135deg, #164cff, #6431ff) !important;
+  box-shadow: 0 10px 24px rgba(70, 80, 255, 0.32) !important;
+  border: none !important;
+}
+
+/* textarea/input */
+.chat-input,
+.chat-textarea,
+.message-input,
+#webChat .web-chat-composer,
+#webChat .web-chat-composer textarea,
+#webChat #webChatInput {
+  min-height: 58px !important;
+  border-radius: 18px !important;
+  padding: 14px 64px 14px 16px !important;
+  background: rgba(255, 255, 255, 0.055) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #eef4ff !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+.chat-input::placeholder,
+.chat-textarea::placeholder,
+.message-input::placeholder,
+#webChat #webChatInput::placeholder {
+  color: rgba(210, 220, 255, 0.45) !important;
+}
+
+/* send button */
+.send-btn,
+.chat-send,
+.message-send,
+#webChat .web-chat-send,
+#webChat .web-chat-send--inline {
+  width: 52px !important;
+  height: 52px !important;
+  min-width: 52px !important;
+  min-height: 52px !important;
+  border-radius: 50% !important;
+  background: linear-gradient(135deg, #4058ff, #7a3cff) !important;
+  box-shadow: 0 12px 28px rgba(85, 75, 255, 0.4) !important;
+  border: none !important;
+  color: #ffffff !important;
+}
+
+/* chips */
+.example-chip,
+.suggestion-chip,
+.quick-chip,
+#webChat .web-chat-chip-strip__chip,
+#webChat .web-chat-chip-strip__chip--recent {
+  border-radius: 999px !important;
+  padding: 9px 14px !important;
+  background: rgba(42, 50, 120, 0.45) !important;
+  border: 1px solid rgba(130, 150, 255, 0.16) !important;
+  color: rgba(230, 236, 255, 0.72) !important;
+  font-size: 12px !important;
+}
+
+/* floating buttons */
+.floating-chat-btn,
+.floating-calendar-btn,
+.chat-fab,
+.calendar-fab,
+.web-chat-fab,
+.daily-planner-fab {
+  width: 50px !important;
+  height: 50px !important;
+  border-radius: 50% !important;
+  background: linear-gradient(145deg, rgba(30, 55, 120, 0.92), rgba(20, 20, 65, 0.96)) !important;
+  border: 1px solid rgba(125, 150, 255, 0.24) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.32) !important;
+}
+
+body:has(#webChat:not(.hidden)) .daily-planner-fab {
+  bottom: max(82px, env(safe-area-inset-bottom, 0px) + 54px) !important;
+}
+
+body:has(#webChat:not(.hidden)) .web-chat-fab {
+  bottom: max(20px, env(safe-area-inset-bottom, 0px) + 8px) !important;
+}
+
+/* prevent bottom overlap */
+.chat-messages,
+.chat-body,
+.messages-area,
+#webChat .web-chat-messages {
+  padding-bottom: 222px !important;
+}
+
+/* mode-specific identity */
+#webChat .web-chat-messenger.chat-container.chat-bot-mode .web-chat-mode-pill.is-active {
+  background: linear-gradient(135deg, #1976ff, #3d63ff) !important;
+}
+
+#webChat .web-chat-messenger.chat-container.auto-mode .web-chat-mode-pill.is-active {
+  background: linear-gradient(135deg, #1d8eff, #4b7dff) !important;
+}
+
+#webChat .web-chat-messenger.chat-container.openai-mode .web-chat-mode-pill.is-active {
+  background: linear-gradient(135deg, #5c52ff, #7b28d9) !important;
+}
+
+/* mobile exact polish */
+@media (max-width: 430px) {
+  .chatbot-card,
+  .chat-lock-card,
+  .web-chat-card,
+  #webChat .web-chat-soft-lock {
+    margin: 12px !important;
+    padding: 14px !important;
+  }
+
+  .chat-composer,
+  .chat-input-panel,
+  .message-composer,
+  #webChat .web-chat-messenger__footer {
+    left: 10px !important;
+    right: 10px !important;
+    bottom: 12px !important;
+    padding: 10px !important;
+  }
+
+  .chatbot-title,
+  .chat-header-title,
+  #webChat .web-chat-messenger__title {
+    font-size: 18px !important;
+  }
+
+  #webChat .web-chat-mode-pill {
+    height: 38px !important;
+    font-size: 12px !important;
+  }
+
+  #webChat .web-chat-send,
+  #webChat .web-chat-send--inline {
+    width: 46px !important;
+    height: 46px !important;
+    min-width: 46px !important;
+    min-height: 46px !important;
+  }
+
+  #webChat .web-chat-messages {
+    padding-bottom: 208px !important;
+  }
+}
+

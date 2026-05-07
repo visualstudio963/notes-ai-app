@@ -21,8 +21,14 @@
     </main>
   </div>
 
-  <div id="adminApp" class="admin-root hidden">
-    <aside class="admin-sidebar" aria-label="Admin navigation">
+  <div id="adminApp" class="admin-root admin-app-shell hidden">
+    <div
+      class="admin-drawer-backdrop"
+      id="adminDrawerBackdrop"
+      hidden
+      aria-hidden="true"
+    ></div>
+    <aside id="adminSidebar" class="admin-sidebar" aria-label="Admin navigation">
       <div class="admin-sidebar-top">
         <div class="admin-brand">
           <span class="admin-brand-mark" aria-hidden="true"></span>
@@ -59,9 +65,27 @@
             </span>
             <span class="admin-nav-text">Subscriptions</span>
           </button>
+          <button type="button" class="admin-nav-item" data-panel="dashboard" data-scroll-target="admin-recent-notes-heading">
+            <span class="admin-nav-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            </span>
+            <span class="admin-nav-text">Notes</span>
+          </button>
+          <button type="button" class="admin-nav-item" data-panel="dashboard" data-scroll-target="admin-recent-rem-heading">
+            <span class="admin-nav-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 2h4l3 5H7l3-5z"/><path d="M7 7h10v10a3 3 0 0 1-3 3h-4a3 3 0 0 1-3-3V7z"/><path d="M10 22v-3"/></svg>
+            </span>
+            <span class="admin-nav-text">Reminders</span>
+          </button>
         </div>
         <div class="admin-nav-group">
           <span class="admin-nav-group-label">Insight</span>
+          <button type="button" class="admin-nav-item" data-panel="dashboard" data-scroll-target="admin-analytics-overview-h">
+            <span class="admin-nav-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </span>
+            <span class="admin-nav-text">Activity</span>
+          </button>
           <button type="button" class="admin-nav-item" data-panel="analytics">
             <span class="admin-nav-icon" aria-hidden="true">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
@@ -99,45 +123,84 @@
       </div>
     </aside>
 
-    <main class="admin-main">
+    <div class="admin-column">
+      <header class="admin-mobile-header">
+        <button
+          type="button"
+          class="admin-mh-btn"
+          id="adminMenuOpen"
+          aria-label="Open navigation"
+          aria-expanded="false"
+          aria-controls="adminSidebar"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+        <div class="admin-mh-titles">
+          <span class="admin-mh-brand">Notes AI</span>
+          <span class="admin-mh-section" id="adminMobileSectionLabel">Dashboard</span>
+        </div>
+        <div class="admin-mh-actions">
+          <button type="button" class="admin-mh-iconbtn" data-act="refresh-dashboard" title="Refresh" aria-label="Refresh data">↻</button>
+          <a class="admin-mh-iconbtn" href="index.html" title="Open main app" aria-label="Open main app">↗</a>
+        </div>
+      </header>
+
+      <main class="admin-main">
       <div id="adminAlert"></div>
 
       <section id="panel-dashboard" class="admin-panel">
-        <header class="admin-page-head">
-          <div class="admin-page-head-text">
-            <p class="admin-eyebrow">Control center</p>
-            <h1>Dashboard</h1>
-            <p class="admin-lead">Live overview, recent activity, and shortcuts.</p>
+        <header class="admin-dash-hero">
+          <div class="admin-dash-hero-text">
+            <h1 class="admin-dash-title">Admin Dashboard</h1>
+            <p class="admin-dash-subtitle">Live overview and management</p>
           </div>
-          <div class="admin-toolbar">
-            <button type="button" class="admin-btn admin-btn--ghost" data-act="refresh-dashboard">Refresh data</button>
+          <div class="admin-dash-hero-actions">
+            <a class="admin-btn" href="index.html">Open main app</a>
+            <button type="button" class="admin-btn admin-btn--ghost" data-act="refresh-dashboard">Refresh</button>
           </div>
         </header>
 
         <div class="admin-quick-row" aria-label="Quick navigation">
-          <button type="button" class="admin-chip" data-go="users">Browse users</button>
+          <button type="button" class="admin-chip" data-go="users">Users</button>
           <button type="button" class="admin-chip" data-go="subscriptions">Subscriptions</button>
           <button type="button" class="admin-chip" data-go="analytics">Analytics</button>
-          <button type="button" class="admin-chip admin-chip--accent" data-act="refresh-dashboard">Sync dashboard</button>
+          <button type="button" class="admin-chip admin-chip--accent" data-act="refresh-dashboard">Sync data</button>
         </div>
 
         <div id="adminStats" class="admin-stats-grid"></div>
 
-        <div class="admin-dash-grid">
-          <section class="admin-card admin-card--stretch" aria-labelledby="admin-cat-heading">
-            <div class="admin-card-head">
-              <h2 id="admin-cat-heading" class="admin-card-title">Notes by category</h2>
-              <span class="admin-card-hint">Share of saved notes</span>
+        <section class="admin-analytics-overview" aria-labelledby="admin-analytics-overview-h">
+          <h2 id="admin-analytics-overview-h" class="admin-section-title">Analytics overview</h2>
+          <div class="admin-analytics-overview-grid">
+            <div class="admin-card admin-chart-card">
+              <h3 class="admin-chart-card-title">Free vs Pro</h3>
+              <div id="adminDonutUsers" class="admin-chart-slot"></div>
             </div>
-            <div id="adminNotesByCategory" class="admin-bar-chart"></div>
-          </section>
+            <div class="admin-card admin-chart-card">
+              <h3 class="admin-chart-card-title">Pulse</h3>
+              <div id="adminCircularGauges" class="admin-mini-gauges"></div>
+            </div>
+            <div class="admin-card admin-chart-card admin-chart-card--wide">
+              <h3 class="admin-chart-card-title">Notes by category</h3>
+              <div id="adminNotesByCategory" class="admin-bar-chart"></div>
+            </div>
+            <div class="admin-card admin-chart-card">
+              <h3 class="admin-chart-card-title">Sign-ups · last 7 days</h3>
+              <div id="adminSignupSparkline" class="admin-sparkline-wrap"></div>
+            </div>
+          </div>
+        </section>
 
+        <div class="admin-dash-grid admin-dash-grid--recents">
           <section class="admin-card" aria-labelledby="admin-recent-users-heading">
             <div class="admin-card-head">
               <h2 id="admin-recent-users-heading" class="admin-card-title">Latest sign-ups</h2>
               <button type="button" class="admin-linkish" data-go="users">View all →</button>
             </div>
-            <div class="admin-table-scroll">
+            <div id="adminDashUsersCards" class="admin-dash-cards" data-admin-cards="users"></div>
+            <div class="admin-table-scroll admin-dash-table-desktop">
               <table class="admin-mini-table" id="adminDashUsersTable">
                 <thead>
                   <tr>
@@ -157,9 +220,10 @@
           <section class="admin-card admin-card--wide" aria-labelledby="admin-recent-notes-heading">
             <div class="admin-card-head">
               <h2 id="admin-recent-notes-heading" class="admin-card-title">Recent notes</h2>
-              <span class="admin-card-hint">Newest across all accounts</span>
+              <span class="admin-card-hint">Newest across accounts</span>
             </div>
-            <div class="admin-table-scroll">
+            <div id="adminDashNotesCards" class="admin-dash-cards" data-admin-cards="notes"></div>
+            <div class="admin-table-scroll admin-dash-table-desktop">
               <table class="admin-mini-table" id="adminDashNotesTable">
                 <thead>
                   <tr>
@@ -177,9 +241,10 @@
           <section class="admin-card admin-card--wide" aria-labelledby="admin-recent-rem-heading">
             <div class="admin-card-head">
               <h2 id="admin-recent-rem-heading" class="admin-card-title">Recent reminders</h2>
-              <span class="admin-card-hint">Scheduled items (newest first)</span>
+              <span class="admin-card-hint">Newest scheduled</span>
             </div>
-            <div class="admin-table-scroll">
+            <div id="adminDashRemCards" class="admin-dash-cards" data-admin-cards="reminders"></div>
+            <div class="admin-table-scroll admin-dash-table-desktop">
               <table class="admin-mini-table" id="adminDashRemindersTable">
                 <thead>
                   <tr>
@@ -229,6 +294,7 @@
             <button type="button" class="admin-btn admin-btn--ghost" data-act="reload-users">Reload</button>
           </div>
         </header>
+        <div id="adminUsersCards" class="admin-user-cards" aria-label="Users cards"></div>
         <div class="admin-table-wrap admin-table-wrap--scroll-x admin-table-wrap--users">
           <table class="admin-table admin-table--users" id="adminUsersTable">
             <colgroup>
@@ -278,6 +344,7 @@
         <div class="admin-card admin-card--wide admin-card--pad">
           <p class="admin-muted admin-card-lead">Use <strong>Grant Premium</strong> in user details for precise comps: <code>1m</code>, <code>3m</code>, <code>6m</code>, or <code>lifetime</code>.</p>
         </div>
+        <div id="adminSubsCards" class="admin-subs-cards" aria-label="Subscriptions cards"></div>
         <div class="admin-table-wrap admin-table-wrap--scroll-x admin-table-wrap--subs">
           <table class="admin-table admin-table--subs" id="adminSubsTable">
             <colgroup>
@@ -391,6 +458,40 @@
         </div>
       </section>
     </main>
+
+      <nav class="admin-bottom-nav" aria-label="Admin primary">
+        <button type="button" class="admin-bnav-btn is-active" data-panel="dashboard" data-bnav="1" aria-current="page">
+          <span class="admin-bnav-ico" aria-hidden="true">⌁</span>
+          <span class="admin-bnav-lbl">Home</span>
+        </button>
+        <button type="button" class="admin-bnav-btn" data-panel="users" data-bnav="1">
+          <span class="admin-bnav-ico" aria-hidden="true">◎</span>
+          <span class="admin-bnav-lbl">Users</span>
+        </button>
+        <button type="button" class="admin-bnav-btn" data-panel="subscriptions" data-bnav="1">
+          <span class="admin-bnav-ico" aria-hidden="true">◈</span>
+          <span class="admin-bnav-lbl">Subs</span>
+        </button>
+        <button type="button" class="admin-bnav-btn" data-panel="analytics" data-bnav="1">
+          <span class="admin-bnav-ico" aria-hidden="true">▤</span>
+          <span class="admin-bnav-lbl">Data</span>
+        </button>
+        <button type="button" class="admin-bnav-btn" id="adminBnavMore" aria-haspopup="true" aria-expanded="false" aria-controls="adminBnavMorePanel">
+          <span class="admin-bnav-ico" aria-hidden="true">⋯</span>
+          <span class="admin-bnav-lbl">More</span>
+        </button>
+      </nav>
+      <div id="adminBnavMorePanel" class="admin-bnav-more hidden" role="menu" aria-label="More sections">
+        <button type="button" class="admin-bnav-more-item" data-panel="dashboard" data-scroll-target="admin-recent-notes-heading" role="menuitem">
+          Notes
+        </button>
+        <button type="button" class="admin-bnav-more-item" data-panel="dashboard" data-scroll-target="admin-recent-rem-heading" role="menuitem">
+          Reminders
+        </button>
+        <button type="button" class="admin-bnav-more-item" data-panel="settings" role="menuitem">Settings</button>
+        <a class="admin-bnav-more-item" href="index.html" role="menuitem">Main app</a>
+      </div>
+    </div>
   </div>
 
   <div id="adminUserDetailsModal" class="admin-modal hidden" role="dialog" aria-modal="true" aria-labelledby="adminUserDetailsTitle">

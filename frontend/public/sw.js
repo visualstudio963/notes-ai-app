@@ -3,7 +3,8 @@
  * fallback to cache when offline. HTML is never handled here — left to the browser + CDN headers.
  */
 
-const CACHE_NAME = "notes-ai-offline-static";
+/** Bump when static asset URLs change so old SW caches are dropped. */
+const CACHE_NAME = "notes-ai-offline-static-v2";
 
 self.addEventListener("install", () => {
   self.skipWaiting();

@@ -7,7 +7,7 @@
 
   /** Strip reminder command prefix (Albanian + English variants). */
   var WEB_CHAT_REMINDER_STRIP_RE =
-    /^(?:më\s+kujto|me\s+kujto|kujto|kujtomë|kujtom|remind\s+me(?:\s+to)?|can\s+you\s+remind(?:\s+me)?|please\s+remind(?:\s+me)?|set\s+(?:a\s+)?reminder|create\s+(?:a\s+)?reminder|schedule\s+(?:a\s+)?reminder|reminder|remember)\s*:?\s*/i;
+    /^(?:më\s+kujto|me\s+kujto|kujto|kujtomë|kujtom|remind\s+me(?:\s+to)?|can\s+you\s+remind(?:\s+me)?|please\s+remind(?:\s+me)?|set\s+(?:a\s+)?reminder|create\s+(?:a\s+)?reminder|schedule\s+(?:a\s+)?reminder|reminder|remember|notify\s+me(?:\s+to)?|alert\s+me(?:\s+to)?|vendos\s+kujtes[ëe]|njoftom[eë]|me\s+njofto)\s*:?\s*/i;
 
   var STOP = new Set([
     "a",
@@ -236,6 +236,9 @@
       patterns: [
         "remind me to",
         "remind me at",
+        "notify me to",
+        "notify me at",
+        "alert me to",
         "can you remind me",
         "please remind me",
         "set a reminder",
@@ -252,7 +255,10 @@
         "kujtesë web",
         "kujtese web",
         "njoftim me datë",
-        "njoftim me date"
+        "njoftim me date",
+        "vendos kujtesë",
+        "njoftomë",
+        "alarm"
       ],
       weakTokens: ["kujto", "reminder", "remember", "schedule", "neser", "nesër", "tomorrow"]
     },

@@ -187,6 +187,251 @@
       .replace(/"/g, "&quot;");
   }
 
+  function pmPlainFromJsonNode(node) {
+    if (!node || typeof node !== "object") return "";
+    if (node.type === "text" && typeof node.text === "string") return node.text;
+    const c = node.content;
+    if (!Array.isArray(c)) return "";
+    return c.map(pmPlainFromJsonNode).join("");
+  }
+
+  /** Strip ProseMirror/JSON, sanitize-ish HTML to plain text for admin previews. */
+  function cleanNotePreview(raw) {
+    const s = String(raw || "").trim();
+    if (!s) return "";
+    const looksJson = (s.startsWith("{") || s.startsWith("[")) && s.includes('"type"');
+    if (looksJson) {
+      try {
+        const j = JSON.parse(s);
+        const plain = pmPlainFromJsonNode(j);
+        if (plain && String(plain).trim()) return String(plain).replace(/\s+/g, " ").trim();
+      } catch {
+        /* ignore */
+      }
+    }
+    if (s.includes("<") && />/.test(s)) {
+      try {
+        const tmp = document.createElement("div");
+        tmp.innerHTML = s;
+        const t = (tmp.textContent || "").replace(/\s+/g, " ").trim();
+        if (t) return t;
+      } catch {
+        /* ignore */
+      }
+    }
+    return s.replace(/\s+/g, " ").trim();
+  }
+
+  let dashboardRefreshTimer = null;
+  function debouncedRefreshDashboard() {
+    clearTimeout(dashboardRefreshTimer);
+    dashboardRefreshTimer = setTimeout(async () => {
+      dashboardRefreshTimer = null;
+      try {
+        await loadDashboard();
+        setAlert("Dashboard refreshed.", "info");
+      } catch (err) {
+        setAlert(err.message, "error");
+      }
+    }, 400);
+  }
+
+  const PANEL_LABELS = {
+    dashboard: "Dashboard",
+    users: "Users",
+    subscriptions: "Subscriptions",
+    analytics: "Analytics",
+    settings: "Settings"
+  };
+
+  function setMobilePanelLabel(panel) {
+    const el = document.getElementById("adminMobileSectionLabel");
+    if (el) el.textContent = PANEL_LABELS[panel] || panel || "Admin";
+  }
+
+  function setBottomNavActive(panel) {
+    document.querySelectorAll(".admin-bnav-btn[data-panel]").forEach((btn) => {
+      const p = btn.getAttribute("data-panel");
+      const on = p === panel;
+      btn.classList.toggle("is-active", on);
+      if (on) btn.setAttribute("aria-current", "page");
+      else btn.removeAttribute("aria-current");
+    });
+  }
+
+  function isMobileShell() {
+    return typeof window.matchMedia === "function" && window.matchMedia("(max-width: 900px)").matches;
+  }
+
+  function setAdminDrawerOpen(open) {
+    const sb = document.getElementById("adminSidebar");
+    const bd = document.getElementById("adminDrawerBackdrop");
+    const btn = document.getElementById("adminMenuOpen");
+    if (sb) sb.classList.toggle("is-open", open);
+    if (bd) {
+      if (open) bd.removeAttribute("hidden");
+      else bd.setAttribute("hidden", "");
+      bd.setAttribute("aria-hidden", open ? "false" : "true");
+    }
+    if (btn) btn.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
+  function closeAdminMoreMenu() {
+    const panel = document.getElementById("adminBnavMorePanel");
+    const more = document.getElementById("adminBnavMore");
+    if (panel) panel.classList.add("hidden");
+    if (more) more.setAttribute("aria-expanded", "false");
+  }
+
+  function toggleAdminMoreMenu() {
+    const panel = document.getElementById("adminBnavMorePanel");
+    const more = document.getElementById("adminBnavMore");
+    if (!panel || !more) return;
+    const open = panel.classList.contains("hidden");
+    panel.classList.toggle("hidden", !open);
+    more.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
+  function sortNotesByCategoryRows(rows) {
+    const pref = ["home", "work", "school"];
+    const list = Array.isArray(rows) ? [...rows] : [];
+    list.sort((a, b) => {
+      const ca = String((a && a.category) || "").toLowerCase();
+      const cb = String((b && b.category) || "").toLowerCase();
+      const ia = pref.indexOf(ca);
+      const ib = pref.indexOf(cb);
+      const sa = ia === -1 ? 999 : ia;
+      const sb = ib === -1 ? 999 : ib;
+      if (sa !== sb) return sa - sb;
+      return (Number(b.count) || 0) - (Number(a.count) || 0);
+    });
+    return list;
+  }
+
+  function renderFreeVsProDonut(stats) {
+    const host = document.getElementById("adminDonutUsers");
+    if (!host) return;
+    const total = Number(stats.totalUsers) || 0;
+    const pro = Number(stats.proUsers != null ? stats.proUsers : stats.premiumUsers) || 0;
+    const free = Math.max(0, total - pro);
+    if (!total) {
+      host.innerHTML = '<p class="admin-muted">No user data yet.</p>';
+      return;
+    }
+    const pctPro = Math.min(100, Math.round((pro / total) * 1000) / 10);
+    host.innerHTML =
+      '<div class="admin-donut-wrap">' +
+      '<div class="admin-donut" style="--pro-pct:' +
+      pctPro +
+      '%" role="img" aria-label="Pro ' +
+      pctPro +
+      ' percent"></div>' +
+      '<div class="admin-donut-legend">' +
+      '<span><span class="admin-donut-dot" style="background:linear-gradient(135deg,#fbbf24,#f97316)"></span>Pro · <strong>' +
+      escapeHtml(String(pro)) +
+      "</strong></span>" +
+      '<span><span class="admin-donut-dot" style="background:linear-gradient(135deg,#64748b,#94a3b8)"></span>Free · <strong>' +
+      escapeHtml(String(free)) +
+      "</strong></span>" +
+      "</div></div>";
+    const d = host.querySelector(".admin-donut");
+    if (d) {
+      d.style.background =
+        "conic-gradient(rgba(251,191,36,0.95) 0 " +
+        pctPro +
+        "%, rgba(100,116,139,0.55) " +
+        pctPro +
+        "% 100%)";
+      d.style.webkitMask =
+        "radial-gradient(farthest-side, transparent calc(100% - 14px), #000 calc(100% - 13px))";
+      d.style.mask =
+        "radial-gradient(farthest-side, transparent calc(100% - 14px), #000 calc(100% - 13px))";
+    }
+  }
+
+  function pctRatio(numer, denom) {
+    const d = Number(denom) || 0;
+    if (d <= 0) return 0;
+    return Math.min(100, Math.round((Number(numer) / d) * 1000) / 10);
+  }
+
+  function ringSvg(label, valueLabel, pct, stroke) {
+    const p = Math.max(0, Math.min(100, pct));
+    const dash = p + " " + (100 - p);
+    return (
+      '<div class="admin-ring-item">' +
+      '<svg class="admin-ring-svg" width="72" height="72" viewBox="0 0 40 40" aria-hidden="true">' +
+      '<circle r="15" cx="20" cy="20" fill="none" stroke="rgba(148,163,184,0.18)" stroke-width="3.5"/>' +
+      '<circle r="15" cx="20" cy="20" fill="none" stroke="' +
+      stroke +
+      '" stroke-width="3.5" stroke-dasharray="' +
+      dash +
+      "\" stroke-linecap=\"round\" transform=\"rotate(-90 20 20)\" pathLength=\"100\"/>" +
+      "</svg>" +
+      '<span class="admin-ring-val">' +
+      escapeHtml(valueLabel) +
+      '</span><span class="admin-ring-lbl">' +
+      escapeHtml(label) +
+      "</span></div>"
+    );
+  }
+
+  function renderCircularGauges(data) {
+    const host = document.getElementById("adminCircularGauges");
+    if (!host) return;
+    const stats = (data && data.stats) || {};
+    const total = Number(stats.totalUsers) || 0;
+    const online = Number(stats.activeUsers) || 0;
+    const today = Number(stats.activeUsersToday) || 0;
+    const sent = Number(stats.remindersSent) || 0;
+    const tr = Number(stats.totalReminders) || 0;
+    host.innerHTML =
+      ringSvg("Online", String(online), pctRatio(online, total), "#38bdf8") +
+      ringSvg("Sent", String(sent), pctRatio(sent, tr || 1), "#34d399") +
+      ringSvg("Active today", String(today), pctRatio(today, total), "#a78bfa");
+  }
+
+  function renderSignupSparkline(data) {
+    const host = document.getElementById("adminSignupSparkline");
+    if (!host) return;
+    const analytics = (data && data.analytics) || {};
+    const days = Array.isArray(analytics.signupsByDay) ? analytics.signupsByDay : [];
+    if (!days.length) {
+      host.innerHTML = '<p class="admin-muted">No sign-up trend yet.</p>';
+      return;
+    }
+    const counts = days.map((d) => Number(d.count) || 0);
+    const max = Math.max(1, ...counts);
+    const w = 320;
+    const h = 120;
+    const pad = 8;
+    const pts = counts
+      .map((c, i) => {
+        const x = pad + (i * (w - pad * 2)) / Math.max(1, counts.length - 1);
+        const y = h - pad - (c / max) * (h - pad * 2);
+        return x.toFixed(1) + "," + y.toFixed(1);
+      })
+      .join(" ");
+    const last = counts[counts.length - 1] ?? 0;
+    host.innerHTML =
+      '<svg class="admin-sparkline" viewBox="0 0 ' +
+      w +
+      " " +
+      h +
+      '" preserveAspectRatio="none" role="img" aria-label="Sign-ups last 7 days">' +
+      '<defs><linearGradient id="admGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(56,189,248,0.5)"/><stop offset="100%" stop-color="rgba(56,189,248,0)"/></linearGradient></defs>' +
+      '<polyline fill="none" stroke="rgba(56,189,248,0.15)" stroke-width="1" points="' +
+      escapeHtml(pts) +
+      '"/>' +
+      '<polyline fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="' +
+      escapeHtml(pts) +
+      '"/>' +
+      "</svg>" +
+      '<p class="admin-sparkline-cta">Latest day: <strong>' +
+      escapeHtml(String(last)) +
+      "</strong> · UTC</p>";
+  }
+
   function normalizePlan(value) {
     if (value === "premium" || value === "standard" || value === "free") return value;
     return "free";
@@ -274,20 +519,27 @@
     const mins = data.activeWithinMinutes != null ? String(data.activeWithinMinutes) : "7";
     const pro = data.proUsers != null ? data.proUsers : data.premiumUsers;
     const cards = [
-      { tone: "users", label: "Total users", value: data.totalUsers },
-      { tone: "notes", label: "Total notes", value: data.totalNotes },
-      { tone: "rem", label: "Total reminders", value: data.totalReminders },
-      { tone: "prem", label: "Pro users", value: pro },
-      { tone: "live", label: ACTIVE_LABEL + " (~" + mins + " min)", value: data.activeUsers }
+      { tone: "users", icon: "👥", label: "Total users", value: data.totalUsers },
+      { tone: "notes", icon: "📝", label: "Total notes", value: data.totalNotes },
+      { tone: "rem", icon: "⏰", label: "Total reminders", value: data.totalReminders },
+      { tone: "prem", icon: "✦", label: "Pro users", value: pro },
+      { tone: "live", icon: "●", label: "Online (~" + mins + " min)", value: data.activeUsers },
+      { tone: "today", icon: "◎", label: "Active today", value: data.activeUsersToday ?? "—" }
     ];
     grid.innerHTML = cards
       .map(
         (card) =>
           '<div class="admin-stat-card admin-stat-card--' +
           escapeHtml(card.tone) +
-          '"><div class="admin-stat-label">' +
+          '">' +
+          '<div class="admin-stat-card-head">' +
+          '<span class="admin-stat-ico" aria-hidden="true">' +
+          escapeHtml(card.icon) +
+          "</span>" +
+          '<div class="admin-stat-label">' +
           escapeHtml(card.label) +
-          '</div><div class="admin-stat-value">' +
+          "</div></div>" +
+          '<div class="admin-stat-value">' +
           escapeHtml(String(card.value ?? "—")) +
           "</div></div>"
       )
@@ -297,12 +549,13 @@
   function renderNotesByCategory(rows) {
     const el = document.getElementById("adminNotesByCategory");
     if (!el) return;
-    if (!rows.length) {
+    const sorted = sortNotesByCategoryRows(rows || []);
+    if (!sorted.length) {
       el.innerHTML = '<p class="admin-muted">No notes in the database yet.</p>';
       return;
     }
-    const max = Math.max(1, ...rows.map((r) => r.count));
-    el.innerHTML = rows
+    const max = Math.max(1, ...sorted.map((r) => r.count));
+    el.innerHTML = sorted
       .map((r) => {
         const pct = Math.round((r.count / max) * 100);
         const name = escapeHtml(String(r.category || "—"));
@@ -395,7 +648,12 @@
           "</td>" +
           '<td class="admin-cell-preview">' +
           escapeHtml(
-            (n.title ? String(n.title).trim() + " — " : "") + (n.textPreview || "")
+            (() => {
+              const titlePart = n.title ? String(n.title).trim() : "";
+              const body = cleanNotePreview(n.textPreview || "");
+              if (titlePart && body) return titlePart + " — " + body;
+              return titlePart || body || "—";
+            })()
           ) +
           "</td>" +
           "</tr>"
@@ -440,6 +698,118 @@
           "</td>" +
           "</tr>"
       )
+      .join("");
+  }
+
+  function renderDashUsersCards(users) {
+    const wrap = document.getElementById("adminDashUsersCards");
+    if (!wrap) return;
+    const canPlan = Boolean(caps && caps.capabilities && caps.capabilities.canWritePlans);
+    wrap.innerHTML = (users || [])
+      .map((u) => {
+        const pl = effectivePlanFromUser(u);
+        const uid = escapeHtml(String(u.id || ""));
+        const on = u.activeNow
+          ? '<span class="admin-badge admin-badge--yes">' + ACTIVE_LABEL + "</span>"
+          : '<span class="admin-badge admin-badge--offline">Away</span>';
+        return (
+          '<article class="admin-dash-user-card" data-user-card="1" data-id="' +
+          uid +
+          '">' +
+          '<div class="admin-dash-user-card-top"><div>' +
+          '<div class="admin-dash-user-name">' +
+          escapeHtml(u.username || "—") +
+          "</div>" +
+          '<div class="admin-dash-user-email">' +
+          escapeHtml(u.email || "") +
+          "</div></div>" +
+          planBadge(pl) +
+          "</div>" +
+          '<div class="admin-dash-user-meta">' +
+          on +
+          '<span>' +
+          escapeHtml(fmtDate(u.createdAt)) +
+          "</span></div>" +
+          '<div class="admin-dash-card-actions">' +
+          '<button type="button" class="admin-card-ghost-btn admin-card-ghost-btn--primary" data-act="open-user" data-id="' +
+          uid +
+          '">View</button>' +
+          (canPlan
+            ? '<button type="button" class="admin-card-ghost-btn" data-act="open-user" data-id="' +
+              uid +
+              '">Plan</button>'
+            : "") +
+          "</div></article>"
+        );
+      })
+      .join("");
+  }
+
+  function renderDashNotesCards(notes) {
+    const wrap = document.getElementById("adminDashNotesCards");
+    if (!wrap) return;
+    wrap.innerHTML = (notes || [])
+      .map((n) => {
+        const titlePart = n.title ? String(n.title).trim() : "";
+        const body = cleanNotePreview(n.textPreview || "");
+        const nid = escapeHtml(String(n.id || ""));
+        const previewInner = body
+          ? escapeHtml(body)
+          : titlePart
+            ? '<span class="admin-muted">No text preview</span>'
+            : '<span class="admin-muted">—</span>';
+        return (
+          '<article class="admin-dash-note-card">' +
+          (titlePart ? '<div class="admin-dash-note-title">' + escapeHtml(titlePart) + "</div>" : "") +
+          '<div class="admin-dash-note-preview">' +
+          previewInner +
+          "</div>" +
+          '<div class="admin-dash-note-meta">' +
+          "<span>" +
+          escapeHtml(n.username || "—") +
+          "</span>" +
+          "<span>" +
+          escapeHtml(n.category || "—") +
+          "</span>" +
+          "<span>" +
+          escapeHtml(fmtDate(n.createdAt)) +
+          "</span></div>" +
+          '<div class="admin-dash-card-actions">' +
+          '<button type="button" class="admin-card-ghost-btn admin-card-ghost-btn--primary" data-act="preview-note" data-id="' +
+          nid +
+          '">View</button>' +
+          "</div></article>"
+        );
+      })
+      .join("");
+  }
+
+  function renderDashRemCards(rows) {
+    const wrap = document.getElementById("adminDashRemCards");
+    if (!wrap) return;
+    wrap.innerHTML = (rows || [])
+      .map((r) => {
+        const rid = escapeHtml(String(r.id || ""));
+        return (
+          '<article class="admin-dash-rem-card">' +
+          '<div class="admin-dash-rem-time">' +
+          escapeHtml(fmtDate(r.time)) +
+          "</div>" +
+          '<div class="admin-dash-rem-meta">' +
+          escapeHtml(r.username || "—") +
+          reminderChannelPill(r.notificationType) +
+          reminderStatusPill(r) +
+          "</div>" +
+          '<div class="admin-dash-rem-text">' +
+          escapeHtml(r.messagePreview || "—") +
+          "</div>" +
+          '<div class="admin-dash-card-actions">' +
+          '<button type="button" class="admin-card-ghost-btn admin-card-ghost-btn--primary" data-act="preview-reminder" data-id="' +
+          rid +
+          '">View</button>' +
+          "</div></article>"
+        );
+      })
       .join("");
   }
 
@@ -501,12 +871,22 @@
 
   function hydrateDashboard(data) {
     dashboardBundleCache = data;
-    renderStats(data.stats || {});
+    const st = data.stats || {};
+    renderStats(st);
     renderAnalyticsPanels(data);
     renderNotesByCategory(data.notesByCategory || []);
-    renderDashUsersTable(data.recentUsers || []);
-    renderDashNotesTable(data.recentNotes || []);
-    renderDashRemindersTable(data.recentReminders || []);
+    renderFreeVsProDonut(st);
+    renderCircularGauges(data);
+    renderSignupSparkline(data);
+    const ru = data.recentUsers || [];
+    const rn = data.recentNotes || [];
+    const rr = data.recentReminders || [];
+    renderDashUsersTable(ru);
+    renderDashUsersCards(ru);
+    renderDashNotesTable(rn);
+    renderDashNotesCards(rn);
+    renderDashRemindersTable(rr);
+    renderDashRemCards(rr);
   }
 
   async function fetchAdminDashboardBundle() {
@@ -628,6 +1008,111 @@
       .join("");
   }
 
+  function renderUserPanelCards(list) {
+    const wrap = document.getElementById("adminUsersCards");
+    if (!wrap) return;
+    const canPlan = Boolean(caps && caps.capabilities && caps.capabilities.canWritePlans);
+    const rows = (list || []).slice(0, 10);
+    if (!rows.length) {
+      wrap.innerHTML = '<p class="admin-muted">No users on this page.</p>';
+      return;
+    }
+    wrap.innerHTML =
+      rows
+        .map((u) => {
+          const pl = effectivePlanFromUser(u);
+          const sr = effectiveStaffRole(u);
+          const uid = escapeHtml(String(u.id || ""));
+          const active =
+            u.activeNow === true
+              ? '<span class="admin-badge admin-badge--yes">' + ACTIVE_LABEL + "</span>"
+              : '<span class="admin-badge admin-badge--offline">Offline</span>';
+          return (
+            '<article class="admin-user-card" data-user-card="1" data-id="' +
+            uid +
+            '">' +
+            '<div class="admin-dash-user-card-top"><div>' +
+            '<div class="admin-dash-user-name">' +
+            escapeHtml(u.username) +
+            "</div>" +
+            '<div class="admin-dash-user-email">' +
+            escapeHtml(u.email || "") +
+            "</div></div>" +
+            '<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-items:flex-start">' +
+            planBadge(pl) +
+            staffBadgeLabel(sr) +
+            "</div></div>" +
+            '<div class="admin-dash-user-meta">' +
+            active +
+            "<span>Joined " +
+            escapeHtml(fmtDate(u.createdAt)) +
+            "</span></div>" +
+            '<div class="admin-dash-card-actions">' +
+            '<button type="button" class="admin-card-ghost-btn admin-card-ghost-btn--primary" data-act="open-user" data-id="' +
+            uid +
+            '">View</button>' +
+            (canPlan
+              ? '<button type="button" class="admin-card-ghost-btn" data-act="open-user" data-id="' +
+                uid +
+                '">Plan</button>'
+              : "") +
+            "</div></article>"
+          );
+        })
+        .join("") +
+      '<p class="admin-card-hint" style="margin-top:12px">Showing the first ' +
+      rows.length +
+      " accounts on this page — use the table on desktop for every column.</p>";
+  }
+
+  function renderSubsPanelCards(list) {
+    const wrap = document.getElementById("adminSubsCards");
+    if (!wrap) return;
+    const rows = (list || []).slice(0, 10);
+    if (!rows.length) {
+      wrap.innerHTML = "";
+      return;
+    }
+    wrap.innerHTML =
+      rows
+        .map((u) => {
+          const pl = effectivePlanFromUser(u);
+          const expires = u.premiumExpires ? fmtDate(u.premiumExpires) : "—";
+          const on = u.activeNow
+            ? '<span class="admin-badge admin-badge--yes">' + ACTIVE_LABEL + "</span>"
+            : '<span class="admin-badge admin-badge--offline">Offline</span>';
+          const uid = escapeHtml(String(u.id || ""));
+          return (
+            '<article class="admin-subs-card" data-user-card="1" data-id="' +
+            uid +
+            '">' +
+            '<div class="admin-subs-card-top"><div>' +
+            '<div class="admin-dash-user-name">' +
+            escapeHtml(u.username) +
+            "</div>" +
+            '<div class="admin-dash-user-email">' +
+            escapeHtml(u.email || "") +
+            "</div></div>" +
+            planBadge(pl) +
+            "</div>" +
+            '<div class="admin-dash-user-meta">' +
+            on +
+            "<span>Premium until " +
+            escapeHtml(expires) +
+            "</span></div>" +
+            '<div class="admin-dash-card-actions">' +
+            '<button type="button" class="admin-card-ghost-btn admin-card-ghost-btn--primary" data-act="open-user" data-id="' +
+            uid +
+            '">View</button>' +
+            "</div></article>"
+          );
+        })
+        .join("") +
+      '<p class="admin-card-hint" style="margin-top:12px">Showing ' +
+      rows.length +
+      " premium accounts — the full premium list stays in the desktop table.</p>";
+  }
+
   async function loadUsersPage() {
     usersFetchGen += 1;
     const gen = usersFetchGen;
@@ -645,6 +1130,7 @@
       usersState.totalPages = typeof data.totalPages === "number" ? data.totalPages : 1;
       (data.users || []).forEach(stashUser);
       renderUsersRows(data.users || []);
+      renderUserPanelCards(data.users || []);
       renderPagination();
     } catch {
       if (gen !== usersFetchGen) return;
@@ -669,7 +1155,15 @@
     });
     const data = await apiJson(`/api/admin/users?${qs}`, { method: "GET" });
     const tbody = document.querySelector("#adminSubsTable tbody");
+    const cardsHost = document.getElementById("adminSubsCards");
     if (!tbody) return;
+
+    if (!(data.users || []).length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="admin-cell-muted">No premium matches yet.</td></tr>';
+      if (cardsHost) cardsHost.innerHTML = '<p class="admin-muted">No premium matches yet.</p>';
+      mergeCapabilityUi();
+      return;
+    }
 
     tbody.innerHTML = (data.users || [])
       .map((u) => {
@@ -705,15 +1199,16 @@
       .join("");
 
     (data.users || []).forEach(stashUser);
-    if (!(data.users || []).length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="admin-cell-muted">No premium matches yet.</td></tr>';
-    }
+    if (cardsHost) renderSubsPanelCards(data.users || []);
     mergeCapabilityUi();
   }
 
   async function hydrateAnalyticsFromCache() {
     if (dashboardBundleCache) {
       renderAnalyticsPanels(dashboardBundleCache);
+      renderFreeVsProDonut(dashboardBundleCache.stats || {});
+      renderCircularGauges(dashboardBundleCache);
+      renderSignupSparkline(dashboardBundleCache);
       return;
     }
     await loadDashboard();
@@ -875,15 +1370,19 @@
 
   function setNavActive(panel) {
     document.querySelectorAll(".admin-nav-item").forEach((btn) => {
-      btn.classList.toggle("is-active", btn.getAttribute("data-panel") === panel);
+      const p = btn.getAttribute("data-panel");
+      const scrollT = btn.getAttribute("data-scroll-target");
+      btn.classList.toggle("is-active", p === panel && !scrollT);
     });
     document.querySelectorAll(".admin-panel").forEach((sec) => {
       sec.classList.toggle("hidden", sec.id !== "panel-" + panel);
     });
   }
 
-  async function goPanel(panel) {
+  async function goPanel(panel, scrollToId) {
     setNavActive(panel);
+    setMobilePanelLabel(panel);
+    setBottomNavActive(panel);
     setAlert("");
     try {
       if (panel === "dashboard") await loadDashboard();
@@ -899,6 +1398,12 @@
       setAlert(err.message, "error");
     }
     mergeCapabilityUi();
+    if (scrollToId) {
+      window.requestAnimationFrame(() => {
+        const el = document.getElementById(scrollToId);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
   }
 
   async function bootstrapStaff() {
@@ -929,29 +1434,108 @@
     const t = e.target;
     if (!(t instanceof HTMLElement)) return;
 
+    const moreItem = t.closest(".admin-bnav-more-item[data-panel]");
+    if (moreItem instanceof HTMLElement) {
+      const p = moreItem.getAttribute("data-panel");
+      const sid = moreItem.getAttribute("data-scroll-target") || "";
+      if (p) await goPanel(p, sid || null);
+      closeAdminMoreMenu();
+      if (isMobileShell()) setAdminDrawerOpen(false);
+      return;
+    }
+
+    if (!t.closest("#adminBnavMorePanel") && !t.closest("#adminBnavMore")) {
+      const mp = document.getElementById("adminBnavMorePanel");
+      if (mp && !mp.classList.contains("hidden")) closeAdminMoreMenu();
+    }
+
+    if (t.id === "adminDrawerBackdrop") {
+      setAdminDrawerOpen(false);
+      return;
+    }
+
+    if (t.closest("#adminMenuOpen")) {
+      const sb = document.getElementById("adminSidebar");
+      setAdminDrawerOpen(!(sb && sb.classList.contains("is-open")));
+      return;
+    }
+
+    const bnav = t.closest(".admin-bnav-btn[data-panel]");
+    if (bnav instanceof HTMLElement) {
+      const p = bnav.getAttribute("data-panel");
+      if (p) await goPanel(p);
+      closeAdminMoreMenu();
+      if (isMobileShell()) setAdminDrawerOpen(false);
+      return;
+    }
+
+    if (t.closest("#adminBnavMore")) {
+      toggleAdminMoreMenu();
+      return;
+    }
+
+    const uc = t.closest("[data-user-card='1']");
+    if (uc instanceof HTMLElement && !t.closest("button")) {
+      const id = uc.getAttribute("data-id");
+      if (id) void openUserDetailsModal(id);
+      return;
+    }
+
     const go = t.getAttribute("data-go");
     if (go) {
       await goPanel(go);
+      if (isMobileShell()) setAdminDrawerOpen(false);
       return;
     }
 
     const act = t.getAttribute("data-act");
-    if (act === "refresh-dashboard") {
-      try {
-        await loadDashboard();
-        setAlert("Dashboard refreshed.", "info");
-      } catch (err) {
-        setAlert(err.message, "error");
+    if (act === "open-user") {
+      const id = t.getAttribute("data-id");
+      if (id) void openUserDetailsModal(id);
+      return;
+    }
+    if (act === "preview-note") {
+      const id = t.getAttribute("data-id");
+      const rows = (dashboardBundleCache && dashboardBundleCache.recentNotes) || [];
+      const n = rows.find((x) => String(x.id) === String(id));
+      if (n) {
+        const body = cleanNotePreview(n.textPreview || "");
+        const titlePart = n.title ? String(n.title).trim() : "";
+        const block = (
+          (titlePart ? "<strong>" + escapeHtml(titlePart) + "</strong><br/>" : "") +
+          escapeHtml(body || "—")
+        ).slice(0, 2000);
+        setAlert("<strong>" + escapeHtml(n.username || "User") + "</strong><br/>" + block, "info");
       }
       return;
     }
-    if (act === "refresh-analytics") {
-      try {
-        await loadDashboard();
-        setAlert("Analytics refreshed.", "info");
-      } catch (err) {
-        setAlert(err.message, "error");
+    if (act === "preview-reminder") {
+      const id = t.getAttribute("data-id");
+      const rows = (dashboardBundleCache && dashboardBundleCache.recentReminders) || [];
+      const r = rows.find((x) => String(x.id) === String(id));
+      if (r) {
+        setAlert(
+          "<strong>" +
+            escapeHtml(fmtDate(r.time)) +
+            "</strong><br/>" +
+            escapeHtml(r.username || "—") +
+            "<br/>" +
+            reminderChannelPill(r.notificationType) +
+            " " +
+            reminderStatusPill(r) +
+            "<br/>" +
+            escapeHtml(r.messagePreview || "—"),
+          "info"
+        );
       }
+      return;
+    }
+    if (act === "refresh-dashboard") {
+      debouncedRefreshDashboard();
+      return;
+    }
+    if (act === "refresh-analytics") {
+      debouncedRefreshDashboard();
       return;
     }
     if (act === "reload-users") {
@@ -1151,7 +1735,9 @@
   document.querySelectorAll(".admin-nav-item").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const panel = btn.getAttribute("data-panel");
-      await goPanel(panel);
+      const scrollToId = btn.getAttribute("data-scroll-target") || "";
+      await goPanel(panel, scrollToId || null);
+      if (isMobileShell()) setAdminDrawerOpen(false);
     });
   });
 
@@ -1203,16 +1789,21 @@
   }
 
   document.addEventListener("keydown", (evt) => {
+    if (evt.key === "Escape") {
+      const modal = document.getElementById("adminUserDetailsModal");
+      if (modal && !modal.classList.contains("hidden")) {
+        closeUserDetailsModal();
+        return;
+      }
+      closeAdminMoreMenu();
+      setAdminDrawerOpen(false);
+      return;
+    }
     const maybeRow = evt.target instanceof Element ? evt.target.closest("tr[data-user-row='1']") : null;
     if (maybeRow && (evt.key === "Enter" || evt.key === " ")) {
       evt.preventDefault();
       const rid = maybeRow.getAttribute("data-id");
       if (rid) void openUserDetailsModal(rid);
-      return;
-    }
-    if (evt.key === "Escape") {
-      const modal = document.getElementById("adminUserDetailsModal");
-      if (modal && !modal.classList.contains("hidden")) closeUserDetailsModal();
     }
   });
 
@@ -1247,6 +1838,9 @@
     }
 
     showApp();
+    setAdminDrawerOpen(false);
+    setMobilePanelLabel("dashboard");
+    setBottomNavActive("dashboard");
     hydrateDashboard(dash);
     mergeCapabilityUi();
   }

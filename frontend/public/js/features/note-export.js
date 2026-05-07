@@ -1,11 +1,45 @@
 /**
  * Client-only note export: TXT (all tiers), PDF (Standard+), JPG (Premium).
- * Depends on globals: window.html2canvas (vendor), window.jspdf.jsPDF (vendor),
- * noteTitleTrim, t, showToast, openBot, currentUser,
- * userCanExportNotePdf, userCanExportNoteTxt, userCanExportNoteJpg.
+ * html2canvas + jsPDF load on demand (first export / scan PDF) to keep initial page light.
  */
 (function () {
   "use strict";
+
+  var exportVendorQueryCache = null;
+  function getExportVendorQuery() {
+    if (exportVendorQueryCache !== null) return exportVendorQueryCache;
+    exportVendorQueryCache = "";
+    try {
+      var ref = document.querySelector('script[src*="/js/app.js"]');
+      if (ref && ref.src) {
+        var u = new URL(ref.src, window.location.href);
+        exportVendorQueryCache = u.search || "";
+      }
+    } catch (e) {
+      exportVendorQueryCache = "";
+    }
+    return exportVendorQueryCache;
+  }
+
+  var scriptPromises = {};
+
+  function loadScriptOnce(src) {
+    if (scriptPromises[src]) return scriptPromises[src];
+    scriptPromises[src] = new Promise(function (resolve, reject) {
+      var s = document.createElement("script");
+      s.src = src;
+      s.async = true;
+      s.onload = function () {
+        resolve();
+      };
+      s.onerror = function () {
+        delete scriptPromises[src];
+        reject(new Error("Failed to load " + src));
+      };
+      document.head.appendChild(s);
+    });
+    return scriptPromises[src];
+  }
 
   var pendingNote = null;
   var EXPORT_THEME_KEY = "noteExportTheme";
@@ -21,6 +55,43 @@
   function getHtml2Canvas() {
     if (typeof window === "undefined") return null;
     return typeof window.html2canvas === "function" ? window.html2canvas : null;
+  }
+
+  /**
+   * Loads jsPDF only (Scan Cam PDF uses text layout).
+   * @returns {Promise<void>}
+   */
+  function ensureJsPdfLoaded() {
+    if (getJsPdfConstructor()) return Promise.resolve();
+    return loadScriptOnce("/vendor/jspdf.umd.min.js" + getExportVendorQuery());
+  }
+
+  /**
+   * Loads html2canvas + jsPDF for rich note export (PDF/JPG quality path).
+   * @returns {Promise<void>}
+   */
+  function ensureHeavyExportLibsLoaded() {
+    var needPdf = !getJsPdfConstructor();
+    var needH2c = !getHtml2Canvas();
+    if (!needPdf && !needH2c) return Promise.resolve();
+    var q = getExportVendorQuery();
+    var chain = Promise.resolve();
+    if (needH2c) {
+      chain = chain.then(function () {
+        return loadScriptOnce("/vendor/html2canvas.min.js" + q);
+      });
+    }
+    if (needPdf) {
+      chain = chain.then(function () {
+        return loadScriptOnce("/vendor/jspdf.umd.min.js" + q);
+      });
+    }
+    return chain;
+  }
+
+  if (typeof window !== "undefined") {
+    window.ensureJsPdfVendorLoaded = ensureJsPdfLoaded;
+    window.ensureHeavyExportLibsLoaded = ensureHeavyExportLibsLoaded;
   }
 
   function toastExportToolsLoading() {
@@ -449,6 +520,7 @@
 
   function exportNotePdf(note) {
     return (async function () {
+    await ensureHeavyExportLibsLoaded();
     var JsPDF = getJsPdfConstructor();
     if (!JsPDF) {
       toastExportToolsLoading();
@@ -495,7 +567,10 @@
 
   function exportNoteJpg(note) {
     var theme = getNoteExportTheme();
-    return renderExportCanvas(note, theme)
+    return ensureHeavyExportLibsLoaded()
+      .then(function () {
+        return renderExportCanvas(note, theme);
+      })
       .then(function (canvas) {
         return canvasToBlob(canvas, "image/jpeg", 0.92);
       })

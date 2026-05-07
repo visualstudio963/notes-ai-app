@@ -14,6 +14,21 @@ let currentUser = getStoredUser();
 let accessToken = getStoredAccessToken();
 let refreshToken = getStoredRefreshToken();
 
+/** After 401/refresh-fail; blocks noisy private calls until next successful login (see isAuthSessionReady). */
+let authInvalidated = false;
+/** Single in-flight refresh so parallel 401s do not spam /api/refresh. */
+let refreshAccessTokenPromise = null;
+
+/** True on localhost for quieter auth logging. */
+function isAuthDevHost() {
+  try {
+    const h = String(location.hostname || "").toLowerCase();
+    return h === "localhost" || h === "127.0.0.1";
+  } catch {
+    return false;
+  }
+}
+
 /** @type {{ mode: "create" | "edit"; origin: "category" | "all"; editingNote: object | null }} */
 let noteEditorState = { mode: "create", origin: "category", editingNote: null, presetCategory: null };
 
@@ -51,6 +66,41 @@ const WEB_CHAT_OPENAI_NEAR_WARN = 15;
 let webChatAiLiveTimer = null;
 /** Last user line that looked like a natural reminder (for follow-ups like “ndërro në 14:00”). */
 let webChatLastReminderUserRaw = null;
+/**
+ * Multi-turn local reminder slot filling (chatbot mode). Reset on success, cancel, or new reminder command.
+ * @type {{
+ *   active: boolean;
+ *   text: string;
+ *   date: string | null;
+ *   time: string | null;
+ *   originalMessage: string;
+ *   missing: string[];
+ *   createdAt: number;
+ *   draftLine: string;
+ * }}
+ */
+let webChatPendingReminder = {
+  active: false,
+  text: "",
+  date: null,
+  time: null,
+  originalMessage: "",
+  missing: [],
+  createdAt: 0,
+  draftLine: ""
+};
+
+function resetWebChatPendingReminder() {
+  webChatPendingReminder.active = false;
+  webChatPendingReminder.text = "";
+  webChatPendingReminder.date = null;
+  webChatPendingReminder.time = null;
+  webChatPendingReminder.originalMessage = "";
+  webChatPendingReminder.missing = [];
+  webChatPendingReminder.createdAt = 0;
+  webChatPendingReminder.draftLine = "";
+}
+
 /** @type {{ role: "user" | "bot"; text: string }[]} */
 let webChatSessionTurns = [];
 
@@ -241,6 +291,7 @@ function urlBase64ToUint8Array(base64String) {
 
 async function registerWebPushSubscription() {
   if (isNativeLocalNotificationsAvailable()) return false;
+  if (authInvalidated || !isAuthSessionReady()) return false;
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
   if (!("Notification" in window) || Notification.permission !== "granted") return false;
   if (!currentUser || !accessToken) return false;
@@ -1866,6 +1917,7 @@ function storeCurrentUser(user, token, refresh, remember, options) {
   currentUser = user;
   accessToken = token;
   refreshToken = refresh;
+  authInvalidated = false;
   if (user && ["classic", "normal", "advanced"].includes(user.theme)) {
     localStorage.setItem("theme", user.theme);
     applyTheme(user.theme);
@@ -2018,7 +2070,7 @@ async function tryConsumePendingInviteCode() {
  * @returns {Promise<boolean>} true if `/api/premium/status` succeeded
  */
 async function mergePremiumFromServer() {
-  if (!currentUser || !accessToken) return false;
+  if (!currentUser || !accessToken || authInvalidated) return false;
   try {
     const data = await apiFetch("/api/premium/status");
     mergePremiumStatusIntoCurrentUser(data);
@@ -2722,28 +2774,68 @@ function persistAccessToken(token) {
 }
 
 async function tryRefreshAccessToken() {
-  const rt = refreshToken || getStoredRefreshToken();
-  if (!rt) return false;
-  const res = await fetch(buildApiUrl("/api/refresh"), {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refreshToken: rt })
+  return (await refreshAccessTokenSingleton()) === "ok";
+}
+
+/**
+ * @returns {Promise<"ok" | "invalid" | "network" | "no_refresh">}
+ */
+async function refreshAccessTokenSingleton() {
+  if (refreshAccessTokenPromise) return refreshAccessTokenPromise;
+  refreshAccessTokenPromise = (async () => {
+    const rt = refreshToken || getStoredRefreshToken();
+    if (!rt) return "no_refresh";
+    let res;
+    try {
+      res = await fetch(buildApiUrl("/api/refresh"), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken: rt })
+      });
+    } catch {
+      return "network";
+    }
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 403 || res.status === 401) {
+      invalidateAuthSessionSilently();
+      return "invalid";
+    }
+    if (!res.ok || !data.accessToken) {
+      invalidateAuthSessionSilently();
+      return "invalid";
+    }
+    authInvalidated = false;
+    persistAccessToken(data.accessToken);
+    if (data.user && typeof data.user === "object" && currentUser) {
+      Object.assign(currentUser, data.user);
+      persistCurrentUserToStorage();
+      updateAccountUI();
+      displayAccountInfo();
+    }
+    if (typeof socket !== "undefined" && socket.emit) {
+      socket.emit("authenticate", data.accessToken);
+    }
+    return "ok";
+  })().finally(() => {
+    refreshAccessTokenPromise = null;
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data.accessToken) {
-    return false;
-  }
-  persistAccessToken(data.accessToken);
-  if (data.user && typeof data.user === "object" && currentUser) {
-    Object.assign(currentUser, data.user);
-    persistCurrentUserToStorage();
-    updateAccountUI();
-    displayAccountInfo();
-  }
-  if (typeof socket !== "undefined" && socket.emit) {
-    socket.emit("authenticate", data.accessToken);
-  }
+  return refreshAccessTokenPromise;
+}
+
+function hasAnyAuthCredential() {
+  return Boolean(accessToken || refreshToken || getStoredAccessToken() || getStoredRefreshToken());
+}
+
+function pathExpectsBearerAuth(pathRaw) {
+  const path = String(pathRaw || "").split("?")[0];
+  if (!path.startsWith("/api/")) return false;
+  if (path.startsWith("/api/public/")) return false;
+  if (path === "/api/push/public-key") return false;
+  if (path.startsWith("/api/auth/")) return false;
+  if (path.startsWith("/api/verify-email")) return false;
+  const noAuthExact = new Set(["/api/login", "/api/register", "/api/refresh", "/api/contact"]);
+  if (noAuthExact.has(path)) return false;
   return true;
 }
 
@@ -2757,6 +2849,20 @@ async function apiFetch(path, options = {}, isRetry) {
     path === "/api/auth/pending-google" ||
     path === "/api/auth/complete-google-signup" ||
     path === "/api/auth/oauth-handoff";
+
+  if (pathExpectsBearerAuth(path) && authInvalidated && !isRetry) {
+    const skip = new Error("Not authenticated");
+    skip.status = 401;
+    skip.authSkipped = true;
+    throw skip;
+  }
+
+  if (pathExpectsBearerAuth(path) && !isRetry && !hasAnyAuthCredential()) {
+    const skip = new Error("Not authenticated");
+    skip.status = 401;
+    skip.authSkipped = true;
+    throw skip;
+  }
 
   try {
     const controller = new AbortController();
@@ -2776,11 +2882,28 @@ async function apiFetch(path, options = {}, isRetry) {
 
     let data = await response.json().catch(() => ({}));
 
-    if (response.status === 401 && !isRetry && !skipAuthRefresh && refreshToken) {
-      const ok = await tryRefreshAccessToken();
-      if (ok) {
+    if (response.status === 401 && !isRetry && !skipAuthRefresh) {
+      const ro = await refreshAccessTokenSingleton();
+      if (ro === "ok") {
         return apiFetch(path, options, true);
       }
+      if (ro === "invalid") {
+        const err = new Error(data.error || data.message || "Session expired");
+        err.status = 401;
+        err.authSessionEnded = true;
+        throw err;
+      }
+      if (ro === "no_refresh") {
+        invalidateAuthSessionSilently();
+        const err = new Error(data.error || data.message || "Unauthorized");
+        err.status = 401;
+        err.authSessionEnded = true;
+        throw err;
+      }
+      const err = new Error(data.error || data.message || "Unauthorized");
+      err.status = 401;
+      err.refreshNetworkError = true;
+      throw err;
     }
 
     if (!response.ok) {
@@ -3144,6 +3267,7 @@ function refreshClientAuthFromStorage() {
   currentUser = getStoredUser();
   accessToken = getStoredAccessToken();
   refreshToken = getStoredRefreshToken();
+  authInvalidated = false;
 }
 
 function isAuthSessionReady() {
@@ -4459,6 +4583,7 @@ async function runAuthBootstrap() {
   if (accessToken && refreshToken) {
     const hydrated = await hydrateSessionUserFromTokens();
     if (!hydrated) {
+      refreshAccessTokenPromise = null;
       clearCurrentUser();
     } else {
       return;
@@ -5033,30 +5158,42 @@ function scanCamDownloadPdf() {
     showToast("No text to export.");
     return;
   }
-  const Ctor =
-    (typeof window !== "undefined" && window.jspdf && window.jspdf.jsPDF) ||
-    (typeof window !== "undefined" && window.jsPDF);
-  if (!Ctor) {
-    showToast(
-      typeof t === "function" ? t("noteExportToolsLoading") : "Export tools are still loading. Try again in a few seconds."
-    );
-    return;
-  }
-  const doc = new Ctor({ unit: "pt", format: "a4" });
-  const margin = 40;
-  const width = doc.internal.pageSize.getWidth() - margin * 2;
-  const lines = doc.splitTextToSize(text, width);
-  let y = margin;
-  const step = 16;
-  lines.forEach((line) => {
-    if (y > doc.internal.pageSize.getHeight() - margin) {
-      doc.addPage();
-      y = margin;
+  void (async () => {
+    try {
+      if (typeof window.ensureJsPdfVendorLoaded === "function") {
+        await window.ensureJsPdfVendorLoaded();
+      }
+    } catch {
+      showToast(
+        typeof t === "function" ? t("noteExportToolsLoading") : "Export tools could not load. Try again."
+      );
+      return;
     }
-    doc.text(line, margin, y);
-    y += step;
-  });
-  doc.save("scan-note.pdf");
+    const Ctor =
+      (typeof window !== "undefined" && window.jspdf && window.jspdf.jsPDF) ||
+      (typeof window !== "undefined" && window.jsPDF);
+    if (!Ctor) {
+      showToast(
+        typeof t === "function" ? t("noteExportToolsLoading") : "Export tools are still loading. Try again in a few seconds."
+      );
+      return;
+    }
+    const doc = new Ctor({ unit: "pt", format: "a4" });
+    const margin = 40;
+    const width = doc.internal.pageSize.getWidth() - margin * 2;
+    const lines = doc.splitTextToSize(text, width);
+    let y = margin;
+    const step = 16;
+    lines.forEach((line) => {
+      if (y > doc.internal.pageSize.getHeight() - margin) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.text(line, margin, y);
+      y += step;
+    });
+    doc.save("scan-note.pdf");
+  })();
 }
 
 function scanCamDownloadImage() {
@@ -5448,9 +5585,20 @@ function webChatLooksLikeReminderTimeFollowUp(t) {
   const s = String(t || "").trim();
   if (!s || s.length > 140) return false;
   if (/^(nd[eë]rro|ndrysho|nderro|change|set|rish|ri-)\b/i.test(s)) return true;
+  if (/\b\d{1,2}[:.]\d{2}\s*(?:am|pm|a\.m\.|p\.m\.)\b/i.test(s)) return true;
   if (/\b\d{1,2}[:.]\d{2}\b/.test(s)) return true;
-  if (/\b(?:pas|after)\s+\d{1,3}\s*(?:or[ëa]sh|or[ëa]|hours?|minut[ëa]sh|minut[ëa]|minutes?)\b/i.test(s)) return true;
+  if (/\b\d{1,2}\s*(?:am|pm|a\.m\.|p\.m\.)\b/i.test(s)) return true;
+  if (/^(sot|today|neser|nesër|tomorrow|pasneser|pasnesër|pas\s+neser|day\s+after\s+tomorrow)\b/i.test(s))
+    return true;
+  if (/\b(?:pas|after|in)\s+\d{1,3}\s*(?:or[ëa]sh|or[ëa]|hours?|minut[ëa]sh|minut[ëa]|minutes?)\b/i.test(s))
+    return true;
   if (/\b(?:në|ne|at)\s+\d{1,2}\b/i.test(s) && s.length < 48) return true;
+  if (/\b(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i.test(s) && s.length < 56)
+    return true;
+  if (/\bte\s+h[eë]nen|t[ëe]\s+h[ëe]n[ëe]n|t[ëe]\s+mart[ëe]n|t[ëe]\s+premt[ëe]n\b/i.test(s) && s.length < 56)
+    return true;
+  if (/^(ora|or[eë]n)\s+\d{1,2}\b/i.test(s)) return true;
+  if (/^\d{1,2}$/.test(s)) return true;
   return false;
 }
 
@@ -5856,7 +6004,7 @@ const WEB_CHAT_CALENDAR_MONTHS = { ...WEB_CHAT_SQ_MONTH_NAMES, ...WEB_CHAT_EN_MO
 function webChatHasReminderKeyword(s) {
   const x = String(s || "").trim();
   if (
-    /\b(?:më\s+kujto|me\s+kujto|kujto|remind(?:\s+me(?:\s+to)?)?|remember\s+to|set\s+(?:a\s+)?reminder|create\s+(?:a\s+)?reminder|schedule\s+(?:a\s+)?reminder)\b/i.test(
+    /\b(?:më\s+kujto|me\s+kujto|kujto|remind(?:\s+me(?:\s+to)?)?|remember\s+to|set\s+(?:a\s+)?reminder|create\s+(?:a\s+)?reminder|schedule\s+(?:a\s+)?reminder|notify\s+me(?:\s+to)?|alert\s+me(?:\s+to)?|vendos\s+kujtes[ëe]|njoftom[eë]|me\s+njofto)\b/i.test(
       x
     )
   ) {
@@ -5872,7 +6020,7 @@ function webChatHasReminderKeyword(s) {
 function webChatSplitReminderAroundKeyword(str) {
   const s = String(str || "").trim();
   const enStart =
-    /^(?:remind\s+me(?:\s+to)?|remind(?!\s+me)\s+|remember\s+to|set\s+(?:a\s+)?reminder|create\s+(?:a\s+)?reminder|schedule\s+(?:a\s+)?reminder|reminder)\s+/i;
+    /^(?:remind\s+me(?:\s+to)?|remind(?!\s+me)\s+|remember\s+to|notify\s+me(?:\s+to)?|alert\s+me(?:\s+to)?|set\s+(?:a\s+)?reminder|create\s+(?:a\s+)?reminder|schedule\s+(?:a\s+)?reminder|reminder)\s+/i;
   const em = s.match(enStart);
   if (em) {
     const after = s.slice(em[0].length).trim();
@@ -5945,6 +6093,9 @@ function webChatMatchSlashDate(body) {
  * @returns {{ h: number; mi: number; match: string } | null}
  */
 function webChatExtractTimeSpec(combined) {
+  if (typeof window !== "undefined" && window.webChatReminderParse && typeof window.webChatReminderParse.extractTimeSpec === "function") {
+    return window.webChatReminderParse.extractTimeSpec(combined);
+  }
   const c = String(combined || "");
   const hm = c.match(/\b(\d{1,2})[:.](\d{2})\b/);
   if (hm) {
@@ -5954,52 +6105,55 @@ function webChatExtractTimeSpec(combined) {
       return { h, mi, match: hm[0] };
     }
   }
-  const dayParts = [
-    [/\b(mëngjes|mengjes|morning)\b/i, 9, 0],
-    [/\b(paradite|noon)\b/i, 12, 0],
-    [/\b(pasdite|afternoon)\b/i, 15, 0],
-    [/\b(në\s+dark[eë]|nell\s+dark[eë]|dark[eë]|evening|tonight)\b/i, 20, 0]
+  return null;
+}
+
+/**
+ * @returns {{ dow: number; fullMatch: string; nextKeyword: boolean } | null}
+ */
+function webChatMatchWeekdayInBody(body) {
+  const b = String(body || "");
+  const map = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
+  const nextThis = b.match(
+    /\b(next|this)\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i
+  );
+  if (nextThis) {
+    const nk = nextThis[1].toLowerCase() === "next";
+    const dow = map[nextThis[2].toLowerCase()];
+    if (dow != null) return { dow, fullMatch: nextThis[0], nextKeyword: nk };
+  }
+  const sq = [
+    [/\bt[eë]\s+diel[ëe]n\b|\bte\s+dielen\b|\be\s+diel[ëe]\b/i, 0],
+    [/\bt[eë]\s+h[ëe]n[ëe]n\b|\bte\s+henen\b|\be\s+h[ëe]n[ëe]\b/i, 1],
+    [/\bt[eë]\s+m[ëe]rt[ëe]n\b|\bte\s+marten\b|\be\s+m[ëe]rt[ëe]\b/i, 2],
+    [/\bt[eë]\s+m[ëe]rkur[ëe]n\b|\bte\s+merkuren\b|\be\s+m[ëe]rkur[ëe]\b/i, 3],
+    [/\bt[eë]\s+enjt[ëe]n\b|\bte\s+enjten\b|\be\s+enjt[ëe]\b/i, 4],
+    [/\bt[eë]\s+premt[ëe]n\b|\bte\s+premten\b|\be\s+premt[ëe]\b/i, 5],
+    [/\bt[eë]\s+shtun[ëe]n\b|\bte\s+shtunen\b|\be\s+shtun[ëe]\b/i, 6]
   ];
-  for (let i = 0; i < dayParts.length; i += 1) {
-    const [re, h, mi] = dayParts[i];
-    const mm = c.match(re);
-    if (mm) return { h, mi, match: mm[0] };
+  for (let i = 0; i < sq.length; i += 1) {
+    const m = b.match(sq[i][0]);
+    if (m) return { dow: sq[i][1], fullMatch: m[0], nextKeyword: false };
   }
-  const neat = c.match(/\b(?:në|ne|at)\s+(\d{1,2})\b(?!\s*[:.]\d)/i);
-  if (neat) {
-    const h = Number(neat[1]);
-    if (!Number.isNaN(h) && h >= 0 && h <= 23) return { h, mi: 0, match: neat[0] };
-  }
-  if (
-    /\b(nesër|neser|tomorrow|sot|today|pasnesër|pasneser|pas\s+nesër|pas\s+neser|day\s+after\s+tomorrow)\b/i.test(
-      c
-    )
-  ) {
-    const rel = c.match(
-      /\b(nesër|neser|tomorrow|sot|today|pasnesër|pasneser|pas\s+nesër|pas\s+neser|day\s+after\s+tomorrow)\b/i
-    );
-    if (rel) {
-      const tailStart = (rel.index || 0) + rel[0].length;
-      const tail = c.slice(tailStart);
-      const mPref = tail.match(/^\s*(?:në|ne|at)\s+(\d{1,2})\b(?!\s*[:.]\d{2})/i);
-      if (mPref) {
-        const h = Number(mPref[1]);
-        if (!Number.isNaN(h) && h >= 0 && h <= 23) {
-          const match = c.slice(tailStart + mPref.index, tailStart + mPref.index + mPref[0].length);
-          return { h, mi: 0, match };
-        }
-      }
-      const mBare = tail.match(/^\s*(\d{1,2})\b(?!\s*[:.]\d{2})/);
-      if (mBare) {
-        const h = Number(mBare[1]);
-        if (!Number.isNaN(h) && h >= 0 && h <= 23) {
-          const match = c.slice(tailStart + mBare.index, tailStart + mBare.index + mBare[0].length);
-          return { h, mi: 0, match };
-        }
-      }
-    }
+  const bare = b.match(/\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i);
+  if (bare) {
+    const dow = map[bare[1].toLowerCase()];
+    if (dow != null) return { dow, fullMatch: bare[0], nextKeyword: false };
   }
   return null;
+}
+
+/**
+ * @param {{ dow: number; nextKeyword: boolean }} wd
+ * @returns {Date} date at local midnight for that weekday
+ */
+function webChatDateFromWeekdayMatch(wd) {
+  const now = new Date();
+  const todayD = now.getDay();
+  const target = wd.dow;
+  let add = (target - todayD + 7) % 7;
+  if (wd.nextKeyword && add === 0) add = 7;
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() + add);
 }
 
 /**
@@ -6010,12 +6164,12 @@ function webChatParseNaturalReminderSchedule(body, tailAfterKeyword) {
   if (!combined) return { type: "ask", ask: "both" };
 
   const pasDur = combined.match(
-    /\b(?:pas|after|in)\s+(\d{1,3})\s*(?:or[ëa]sh|or[ëa]|hours?|minut[ëa]sh|minut[ëa]|minutes?)\b/i
+    /\b(?:pas|after|in)\s+(\d{1,3})\s*(or[eë]sh|or[ëa]|hours?|hour|minut[eë]sh|minut[eë]|minutes?|minute|mins?)\b/i
   );
   if (pasDur) {
     const n = Number(pasDur[1]);
     const unitRaw = String(pasDur[2] || "").toLowerCase();
-    const isMin = /min/.test(unitRaw);
+    const isMin = /min|^mins$/.test(unitRaw);
     if (!Number.isNaN(n) && n > 0 && n < 10080) {
       const when = new Date();
       if (isMin) when.setMinutes(when.getMinutes() + n);
@@ -6047,6 +6201,7 @@ function webChatParseNaturalReminderSchedule(body, tailAfterKeyword) {
   const timeSpec = webChatExtractTimeSpec(combined);
   const cal = webChatMatchCalendarMonthInBody(combined);
   const slash = webChatMatchSlashDate(combined);
+  const wdInfo = webChatMatchWeekdayInBody(combined);
 
   const relStrip = webChatRelativeDayWordStripRe();
 
@@ -6092,6 +6247,28 @@ function webChatParseNaturalReminderSchedule(body, tailAfterKeyword) {
     return { type: "ok", when, message: message || t("webChatReminderDefaultMessage") };
   }
 
+  if (wdInfo) {
+    let tsW = timeSpec;
+    if (!tsW) {
+      const rest = combined.replace(wdInfo.fullMatch, " ").trim();
+      const lone = rest.match(/\b(\d{1,2})\b(?!\s*[:.]\d{2})/);
+      if (lone) {
+        const h = Number(lone[1]);
+        if (!Number.isNaN(h) && h >= 0 && h <= 23) tsW = { h, mi: 0, match: lone[0] };
+      }
+    }
+    if (!tsW) return { type: "ask", ask: "time" };
+    const dayBase = webChatDateFromWeekdayMatch(wdInfo);
+    const when = new Date(dayBase.getFullYear(), dayBase.getMonth(), dayBase.getDate(), tsW.h, tsW.mi, 0, 0);
+    let message = combined
+      .replace(wdInfo.fullMatch, " ")
+      .replace(tsW.match, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!message && tailAfterKeyword) message = tailAfterKeyword.trim();
+    return { type: "ok", when, message: message || t("webChatReminderDefaultMessage") };
+  }
+
   if (hasRelativeToday || hasRelativeTomorrow || hasRelativePasneser) {
     if (!timeSpec) return { type: "ask", ask: "time" };
     const base = new Date();
@@ -6111,6 +6288,7 @@ function webChatParseNaturalReminderSchedule(body, tailAfterKeyword) {
     timeSpec &&
     !slash &&
     !cal &&
+    !wdInfo &&
     !hasRelativeToday &&
     !hasRelativeTomorrow &&
     !hasRelativePasneser
@@ -6123,6 +6301,267 @@ function webChatParseNaturalReminderSchedule(body, tailAfterKeyword) {
   }
 
   return { type: "ask", ask: "both" };
+}
+
+/**
+ * Centralized structured parse for local reminder UX (also used to derive pending slots).
+ * @param {string} message
+ * @param {{ pendingReminder?: typeof webChatPendingReminder }} [context]
+ * @returns {{
+ *   intent: "create_reminder" | "smalltalk" | "unknown";
+ *   text: string | null;
+ *   date: string | null;
+ *   time: { h: number; m: number } | null;
+ *   datetime: Date | null;
+ *   missing: string[];
+ *   confidence: number;
+ * }}
+ */
+function parseReminderMessage(message, context) {
+  const raw = String(message || "").trim();
+  const pending = Boolean(context && context.pendingReminder && context.pendingReminder.active);
+  const norm = raw.toLowerCase();
+
+  if (!pending) {
+    if (/^(hi|hello|hey|pershendetje|përshëndetje|tung)\b/i.test(raw) && raw.length < 42) {
+      return {
+        intent: "smalltalk",
+        text: null,
+        date: null,
+        time: null,
+        datetime: null,
+        missing: [],
+        confidence: 0.72
+      };
+    }
+    if (/^(faleminderit|thank\s+you|thanks|flm)\b/i.test(norm)) {
+      return {
+        intent: "smalltalk",
+        text: null,
+        date: null,
+        time: null,
+        datetime: null,
+        missing: [],
+        confidence: 0.75
+      };
+    }
+    if (
+      /^what can you do\??$/i.test(norm) ||
+      /^help$/i.test(norm) ||
+      /^(ndihme|ndihmë)$/i.test(norm) ||
+      /^çfarë mund të bësh/i.test(raw)
+    ) {
+      return {
+        intent: "smalltalk",
+        text: null,
+        date: null,
+        time: null,
+        datetime: null,
+        missing: [],
+        confidence: 0.82
+      };
+    }
+  }
+
+  const hasKeyword = webChatHasReminderKeyword(raw) || pending;
+  if (!hasKeyword) {
+    return { intent: "unknown", text: null, date: null, time: null, datetime: null, missing: [], confidence: 0 };
+  }
+
+  const split = webChatSplitReminderAroundKeyword(raw);
+  let body = stripWebChatReminderPrefix(raw);
+  if (!body || body === raw) body = split.combined;
+
+  const missing = [];
+  let text = null;
+  let date = null;
+  let time = null;
+  let datetime = null;
+  let confidence = 0.62;
+
+  if (!body) {
+    missing.push("date", "time", "text");
+    return {
+      intent: "create_reminder",
+      text,
+      date,
+      time,
+      datetime,
+      missing,
+      confidence: 0.3
+    };
+  }
+
+  const sched = webChatParseNaturalReminderSchedule(body, split.after);
+  if (sched.type === "ok") {
+    datetime = sched.when;
+    text = String(sched.message || "").trim();
+    time = { h: sched.when.getHours(), m: sched.when.getMinutes() };
+    date = sched.when.toDateString();
+    confidence = 0.92;
+    return { intent: "create_reminder", text, date, time, datetime, missing, confidence };
+  }
+
+  if (sched.ask === "time") missing.push("time");
+  else if (sched.ask === "date") missing.push("date");
+  else missing.push("date", "time");
+
+  const ts = webChatExtractTimeSpec(body);
+  if (ts) {
+    time = { h: ts.h, m: ts.mi };
+    if (missing.includes("time")) missing.splice(missing.indexOf("time"), 1);
+  }
+  if (/\b(nesër|neser|tomorrow)\b/i.test(body)) date = "tomorrow";
+  else if (/\b(sot|today)\b/i.test(body)) date = "today";
+  else if (webChatMatchWeekdayInBody(body)) date = "weekday";
+  const slashD = webChatMatchSlashDate(body);
+  if (slashD) date = "absolute";
+  if (webChatMatchCalendarMonthInBody(body)) date = "absolute";
+
+  const cleaned = webChatCleanReminderBodyText(body);
+  text = cleaned || null;
+  if (!text) missing.push("text");
+
+  return { intent: "create_reminder", text, date, time, datetime, missing, confidence };
+}
+
+function webChatAskTextForMissing() {
+  const lang = typeof getCurrentLanguage === "function" ? getCurrentLanguage() : "en";
+  return lang === "sq" ? "Çfarë dëshiron të të kujtoj?" : "What should I remind you about?";
+}
+
+function webChatActivatePendingFromAsk(trimmed, parsedAsk, body) {
+  const missing = [];
+  if (parsedAsk.ask === "time") missing.push("time");
+  if (parsedAsk.ask === "date") missing.push("date");
+  if (parsedAsk.ask === "both") missing.push("date", "time");
+  const clean = webChatCleanReminderBodyText(String(body || ""));
+  if (!clean) missing.push("text");
+  webChatPendingReminder.active = true;
+  webChatPendingReminder.originalMessage = trimmed;
+  webChatPendingReminder.draftLine = trimmed;
+  webChatPendingReminder.missing = missing;
+  webChatPendingReminder.createdAt = Date.now();
+  webChatPendingReminder.text = clean || "";
+  const ts = webChatExtractTimeSpec(body);
+  webChatPendingReminder.time = ts ? `${ts.h}:${String(ts.mi).padStart(2, "0")}` : null;
+  let dHint = null;
+  if (/\b(nesër|neser|tomorrow)\b/i.test(body)) dHint = "tomorrow";
+  else if (/\b(sot|today)\b/i.test(body)) dHint = "today";
+  else if (webChatMatchWeekdayInBody(body)) dHint = "weekday";
+  webChatPendingReminder.date = dHint;
+  webChatLastReminderUserRaw = trimmed;
+}
+
+function webChatPendingAskMessage(missing) {
+  const needs = new Set(missing);
+  if (needs.has("text")) return webChatAskTextForMissing();
+  if (needs.has("date") && needs.has("time")) return t("webChatReminderAskBoth");
+  if (needs.has("date")) return t("webChatReminderAskDate");
+  if (needs.has("time")) return t("webChatReminderAskTime");
+  return t("webChatReminderAskBoth");
+}
+
+async function webChatTryResolvePendingReminder(trimmed) {
+  if (!webChatPendingReminder.active) return { handled: false };
+
+  const tHelp = trimmed.replace(/\s+/g, " ").trim();
+  if (/^(help|ndihme|ndihmë)\??$/i.test(tHelp)) {
+    resetWebChatPendingReminder();
+    return { handled: true, reply: t("webChatHelpList") };
+  }
+
+  const P = typeof window !== "undefined" ? window.webChatReminderParse : null;
+
+  if (P && typeof P.isCancelMessage === "function" && P.isCancelMessage(trimmed)) {
+    resetWebChatPendingReminder();
+    const lang = typeof getCurrentLanguage === "function" ? getCurrentLanguage() : "en";
+    return {
+      handled: true,
+      reply: lang === "sq" ? "Në rregull, e anulova." : "Okay — I cancelled that reminder."
+    };
+  }
+
+  let toMerge = trimmed;
+  if (P && typeof P.isChangeTimeMessage === "function" && P.isChangeTimeMessage(trimmed)) {
+    const ts = typeof P.extractTimeSpec === "function" ? P.extractTimeSpec(trimmed) : null;
+    if (ts) toMerge = `${ts.h}:${String(ts.mi).padStart(2, "0")}`;
+  }
+
+  const newDraft = `${webChatPendingReminder.draftLine} ${toMerge}`.trim();
+  webChatPendingReminder.draftLine = newDraft;
+
+  const split = webChatSplitReminderAroundKeyword(newDraft);
+  let body = stripWebChatReminderPrefix(newDraft);
+  if (!body || body === newDraft) body = split.combined;
+  if (!body) {
+    return { handled: true, reply: webChatPendingAskMessage(webChatPendingReminder.missing) };
+  }
+
+  const parsed = webChatParseNaturalReminderSchedule(body, split.after);
+  if (parsed.type === "ask") {
+    const missing = [];
+    if (parsed.ask === "time") missing.push("time");
+    else if (parsed.ask === "date") missing.push("date");
+    else missing.push("date", "time");
+    const clean = webChatCleanReminderBodyText(body);
+    if (!clean) missing.push("text");
+    webChatPendingReminder.missing = missing;
+    webChatLastReminderUserRaw = newDraft;
+    return { handled: true, reply: webChatPendingAskMessage(missing) };
+  }
+
+  if (!currentUser || !accessToken) {
+    resetWebChatPendingReminder();
+    return { handled: true, reply: t("webChatReminderNeedLogin") };
+  }
+  const mergedOk = await mergePremiumFromServer();
+  if (!mergedOk) {
+    resetWebChatPendingReminder();
+    return { handled: true, reply: t("webChatPlanVerifyFailed") };
+  }
+  if (typeof userHasWebChatAccess === "function" && !userHasWebChatAccess(currentUser)) {
+    resetWebChatPendingReminder();
+    return { handled: true, reply: t("webChatReminderRequiresStandard") };
+  }
+
+  const when = parsed.when;
+  if (!when || Number.isNaN(when.getTime())) {
+    return { handled: true, reply: `${t("webChatReminderParseFail")}\n\n${t("webChatReminderExample")}` };
+  }
+  if (!isFutureReminderInput(when)) {
+    return { handled: true, reply: t("reminderMustBeFuture") };
+  }
+
+  let msg = webChatCleanReminderBodyText(String(parsed.message || "").trim());
+  if (!msg) msg = webChatCleanReminderBodyText(String(split.after || "").trim());
+  if (!msg) msg = webChatCleanReminderBodyText(String(body || "").trim());
+  if (!msg) msg = String(webChatPendingReminder.text || "").trim();
+  if (!msg) msg = t("webChatReminderDefaultMessage");
+
+  try {
+    await apiFetch("/api/web-reminder", {
+      method: "POST",
+      body: JSON.stringify({
+        reminderTime: when.toISOString(),
+        message: msg,
+        source: "web_chat"
+      })
+    });
+    refreshReminderRelatedViews();
+    webChatLastReminderUserRaw = newDraft;
+    resetWebChatPendingReminder();
+    void maybePromptReminderNotificationPermission();
+    const summary = webChatFormatReminderConfirmSummary(when, body.toLowerCase());
+    const line = t("webChatReminderSavedLine").replace("{when}", summary);
+    const detail =
+      msg && msg.length && msg !== t("webChatReminderDefaultMessage")
+        ? `\n${t("webChatReminderConfirmDetail").replace("{message}", msg)}`
+        : "";
+    return { handled: true, reply: `${line}${detail}` };
+  } catch (err) {
+    return { handled: true, reply: err.message || String(err) };
+  }
 }
 
 function webChatFormatReminderConfirmSummary(when, combinedLower) {
@@ -6170,6 +6609,8 @@ async function webChatNaturalReminderHandler(trimmed) {
     return t("webChatReminderRequiresStandard");
   }
 
+  resetWebChatPendingReminder();
+
   const split = webChatSplitReminderAroundKeyword(trimmed);
   let body = stripWebChatReminderPrefix(trimmed);
   if (!body || body === trimmed) body = split.combined;
@@ -6177,9 +6618,8 @@ async function webChatNaturalReminderHandler(trimmed) {
 
   const parsed = webChatParseNaturalReminderSchedule(body, split.after);
   if (parsed.type === "ask") {
-    if (parsed.ask === "time") return t("webChatReminderAskTime");
-    if (parsed.ask === "date") return t("webChatReminderAskDate");
-    return t("webChatReminderAskBoth");
+    webChatActivatePendingFromAsk(trimmed, parsed, body);
+    return webChatPendingAskMessage(webChatPendingReminder.missing);
   }
 
   const when = parsed.when;
@@ -6227,6 +6667,22 @@ async function resolveWebChatReply(raw) {
   const compact = trimmed.replace(/\s/g, "");
   if (/^\?+$/.test(qOnly) || /^(help|ndihme|ndihmë)\?$/i.test(compact)) {
     return t("webChatHelpList");
+  }
+
+  if (webChatPendingReminder.active) {
+    const mergedIfKeyword = webChatMergeReminderFollowUp(trimmed);
+    if (webChatHasReminderKeyword(mergedIfKeyword)) {
+      return await webChatNaturalReminderHandler(mergedIfKeyword);
+    }
+    const pend = await webChatTryResolvePendingReminder(trimmed);
+    if (pend.handled) return pend.reply;
+  }
+
+  if (/^what can you do\??$/i.test(trimmed.replace(/\s+/g, " ").trim())) {
+    const lang = typeof getCurrentLanguage === "function" ? getCurrentLanguage() : "en";
+    return lang === "sq"
+      ? "Mund të krijoj reminders dhe të përputh komandat lokale (kujto / remind me). Shkruaj help për listën."
+      : "I can create reminders and match local commands (remind me / kujto). Type help for the full list.";
   }
 
   const effective = webChatMergeReminderFollowUp(trimmed);
@@ -6503,7 +6959,7 @@ async function updateHomeDashboardStats() {
   const remEl = document.getElementById("homeStatReminders");
   if (!welcomeEl || !notesEl || !remEl) return;
 
-  if (!currentUser || !accessToken) {
+  if (!isAuthSessionReady() || authInvalidated) {
     welcomeEl.textContent = t("homeWelcomeGuest");
     notesEl.textContent = "—";
     remEl.textContent = "—";
@@ -6533,7 +6989,13 @@ async function updateHomeDashboardStats() {
     const reminders = remData.reminders || [];
     notesEl.textContent = String(notesCount);
     remEl.textContent = String(reminders.length);
-  } catch {
+  } catch (err) {
+    if (err && (err.authSkipped || err.authSessionEnded)) {
+      welcomeEl.textContent = t("homeWelcomeGuest");
+      notesEl.textContent = "—";
+      remEl.textContent = "—";
+      return;
+    }
     notesEl.textContent = "—";
     remEl.textContent = "—";
   }
@@ -6543,7 +7005,7 @@ async function updateHomeDashboardStats() {
 let webRemindersListFetchPromise = null;
 
 function fetchWebRemindersListDeduped() {
-  if (!currentUser || !accessToken) {
+  if (!isAuthSessionReady() || authInvalidated) {
     return Promise.resolve({ reminders: [] });
   }
   if (!webRemindersListFetchPromise) {
@@ -6853,7 +7315,7 @@ async function submitReminderEdit() {
 }
 
 async function loadWebReminders() {
-  if (!currentUser || !accessToken) return;
+  if (!isAuthSessionReady() || authInvalidated) return;
 
   const container = document.getElementById("activeRemindersList");
   const containerParent = document.getElementById("activeRemindersContainer");
@@ -6912,60 +7374,110 @@ async function loadWebReminders() {
       container.appendChild(reminderEl);
     });
   } catch (err) {
-    console.error("Error loading web reminders:", err);
+    if (err && (err.authSkipped || err.authSessionEnded)) return;
+    if (isAuthDevHost()) console.warn("[web reminders] list:", err && err.message ? err.message : err);
   }
 }
 
 // ============ WEB NOTIFICATION SCHEDULER ============
 
-let webNotificationSchedulerStarted = false;
+/** Single guard so reminder polling interval + visibility hook are only registered once. */
+let reminderPollingStarted = false;
 let webNotificationSchedulerIntervalId = null;
 let webNotificationVisibilityHooked = false;
+/** Coalesces overlapping due-check passes (interval + visibility + concurrent UI). */
+let reminderDueCheckInFlight = null;
+let lastReminderVisibilityPollMs = 0;
+const REMINDER_POLL_INTERVAL_MS = 45000;
+const REMINDER_VISIBILITY_POLL_MIN_MS = 28000;
+
+function stopWebReminderPollingScheduler() {
+  if (webNotificationSchedulerIntervalId != null) {
+    window.clearInterval(webNotificationSchedulerIntervalId);
+    webNotificationSchedulerIntervalId = null;
+  }
+  reminderPollingStarted = false;
+}
+
+/** Clear session after invalid/expired tokens without toast; idempotent. */
+function invalidateAuthSessionSilently() {
+  refreshAccessTokenPromise = null;
+  authInvalidated = true;
+  stopWebReminderPollingScheduler();
+  webChatSessionTurns = [];
+  webChatLastReminderUserRaw = null;
+  if (typeof resetWebChatPendingReminder === "function") resetWebChatPendingReminder();
+  const hadTokens = Boolean(currentUser || accessToken || refreshToken);
+  if (hadTokens) {
+    clearCurrentUser();
+    if (!authBootstrapPhaseActive) {
+      syncAuthShellVisibility();
+      syncMobileHeaderActionUi();
+      updatePremiumUi();
+    }
+  }
+}
 
 function startWebNotificationScheduler() {
-  if (webNotificationSchedulerStarted) return;
-  webNotificationSchedulerStarted = true;
+  if (reminderPollingStarted) return;
+  reminderPollingStarted = true;
   if (isNativeLocalNotificationsAvailable()) {
     void syncPlannerLocalNotifications();
     return;
   }
-  const intervalMs = 10000;
+  const intervalMs = REMINDER_POLL_INTERVAL_MS;
   webNotificationSchedulerIntervalId = window.setInterval(() => {
     void checkForDueReminders();
   }, intervalMs);
   if (!webNotificationVisibilityHooked) {
     webNotificationVisibilityHooked = true;
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible" && currentUser && accessToken) {
+    document.addEventListener(
+      "visibilitychange",
+      () => {
+        if (document.visibilityState !== "visible") return;
+        if (!isAuthSessionReady() || authInvalidated || authBootstrapPhaseActive) return;
+        const now = Date.now();
+        if (now - lastReminderVisibilityPollMs < REMINDER_VISIBILITY_POLL_MIN_MS) return;
+        lastReminderVisibilityPollMs = now;
         void checkForDueReminders();
-      }
-    });
+      },
+      { passive: true }
+    );
   }
   void checkForDueReminders();
 }
 
 async function checkForDueReminders() {
-  if (isNativeLocalNotificationsAvailable()) return;
-  if (!webReminderNotificationsAppEnabled()) return;
-  if (!currentUser || !accessToken) return;
+  if (reminderDueCheckInFlight) return reminderDueCheckInFlight;
+  reminderDueCheckInFlight = (async () => {
+    try {
+      if (isNativeLocalNotificationsAvailable()) return;
+      if (!webReminderNotificationsAppEnabled()) return;
+      if (authBootstrapPhaseActive) return;
+      if (authInvalidated) return;
+      if (!isAuthSessionReady()) return;
 
-  try {
-    const data = await fetchWebRemindersListDeduped();
-    const reminders = data.reminders || [];
+      const data = await fetchWebRemindersListDeduped();
+      const reminders = data.reminders || [];
 
-    const now = new Date();
+      const now = new Date();
 
-    for (const reminder of reminders) {
-      if (reminder.sent) continue;
-      if (!isReminderNotificationEnabled(reminder._id)) continue;
-      const reminderTime = new Date(reminder.time);
-      if (reminderTime <= now) {
-        void showWebNotification(reminder);
+      for (const reminder of reminders) {
+        if (reminder.sent) continue;
+        if (!isReminderNotificationEnabled(reminder._id)) continue;
+        const reminderTime = new Date(reminder.time);
+        if (reminderTime <= now) {
+          void showWebNotification(reminder);
+        }
       }
+    } catch (err) {
+      if (err && (err.authSkipped || err.authSessionEnded || err.refreshNetworkError)) return;
+      if (isAuthDevHost()) console.warn("[reminders] poll:", err && err.message ? err.message : err);
+    } finally {
+      reminderDueCheckInFlight = null;
     }
-  } catch (err) {
-    console.warn("Error checking for due reminders:", err);
-  }
+  })();
+  return reminderDueCheckInFlight;
 }
 
 async function showWebNotification(reminder) {
@@ -8218,13 +8730,11 @@ function getOrCreateDeviceId() {
 }
 
 function logoutUser() {
-  if (webNotificationSchedulerIntervalId != null) {
-    clearInterval(webNotificationSchedulerIntervalId);
-    webNotificationSchedulerIntervalId = null;
-  }
-  webNotificationSchedulerStarted = false;
+  stopWebReminderPollingScheduler();
   webChatSessionTurns = [];
   webChatLastReminderUserRaw = null;
+  authInvalidated = false;
+  refreshAccessTokenPromise = null;
   clearCurrentUser();
   displayAccountInfo();
   syncMobileHeaderActionUi();
@@ -8950,8 +9460,8 @@ async function saveUserSettings(settings) {
 }
 
 async function loadUserSettings() {
-  if (!currentUser || !accessToken) return;
-  
+  if (!isAuthSessionReady() || authInvalidated) return;
+
   try {
     const data = await apiFetch("/api/user/settings");
     if (data.settings) {
@@ -8977,8 +9487,10 @@ async function loadUserSettings() {
       }
     }
   } catch (err) {
-    console.warn("⚠️ Failed to load settings from server:", err.message);
-    // Fall back to localStorage
+    if (err && (err.authSkipped || err.authSessionEnded)) return;
+    if (isAuthDevHost()) {
+      console.warn("[settings] not loaded from server:", err && err.message ? err.message : err);
+    }
   }
 
   await mergePremiumFromServer();
@@ -9006,6 +9518,9 @@ function updateThemeSelector() {
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
+  if (window.__appListenersReady) return;
+  window.__appListenersReady = true;
+
   initServiceWorkerNotificationRouting();
   normalizeSpaShellPaths();
   authBootstrapPhaseActive = true;
@@ -9154,12 +9669,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     closeWebChatQuickActions();
   });
 
-  window.addEventListener("resize", () => {
-    if (!isMobileViewport()) closeMobileNav();
-    syncMobileHeaderActionUi();
-    initPremiumTiltSystem();
-  });
-
+  let mobileScrollRaf = 0;
   const syncMobileScrollState = () => {
     const canvas = document.querySelector(".background-canvas");
     if (canvas) {
@@ -9178,9 +9688,26 @@ window.addEventListener("DOMContentLoaded", async () => {
     document.body.classList.toggle("mobile-scrolled", window.scrollY > 8);
     document.body.classList.toggle("floating-scrolled", window.scrollY > 8);
   };
-  window.addEventListener("scroll", syncMobileScrollState, { passive: true });
+  const onScrollParallaxThrottled = () => {
+    if (mobileScrollRaf) return;
+    mobileScrollRaf = requestAnimationFrame(() => {
+      mobileScrollRaf = 0;
+      syncMobileScrollState();
+    });
+  };
+  window.addEventListener("scroll", onScrollParallaxThrottled, { passive: true });
   syncMobileScrollState();
 
+  let resizeUiRaf = 0;
+  window.addEventListener("resize", () => {
+    if (resizeUiRaf) return;
+    resizeUiRaf = requestAnimationFrame(() => {
+      resizeUiRaf = 0;
+      if (!isMobileViewport()) closeMobileNav();
+      syncMobileHeaderActionUi();
+      initPremiumTiltSystem();
+    });
+  });
   const chooseBtn = document.getElementById("chooseUsernameContinue");
   const chooseInput = document.getElementById("chooseUsernameInput");
   if (chooseBtn) chooseBtn.addEventListener("click", () => void submitChooseUsername());

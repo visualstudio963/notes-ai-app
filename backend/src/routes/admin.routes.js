@@ -170,17 +170,42 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
     try {
       const since = new Date(Date.now() - ACTIVE_WINDOW_MS);
       const sevenDaysAgo = new Date(Date.now() - 7 * 86400000);
+      const startUtcDay = new Date();
+      startUtcDay.setUTCHours(0, 0, 0, 0);
+      const signupsRangeStart = new Date(startUtcDay);
+      signupsRangeStart.setUTCDate(signupsRangeStart.getUTCDate() - 6);
 
-      const [totalUsers, totalNotes, totalReminders, premiumUsers, activeUsers, signupsLast7Days, remindersByStatus] =
-        await Promise.all([
-          User.countDocuments(),
-          Note.countDocuments(),
-          Reminder.countDocuments(),
-          User.countDocuments(PREMIUM_USER_QUERY),
-          User.countDocuments({ lastActive: { $gte: since } }),
-          User.countDocuments({ createdAt: { $gte: sevenDaysAgo } }),
-          Reminder.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }, { $sort: { count: -1 } }]).exec()
-        ]);
+      const [
+        totalUsers,
+        totalNotes,
+        totalReminders,
+        premiumUsers,
+        activeUsers,
+        signupsLast7Days,
+        remindersByStatus,
+        activeUsersToday,
+        signupsByDayRows,
+        remindersSentAggregate
+      ] = await Promise.all([
+        User.countDocuments(),
+        Note.countDocuments(),
+        Reminder.countDocuments(),
+        User.countDocuments(PREMIUM_USER_QUERY),
+        User.countDocuments({ lastActive: { $gte: since } }),
+        User.countDocuments({ createdAt: { $gte: sevenDaysAgo } }),
+        Reminder.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }, { $sort: { count: -1 } }]).exec(),
+        User.countDocuments({ lastActive: { $gte: startUtcDay } }),
+        User.aggregate([
+          { $match: { createdAt: { $gte: signupsRangeStart } } },
+          {
+            $group: {
+              _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt", timezone: "UTC" } },
+              count: { $sum: 1 }
+            }
+          }
+        ]).exec(),
+        Reminder.countDocuments({ sent: true })
+      ]);
 
       const stats = {
         totalUsers,
@@ -189,11 +214,23 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
         premiumUsers,
         proUsers: premiumUsers,
         activeUsers,
-        activeWithinMinutes: ACTIVE_WINDOW_MS / 60000
+        activeUsersToday,
+        activeWithinMinutes: ACTIVE_WINDOW_MS / 60000,
+        remindersSent: remindersSentAggregate
       };
+
+      const byDayMap = new Map((signupsByDayRows || []).map((row) => [row._id, row.count]));
+      const signupsByDay = [];
+      for (let i = 6; i >= 0; i -= 1) {
+        const d = new Date(startUtcDay);
+        d.setUTCDate(d.getUTCDate() - i);
+        const key = d.toISOString().slice(0, 10);
+        signupsByDay.push({ day: key, count: byDayMap.get(key) || 0 });
+      }
 
       const analytics = {
         signupsLast7Days,
+        signupsByDay,
         remindersByStatus: (remindersByStatus || []).map((row) => ({
           status: row._id || "—",
           count: row.count
@@ -215,7 +252,7 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
       try {
         recentNotesDocs = await Note.find()
           .sort({ createdAt: -1 })
-          .limit(14)
+          .limit(10)
           .populate("userId", "username")
           .select("category title text createdAt userId")
           .lean()
@@ -228,7 +265,7 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
       try {
         recentReminderDocs = await Reminder.find()
           .sort({ createdAt: -1 })
-          .limit(14)
+          .limit(10)
           .populate("userId", "username")
           .select("message time notificationType status sent createdAt userId")
           .lean()
@@ -241,7 +278,7 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
       try {
         recentUserDocs = await User.find()
           .sort({ createdAt: -1 })
-          .limit(12)
+          .limit(10)
           .select(
             "username email emailOrPhone role isPremium premiumExpires plan subscriptionPlan membershipRole createdAt lastActive"
           )

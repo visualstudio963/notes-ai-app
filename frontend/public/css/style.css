@@ -16700,6 +16700,60 @@ body:has(#webChat:not(.hidden)) .daily-planner-fab {
   }
 }
 
+/* Web chat soft-lock compact + dismiss */
+#webChat .web-chat-soft-lock {
+  margin: 10px 12px 0 !important;
+  padding: 10px 10px !important;
+  border-radius: 14px !important;
+  gap: 8px !important;
+}
+
+#webChat .web-chat-soft-lock__text {
+  flex: 1 1 100% !important;
+  font-size: 0.84rem !important;
+  line-height: 1.45 !important;
+}
+
+#webChat .web-chat-soft-lock__cta.save-button.secondary {
+  margin-top: 6px !important;
+  height: 40px !important;
+  min-width: 124px !important;
+  font-size: 0.82rem !important;
+}
+
+#webChat .web-chat-soft-lock__dismiss {
+  width: 30px;
+  height: 30px;
+  margin-left: auto;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.78);
+  color: rgba(226, 232, 240, 0.9);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+#webChat .web-chat-soft-lock__dismiss:hover {
+  border-color: rgba(191, 219, 254, 0.45);
+  background: rgba(30, 41, 59, 0.9);
+}
+
+@media (max-width: 430px) {
+  #webChat .web-chat-soft-lock {
+    margin: 8px 10px 0 !important;
+    padding: 9px 8px !important;
+  }
+  #webChat .web-chat-soft-lock__text {
+    font-size: 0.8rem !important;
+  }
+  #webChat .web-chat-soft-lock__cta.save-button.secondary {
+    height: 38px !important;
+    min-width: 114px !important;
+    font-size: 0.78rem !important;
+  }
+}
+
 /* Coins header edge-to-edge balance layout */
 #coins-hub .page-shell.coins-dash-shell {
   width: 100%;

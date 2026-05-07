@@ -236,7 +236,7 @@ const translations = {
     webChatOnlineStatusOpenAi: "Online · OpenAI mode",
     webChatOnlineStatusAiLive: "Online · OpenAI responding now",
     webChatSoftLockBody:
-      "Web Chat and saving reminders from chat need Standard-level access — new accounts enjoy a 7-day Standard trial, or unlock with coins/subscription.",
+      "Web Chat and saving reminders from chat need Standard-level access — new users get 7 days of Standard for free. After 7 days, the account moves to Free unless you upgrade or unlock with coins.",
     webChatMenuLimitedTip: "Earn coins in Rewards & coins or upgrade to unlock Web Chat.",
     webChatModelLabel: "Response mode",
     webChatModeTierBasic: "Basic",
@@ -836,9 +836,9 @@ const translations = {
     welcomeBullet6: "📄 Exports & daily planner — PDF, JPG, TXT and planners (when your plan includes them).",
     welcomeTrialSectionTitle: "🎉 Your 7-day Standard trial",
     welcomeTrialLead:
-      "New accounts get Standard access free for 7 days (already active). During the trial you can use the features above that need Standard.",
+      "You get 7 days of Standard for free (already active). During the trial you can use all Standard-level features listed above.",
     welcomeTrialAfter:
-      "When the week ends you return to the Free tier unless you subscribe or redeem Standard with coins. You can open Rewards & coins anytime.",
+      "After 7 days, your account automatically moves to the Free plan unless you subscribe or redeem Standard with coins.",
     onboardingGotIt: "Got it — close",
     onboardingCloseAriaWelcome: "Close welcome",
     onboardingReplayTitle: "Welcome screen",
@@ -1085,7 +1085,7 @@ const translations = {
     webChatOnlineStatusOpenAi: "Online · modalitet OpenAI",
     webChatOnlineStatusAiLive: "Online · OpenAI po përgjigjet tani",
     webChatSoftLockBody:
-      "Web Chat dhe ruajtja e kujtesave nga chat kërkojnë Standard — kontot e reja përfitojnë trial 7-ditës, ose hape me monedha / abonim.",
+      "Web Chat dhe ruajtja e kujtesave nga chat kërkojnë Standard — ju përfitoni 7 ditë falas Plan Standard. Pas 7 ditësh, llogaria kalon në Falas nëse nuk aktivizoni plan ose monedha.",
     webChatMenuLimitedTip: "Web Chat përmes Standard — mblidh monedha te «Shpërblime & monedha» ose përmirëso planin.",
     webChatModelLabel: "Mënyra e përgjigjes",
     webChatModeTierBasic: "Bazë",
@@ -1185,14 +1185,14 @@ const translations = {
     trialGiftBadge: "Njoftim për llogari të re",
     trialGiftTitle: "7 ditë Standard — dhuratë për ty",
     trialGiftLead:
-      "Si përdorues i ri të dhurojmë Planin Standard falas për 7 ditë. Prova është tashmë aktivizuar — shtyp Konfirmo ose mbyll njoftimin për të hyrë në aplikacion.",
+      "Ju përfitoni 7 ditë falas Plan Standard. Prova është tashmë aktive — shtyp Konfirmo ose mbyll njoftimin për të hyrë në aplikacion.",
     trialGiftItem1: "Web Chat i plotë (skript lokale të zgjuara + ruani kujtesat direkt nga chat-i)",
     trialGiftItem2: "Scan Cam — dokumente në tekst që mund ta ruash si shënim",
     trialGiftItem3: "Shkarkime profesionale për shënimet — PDF, JPG dhe TXT",
     trialGiftItem4: "Kategoria, sinkron në cloud, Plane ditor që ju ndihmojnë më shumë se Free",
     trialGiftItem5: "Fitoni monedha nga seksioni Shpërblime edhe gjatë trial-it",
     trialGiftAfter:
-      "Pas 7 ditëve llogaria kalon automatikisht në Falas — vetëm shënime + kujtesa manuale — përveç nëse rinovoni Standard/Premium në para ose përdorni 600 monedha për 30 ditë të tjera Standard.",
+      "Pas 7 ditësh llogaria kalon automatikisht në planin Falas, përveç nëse abonohesh ose aktivizon Standard me monedha.",
     trialGiftCta: "Konfirmo",
     trialGiftLater: "Mbyll",
     trialGiftCloseAria: "Mbyll njoftimin",
@@ -1689,9 +1689,9 @@ const translations = {
       "📄 Eksporte & plan ditor — PDF, JPG, TXT dhe plane ditore (kur plani yt i përfshin).",
     welcomeTrialSectionTitle: "🎉 Provë 7-ditore Standard",
     welcomeTrialLead:
-      "Llogaritë e reja marrin Planin Standard falas për 7 ditë (është aktiv). Gjatë provës përdor veçoritë më lart që kërkojnë Standard.",
+      "Ju përfitoni 7 ditë falas Plan Standard (është aktiv). Gjatë provës përdor veçoritë më lart që kërkojnë Standard.",
     welcomeTrialAfter:
-      "Kur mbaron java, kthehesh në planin Falas përveç nëse abonon ose zhbllokon Standard me monedha. Hape «Shpërblime & monedha» kur të duash.",
+      "Pas 7 ditësh kalon automatikisht në planin Falas, përveç nëse abonon ose zhbllokon Standard me monedha.",
     onboardingGotIt: "Kuptova, mbyll",
     onboardingCloseAriaWelcome: "Mbyll mirëseardhjen",
     onboardingReplayTitle: "Faqja e mirëseardhjes",

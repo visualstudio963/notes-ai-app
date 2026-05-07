@@ -953,6 +953,14 @@
           <div id="webChatSoftLockHint" class="web-chat-soft-lock web-chat-soft-lock--slim hidden" aria-live="polite">
             <span class="web-chat-soft-lock__text" data-t="webChatSoftLockBody">Web Chat unlimited use is on Standard &amp; Premium.</span>
             <button type="button" class="web-chat-soft-lock__cta save-button secondary" onclick="openBot()" data-t="upgradePlan">Upgrade plan</button>
+            <button
+              type="button"
+              class="web-chat-soft-lock__dismiss"
+              onclick="this.closest('#webChatSoftLockHint')?.classList.add('hidden')"
+              aria-label="Close upgrade message"
+            >
+              ×
+            </button>
           </div>
 
           <div class="web-chat-messenger__body">

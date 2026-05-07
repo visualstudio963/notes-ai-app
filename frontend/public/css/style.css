@@ -3210,8 +3210,35 @@ body.modal-open {
   }
 }
 
+.settings-notif-callout .settings-notif-status {
+  margin: 0;
+}
+
+.settings-web-push-line {
+  margin-top: 10px;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: #94a3b8;
+}
+
 .note-export-modal {
   max-width: 420px;
+}
+
+/**
+ * Off-screen host for export rasterization (html2canvas). Avoid display:none / opacity:0 —
+ * engines often skip layout for hidden subtrees.
+ */
+.export-template {
+  position: fixed;
+  left: -99999px;
+  top: 0;
+  width: 794px;
+  box-sizing: border-box;
+  background: #ffffff;
+  color: #111111;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .note-export-lead {
@@ -12307,6 +12334,17 @@ body.floating-scrolled .discord-fab:hover {
   margin: 0;
   font-size: 0.84rem;
   line-height: 1.5;
+}
+
+.settings-web-push-line {
+  margin-top: 10px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #94a3b8;
+}
+
+.settings-web-push-line.hidden {
+  display: none;
 }
 
 .settings-notif-btn.save-button {

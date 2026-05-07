@@ -26,6 +26,7 @@ const MongoStore = MongoStoreModule && MongoStoreModule.default ? MongoStoreModu
 const { createStripeWebhookHandler } = require("./features/premium/stripeWebhook");
 const { createReminderChecker } = require("./jobs/reminderScheduler");
 const { createPurgePastReminders } = require("./jobs/purgePastReminders");
+const { createWebPushReminderJob } = require("./jobs/webPushReminderJob");
 
 const User = require("./models/User");
 const { publicUser } = require("./utils/serializers");
@@ -410,7 +411,8 @@ const apiRouter = createApiRouter(app, {
   openAiApiKey: config.openAiApiKey,
   publicAppUrl: config.publicAppUrl,
   emailVerificationBypassUsernames: config.emailVerificationBypassUsernames,
-  googleClientId: config.googleClientId
+  googleClientId: config.googleClientId,
+  vapidPublicKey: config.vapidPublicKey
 });
 
 app.use("/api", touchLastActive, apiLimiter, apiRouter);
@@ -423,9 +425,23 @@ const checkReminders = createReminderChecker({
 
 const purgePastReminders = createPurgePastReminders({ Reminder, retentionDays: 7 });
 
+const webPushReminderSweep = createWebPushReminderJob({
+  Reminder,
+  User,
+  vapidPublicKey: config.vapidPublicKey,
+  vapidPrivateKey: config.vapidPrivateKey,
+  vapidSubject: config.vapidSubject,
+  publicAppUrl: config.publicAppUrl
+});
+
 cron.schedule("* * * * *", () => {
   checkReminders().catch(() => {});
 });
+
+/** Web push for browser/PWA reminders when the app is closed (requires VAPID + subscribed clients). ~45s tick. */
+setInterval(() => {
+  webPushReminderSweep().catch(() => {});
+}, 45000);
 
 /** Past reminders only; hourly to stay within ~1h of the 7-day policy */
 cron.schedule("0 * * * *", () => {

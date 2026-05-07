@@ -9,6 +9,7 @@ const { createAdminRouter } = require("./admin.routes");
 const { createWebChatRouter } = require("./webchat.routes");
 const { createCoinsRouter } = require("./coins.routes");
 const { createAppConfigRouter } = require("./app-config.routes");
+const { createPushRouter } = require("./push.routes");
 
 /**
  * @param {import('express').Express} app
@@ -40,7 +41,8 @@ function createApiRouter(app, deps) {
     openAiApiKey,
     publicAppUrl,
     emailVerificationBypassUsernames,
-    googleClientId
+    googleClientId,
+    vapidPublicKey
   } = deps;
 
   const getIo = () => app.get("io");
@@ -71,6 +73,14 @@ function createApiRouter(app, deps) {
       AppConfig,
       stripePublishableKey: stripePublishableKey || "",
       googleClientId: googleClientId || ""
+    })
+  );
+
+  api.use(
+    createPushRouter({
+      User,
+      authMiddleware,
+      vapidPublicKey: vapidPublicKey || null
     })
   );
 

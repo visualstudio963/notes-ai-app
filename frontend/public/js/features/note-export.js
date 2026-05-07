@@ -1,6 +1,7 @@
 /**
  * Client-only note export: TXT (all tiers), PDF (Standard+), JPG (Premium).
- * Depends on globals: noteTitleTrim, t, showToast, openBot, currentUser,
+ * Depends on globals: window.html2canvas (vendor), window.jspdf.jsPDF (vendor),
+ * noteTitleTrim, t, showToast, openBot, currentUser,
  * userCanExportNotePdf, userCanExportNoteTxt, userCanExportNoteJpg.
  */
 (function () {
@@ -8,6 +9,37 @@
 
   var pendingNote = null;
   var EXPORT_THEME_KEY = "noteExportTheme";
+
+  function getJsPdfConstructor() {
+    if (typeof window === "undefined") return null;
+    var fromModule = window.jspdf && window.jspdf.jsPDF;
+    if (typeof fromModule === "function") return fromModule;
+    if (typeof window.jsPDF === "function") return window.jsPDF;
+    return null;
+  }
+
+  function getHtml2Canvas() {
+    if (typeof window === "undefined") return null;
+    return typeof window.html2canvas === "function" ? window.html2canvas : null;
+  }
+
+  function toastExportToolsLoading() {
+    var msg =
+      typeof t === "function"
+        ? t("noteExportToolsLoading")
+        : "Export tools are still loading. Try again in a few seconds.";
+    if (typeof showToast === "function") showToast(msg);
+  }
+
+  function toastExportPdfFailed() {
+    var msg = typeof t === "function" ? t("noteExportPdfUnavailable") : "Could not build the PDF.";
+    if (typeof showToast === "function") showToast(msg);
+  }
+
+  function toastExportJpgFailed() {
+    var msg = typeof t === "function" ? t("noteExportJpgUnavailable") : "Could not create the image.";
+    if (typeof showToast === "function") showToast(msg);
+  }
 
   var ALLOWED_EXPORT_TAGS = {
     p: true,
@@ -236,7 +268,7 @@
 
     return (
       "<style>" +
-      "html,body{margin:0;padding:0;background:" + pageBg + ";color:" + bodyColor + ";font-family:Segoe UI,system-ui,-apple-system,Roboto,Arial,sans-serif;}" +
+      ".export-template{margin:0;padding:0;box-sizing:border-box;background:" + pageBg + ";color:" + bodyColor + ";font-family:Segoe UI,system-ui,-apple-system,Roboto,Arial,sans-serif;}" +
       ".note-export-sheet{width:794px;box-sizing:border-box;background:" + sheetBg + ";}" +
       ".note-export-head{background:" + headBg + ";color:" + headColor + ";padding:26px 44px 20px;" +
       (isDark ? "border-bottom:1px solid rgba(148,163,184,0.15);" : "") +
@@ -260,19 +292,18 @@
 
   function withExportMeasure(note, theme, fn) {
     var host = document.createElement("div");
-    host.style.position = "fixed";
-    host.style.left = "-10000px";
-    host.style.top = "0";
-    host.style.width = "794px";
-    host.style.zIndex = "-1";
-    host.style.pointerEvents = "none";
-    host.style.opacity = "0";
+    host.className = "export-template";
+    host.setAttribute("aria-hidden", "true");
     host.innerHTML = buildExportInnerHtml(note, theme);
     document.body.appendChild(host);
     try {
       return fn(host);
     } finally {
-      document.body.removeChild(host);
+      try {
+        if (host.parentNode) host.parentNode.removeChild(host);
+      } catch (e) {
+        /* ignore */
+      }
     }
   }
 
@@ -280,7 +311,7 @@
     return theme === "dark" ? "#0b1220" : "#ffffff";
   }
 
-  function renderExportCanvas(note, theme) {
+  function renderExportCanvasSvg(note, theme) {
     theme = theme || getNoteExportTheme();
     return new Promise(function (resolve, reject) {
       var innerHtml = buildExportInnerHtml(note, theme);
@@ -337,6 +368,66 @@
     });
   }
 
+  function renderExportCanvasHtml2Canvas(note, theme) {
+    theme = theme || getNoteExportTheme();
+    var h2c = getHtml2Canvas();
+    if (!h2c) return Promise.reject(new Error("html2canvas missing"));
+
+    var host = document.createElement("div");
+    host.className = "export-template";
+    host.setAttribute("aria-hidden", "true");
+    host.innerHTML = buildExportInnerHtml(note, theme);
+    document.body.appendChild(host);
+
+    function removeHost() {
+      try {
+        if (host.parentNode) host.parentNode.removeChild(host);
+      } catch (e) {
+        /* ignore */
+      }
+    }
+
+    var target = host.querySelector(".note-export-sheet") || host;
+
+    return new Promise(function (resolve, reject) {
+      requestAnimationFrame(function () {
+        h2c(target, {
+          scale: Math.min(2, Math.max(1, typeof window.devicePixelRatio === "number" ? window.devicePixelRatio : 1)),
+          useCORS: true,
+          allowTaint: false,
+          logging: false,
+          backgroundColor: canvasPageBackground(theme) || null,
+          width: Math.max(794, Math.ceil(target.scrollWidth || 794)),
+          windowWidth: 794,
+          scrollX: 0,
+          scrollY: 0
+        })
+          .then(function (canvas) {
+            removeHost();
+            if (!canvas || !canvas.width) {
+              reject(new Error("empty canvas"));
+              return;
+            }
+            resolve(canvas);
+          })
+          .catch(function (err) {
+            removeHost();
+            reject(err || new Error("html2canvas failed"));
+          });
+      });
+    });
+  }
+
+  function renderExportCanvas(note, theme) {
+    theme = theme || getNoteExportTheme();
+    if (getHtml2Canvas()) {
+      return renderExportCanvasHtml2Canvas(note, theme).catch(function () {
+        return renderExportCanvasSvg(note, theme);
+      });
+    }
+    return renderExportCanvasSvg(note, theme);
+  }
+
   function getNotePlainBody(note) {
     if (
       typeof window !== "undefined" &&
@@ -358,13 +449,9 @@
 
   function exportNotePdf(note) {
     return (async function () {
-    var JsPDF =
-      (typeof window !== "undefined" && window.jspdf && window.jspdf.jsPDF) ||
-      (typeof window !== "undefined" && window.jsPDF);
+    var JsPDF = getJsPdfConstructor();
     if (!JsPDF) {
-      if (typeof showToast === "function") {
-        showToast(typeof t === "function" ? t("noteExportPdfUnavailable") : "PDF unavailable");
-      }
+      toastExportToolsLoading();
       return false;
     }
     var theme = getNoteExportTheme();
@@ -401,9 +488,7 @@
     doc.save(sanitizeExportBasename(note) + ".pdf");
     return true;
     })().catch(function () {
-      if (typeof showToast === "function") {
-        showToast(typeof t === "function" ? t("noteExportPdfUnavailable") : "PDF unavailable");
-      }
+      toastExportPdfFailed();
       return false;
     });
   }
@@ -420,9 +505,7 @@
         return true;
       })
       .catch(function () {
-        if (typeof showToast === "function") {
-          showToast(typeof t === "function" ? t("noteExportJpgUnavailable") : "JPG unavailable");
-        }
+        toastExportJpgFailed();
         return false;
       });
   }

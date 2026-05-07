@@ -54,6 +54,34 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
+/** Incoming web push (reminders when app/PWA is closed). */
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = {};
+  }
+  const title = typeof data.title === "string" && data.title ? data.title : "Reminder";
+  const body = typeof data.body === "string" ? data.body : "";
+  const reminderId = data.reminderId != null ? String(data.reminderId) : "";
+  const url = typeof data.url === "string" && data.url ? data.url : self.registration.scope + "#home";
+  const icon = typeof data.icon === "string" && data.icon ? data.icon : "/icons/icon-192.png";
+  const badge = typeof data.badge === "string" && data.badge ? data.badge : icon;
+  const tag = reminderId ? `reminder-${reminderId}` : "reminder";
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: body || "You have a scheduled reminder.",
+      icon,
+      badge,
+      tag,
+      renotify: true,
+      data: { reminderId: reminderId || undefined, url }
+    })
+  );
+});
+
 /** Focus an open client or open the start URL; never use window.open from the page for notifications. */
 self.addEventListener("notificationclick", (event) => {
   const n = event.notification;

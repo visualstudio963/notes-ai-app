@@ -283,9 +283,12 @@ function createRemindersRouter({ User, Reminder, authMiddleware, aiMemoryService
       const reminder = await Reminder.findOneAndUpdate(
         { _id: req.params.id, userId: req.userId },
         {
-          sent: true,
-          sentAt: new Date(),
-          status: "sent"
+          $set: {
+            sent: true,
+            sentAt: new Date(),
+            status: "sent"
+          },
+          $unset: { webPushLockUntil: 1 }
         },
         { new: true }
       );

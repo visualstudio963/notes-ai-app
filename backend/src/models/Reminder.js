@@ -15,11 +15,14 @@ const reminderSchema = new mongoose.Schema(
     action: { type: String, enum: ["reminder", "whatsapp"], default: "reminder" },
     sent: { type: Boolean, default: false },
     sentAt: { type: Date },
-    status: { type: String, enum: ["pending", "sent", "failed"], default: "pending" }
+    status: { type: String, enum: ["pending", "sent", "failed"], default: "pending" },
+    /** Short-lived lock so overlapping web-push sweeps do not send duplicates */
+    webPushLockUntil: { type: Date, default: null }
   },
   { timestamps: true }
 );
 
 reminderSchema.index({ time: 1, sent: 1, status: 1 });
+reminderSchema.index({ notificationType: 1, sent: 1, status: 1, time: 1 });
 
 module.exports = mongoose.model("Reminder", reminderSchema);

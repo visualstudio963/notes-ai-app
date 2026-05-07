@@ -112,6 +112,16 @@ if (googleClientId && googleClientSecret && !googleCallbackUrlEnv && !googleRedi
   );
 }
 
+const vapidPublicKey = process.env.VAPID_PUBLIC_KEY ? String(process.env.VAPID_PUBLIC_KEY).trim() : "";
+const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY ? String(process.env.VAPID_PRIVATE_KEY).trim() : "";
+const vapidSubject = process.env.VAPID_SUBJECT ? String(process.env.VAPID_SUBJECT).trim() : "";
+
+if (!vapidPublicKey || !vapidPrivateKey || !vapidSubject) {
+  console.warn(
+    "[config] VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT not fully set — web push (reminders when app is closed) is disabled."
+  );
+}
+
 module.exports = {
   port,
   mongoUri,
@@ -135,5 +145,8 @@ module.exports = {
   googleRedirectUri,
   /** Same as googleRedirectUri — explicit name for Passport callbackURL */
   googleCallbackUrl: googleRedirectUri,
-  sessionSecret
+  sessionSecret,
+  vapidPublicKey: vapidPublicKey || null,
+  vapidPrivateKey: vapidPrivateKey || null,
+  vapidSubject: vapidSubject || null
 };

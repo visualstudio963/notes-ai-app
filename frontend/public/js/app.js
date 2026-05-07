@@ -178,7 +178,10 @@ async function maybePromptReminderNotificationPermission() {
     showToast(t("notificationsNotSupported"));
     return false;
   }
-  if (Notification.permission === "granted") return true;
+  if (Notification.permission === "granted") {
+    void registerWebPushSubscription();
+    return true;
+  }
   if (Notification.permission === "denied") {
     showToast(t("reminderNotifyEnableInBrowser"));
     return false;
@@ -186,7 +189,10 @@ async function maybePromptReminderNotificationPermission() {
   try {
     const p = await Notification.requestPermission();
     if (p === "denied") showToast(t("reminderNotifyEnableInBrowser"));
-    else if (p === "granted") showToast(t("notificationsEnabledToast"));
+    else if (p === "granted") {
+      showToast(t("notificationsEnabledToast"));
+      void registerWebPushSubscription();
+    }
     return p === "granted";
   } catch {
     return false;
@@ -221,6 +227,70 @@ function initServiceWorkerNotificationRouting() {
       }
     });
   });
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const s = String(base64String || "").trim();
+  const padding = "=".repeat((4 - (s.length % 4)) % 4);
+  const base64 = (s + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i += 1) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
+async function registerWebPushSubscription() {
+  if (isNativeLocalNotificationsAvailable()) return false;
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
+  if (!("Notification" in window) || Notification.permission !== "granted") return false;
+  if (!currentUser || !accessToken) return false;
+  if (!webReminderNotificationsAppEnabled()) return false;
+  try {
+    const data = await apiFetch("/api/push/public-key");
+    const pubB64 = data && data.publicKey;
+    if (!pubB64) return false;
+
+    const reg = await navigator.serviceWorker.ready;
+    const applicationServerKey = urlBase64ToUint8Array(pubB64);
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey
+      });
+    }
+    await apiFetch("/api/push/subscribe", {
+      method: "POST",
+      body: JSON.stringify({ subscription: sub.toJSON() })
+    });
+    void updateSettingsNotificationStatus();
+    return true;
+  } catch (err) {
+    console.warn("[web-push] register failed", err && err.message ? err.message : err);
+    void updateSettingsNotificationStatus();
+    return false;
+  }
+}
+
+async function unregisterWebPushSubscriptionFromServerAndBrowser() {
+  if (isNativeLocalNotificationsAvailable()) return;
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) return;
+    const json = sub.toJSON();
+    if (currentUser && accessToken && json && json.endpoint) {
+      await apiFetch("/api/push/unsubscribe", {
+        method: "DELETE",
+        body: JSON.stringify({ endpoint: json.endpoint })
+      }).catch(() => {});
+    }
+    await sub.unsubscribe().catch(() => {});
+  } catch {
+    /* ignore */
+  }
+  void updateSettingsNotificationStatus();
 }
 
 function webReminderNotificationsAppEnabled() {
@@ -4343,6 +4413,14 @@ async function presentPendingPostOAuthLandingIfAny() {
   pendingPostOAuthPresentation = false;
   await loadUserSettings();
   startWebNotificationScheduler();
+  if (
+    !isNativeLocalNotificationsAvailable() &&
+    "Notification" in window &&
+    Notification.permission === "granted" &&
+    webReminderNotificationsAppEnabled()
+  ) {
+    void registerWebPushSubscription();
+  }
   syncMobileHeaderActionUi();
   presentPostGoogleOAuthChrome(currentUser);
 }
@@ -4959,7 +5037,9 @@ function scanCamDownloadPdf() {
     (typeof window !== "undefined" && window.jspdf && window.jspdf.jsPDF) ||
     (typeof window !== "undefined" && window.jsPDF);
   if (!Ctor) {
-    showToast("PDF library unavailable.");
+    showToast(
+      typeof t === "function" ? t("noteExportToolsLoading") : "Export tools are still loading. Try again in a few seconds."
+    );
     return;
   }
   const doc = new Ctor({ unit: "pt", format: "a4" });
@@ -6706,6 +6786,7 @@ function requestNotificationPermission() {
           .then((data) => syncReminderLocalNotifications((data && data.reminders) || []))
           .catch(() => {});
       }
+      void registerWebPushSubscription();
     } else {
       showToast(t("notificationsDenied"));
     }
@@ -8623,6 +8704,35 @@ async function updateSettingsNotificationStatus() {
 
   const wrap = document.getElementById("settingsNotifSection");
   if (wrap) wrap.classList.toggle("settings-notif-card--paused", perm === "granted" && !appOn);
+
+  const pushLine = document.getElementById("settingsWebPushDeliveryLine");
+  if (pushLine) {
+    if (isNativeLocalNotificationsAvailable()) {
+      pushLine.textContent = "";
+      pushLine.classList.add("hidden");
+    } else if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      pushLine.textContent = t("settingsPushBackgroundUnsupported");
+      pushLine.classList.remove("hidden");
+    } else if (!("Notification" in window)) {
+      pushLine.textContent = t("settingsPushBackgroundUnsupported");
+      pushLine.classList.remove("hidden");
+    } else if (perm === "denied") {
+      pushLine.textContent = t("settingsPushBackgroundBlocked");
+      pushLine.classList.remove("hidden");
+    } else if (perm === "granted" && appOn) {
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        pushLine.textContent = sub ? t("settingsPushBackgroundActive") : t("settingsPushBackgroundPending");
+      } catch {
+        pushLine.textContent = t("settingsPushBackgroundPending");
+      }
+      pushLine.classList.remove("hidden");
+    } else {
+      pushLine.textContent = t("settingsPushBackgroundPending");
+      pushLine.classList.remove("hidden");
+    }
+  }
 }
 
 async function settingsNotificationsToggleChanged(checked) {
@@ -8693,12 +8803,14 @@ async function settingsNotificationsToggleChanged(checked) {
         .catch(() => {});
     }
     startWebNotificationScheduler();
+    void registerWebPushSubscription();
   } else if (Notification.permission === "granted") {
     if (!window.confirm(t("settingsNotificationsDisableConfirm"))) {
       revertToggle();
       return;
     }
     setWebReminderNotificationsAppEnabled(false);
+    void unregisterWebPushSubscriptionFromServerAndBrowser();
     showToast(t("settingsNotificationsDisabledToast"));
     void syncPlannerLocalNotifications();
     if (currentUser && accessToken) {
@@ -8930,6 +9042,14 @@ window.addEventListener("DOMContentLoaded", async () => {
   } else if (isAuthSessionReady()) {
     await loadUserSettings();
     startWebNotificationScheduler();
+    if (
+      !isNativeLocalNotificationsAvailable() &&
+      "Notification" in window &&
+      Notification.permission === "granted" &&
+      webReminderNotificationsAppEnabled()
+    ) {
+      void registerWebPushSubscription();
+    }
     goHome();
     if (typeof scheduleOnboardingTutorialAfterAuth === "function") scheduleOnboardingTutorialAfterAuth();
   }

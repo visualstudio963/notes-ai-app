@@ -80,7 +80,18 @@ const userSchema = new mongoose.Schema(
     inviteFriendMonthYm: { type: String, default: "" },
     inviteFriendMonthCount: { type: Number, default: 0 },
     /** False = show first-time onboarding; missing on legacy users is treated as “seen” in serializers */
-    hasSeenTutorial: { type: Boolean, default: false }
+    hasSeenTutorial: { type: Boolean, default: false },
+    /** Web Push subscriptions (one row per browser/device) for closed-app reminder delivery */
+    pushSubscriptions: [
+      {
+        endpoint: { type: String, required: true },
+        keys: {
+          p256dh: { type: String, required: true },
+          auth: { type: String, required: true }
+        },
+        createdAt: { type: Date, default: Date.now }
+      }
+    ]
   },
   { timestamps: true }
 );

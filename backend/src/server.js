@@ -21,6 +21,7 @@ const { createApiRouter } = require("./routes");
 const { createIssueSessionTokens, createPasswordLoginHandler } = require("./routes/auth.routes");
 const { configurePassport, passport } = require("./config/passport");
 const session = require("express-session");
+const MongoStore = require("connect-mongo");
 const { createStripeWebhookHandler } = require("./features/premium/stripeWebhook");
 const { createReminderChecker } = require("./jobs/reminderScheduler");
 const { createPurgePastReminders } = require("./jobs/purgePastReminders");
@@ -158,6 +159,11 @@ const sessionCookieSecure = process.env.NODE_ENV === "production";
 app.use(
   session({
     secret: config.sessionSecret,
+    store: MongoStore.create({
+      mongoUrl: process.env.MONGO_URI || config.mongoUri,
+      collectionName: "sessions",
+      ttl: 14 * 24 * 60 * 60
+    }),
     resave: false,
     saveUninitialized: false,
     name: "notes.sid",
@@ -165,7 +171,7 @@ app.use(
       httpOnly: true,
       secure: sessionCookieSecure,
       sameSite: sessionCookieSecure ? "none" : "lax",
-      maxAge: 24 * 60 * 60 * 1000
+      maxAge: 14 * 24 * 60 * 60 * 1000
     }
   })
 );

@@ -1962,30 +1962,51 @@
     📅
   </button>
 
-  <div class="modal hidden" id="dailyPlannerModal" role="dialog" aria-modal="true" aria-labelledby="dailyPlannerTitle" onclick="closeDailyPlannerModal()">
+  <div class="modal hidden daily-planner-modal-overlay" id="dailyPlannerModal" role="dialog" aria-modal="true" aria-labelledby="dailyPlannerTitle" onclick="closeDailyPlannerModal()">
     <div class="modal-content daily-planner-modal" onclick="event.stopPropagation();">
       <div class="modal-header daily-planner-modal__header">
-        <h2 id="dailyPlannerTitle" data-t="dailyPlannerTitle">Planifikim ditor</h2>
+        <div class="daily-planner-modal__title-block">
+          <div class="daily-planner-modal__icon-badge" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8 5.75V4.25M16 5.75V4.25M4.25 9.5h15.5M6 21.75h12a2 2 0 002-2V7.5a2 2 0 00-2-2H6a2 2 0 00-2 2v12.25a2 2 0 002 2z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="daily-planner-modal__titles">
+            <h2 id="dailyPlannerTitle" data-t="dailyPlannerTitle">Planifikim ditor</h2>
+            <p class="daily-planner-modal__tagline" data-t="dailyPlannerTagline">Organizo ditën tënde, një hap në kohë ✨</p>
+          </div>
+        </div>
         <button class="close-button daily-planner-close" type="button" onclick="closeDailyPlannerModal(); event.stopPropagation();" aria-label="Close modal">✕</button>
       </div>
       <div class="daily-planner-modal__composer">
         <label class="sr-only" for="dailyPlannerTaskInput" data-t="dailyPlannerTaskLabel">Çfarë do bësh sot?</label>
-        <input
-          id="dailyPlannerTaskInput"
-          type="text"
-          maxlength="140"
-          data-t-placeholder="dailyPlannerTaskPlaceholder"
-          placeholder="Çfarë do bësh sot?"
-          autocomplete="off"
-        />
-        <label class="sr-only" for="dailyPlannerTimeInput" data-t="dailyPlannerTimeLabel">Ora (opsionale)</label>
-        <input id="dailyPlannerTimeInput" type="time" aria-label="Time" />
-        <button id="dailyPlannerAddBtn" class="save-button daily-planner-add-btn" type="button" onclick="dailyPlannerAddTask()" data-t="dailyPlannerAddBtn">
-          + shto plan të ri
-        </button>
+        <div class="daily-planner-field daily-planner-field--task">
+          <span class="daily-planner-field__sparkle" aria-hidden="true">✦</span>
+          <input
+            id="dailyPlannerTaskInput"
+            type="text"
+            maxlength="140"
+            data-t-placeholder="dailyPlannerTaskPlaceholder"
+            placeholder="Çfarë do bësh sot?"
+            autocomplete="off"
+          />
+        </div>
+        <div class="daily-planner-modal__composer-row">
+          <div class="daily-planner-field daily-planner-field--time">
+            <span class="daily-planner-field__clock" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.25" stroke="currentColor" stroke-width="1.5"/><path d="M12 8.25V12l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <label class="sr-only" for="dailyPlannerTimeInput" data-t="dailyPlannerTimeLabel">Ora (opsionale)</label>
+            <input id="dailyPlannerTimeInput" type="time" aria-label="Time" />
+          </div>
+          <button id="dailyPlannerAddBtn" class="save-button daily-planner-add-btn" type="button" onclick="dailyPlannerAddTask()" data-t="dailyPlannerAddBtn">
+            + Shto plan
+          </button>
+        </div>
       </div>
       <div id="dailyPlannerProgress" class="daily-planner-progress" aria-live="polite"></div>
       <div id="dailyPlannerList" class="daily-planner-list" aria-live="polite"></div>
+      <div class="daily-planner-modal__foot-deco" aria-hidden="true"><span class="daily-planner-modal__foot-line"></span><span class="daily-planner-modal__foot-star">✦</span><span class="daily-planner-modal__foot-line"></span></div>
     </div>
   </div>
 

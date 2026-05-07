@@ -25,6 +25,8 @@
     if (!data || typeof data !== "object") return;
     const prev = discordConfigCache;
     const own = Object.prototype.hasOwnProperty;
+    const supportEmailFieldEl = document.getElementById("adminSupportEmail");
+    const supportEmailTypedFallback = supportEmailFieldEl ? String(supportEmailFieldEl.value || "").trim() : "";
     discordConfigCache = {
       discordInviteUrl: own.call(data, "discordInviteUrl")
         ? String(data.discordInviteUrl != null ? data.discordInviteUrl : "").trim()
@@ -40,7 +42,7 @@
         : String(prev.youtubeUrl || "").trim(),
       supportEmail: own.call(data, "supportEmail")
         ? String(data.supportEmail != null ? data.supportEmail : "").trim()
-        : String(prev.supportEmail || "").trim()
+        : supportEmailTypedFallback || String(prev.supportEmail || "").trim()
     };
     const urlInput = document.getElementById("adminDiscordInviteUrl");
     if (urlInput) urlInput.value = discordConfigCache.discordInviteUrl;

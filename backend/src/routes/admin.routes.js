@@ -895,7 +895,8 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
       const discordUpdatesCount = Number.isFinite(Number(updatesCountRaw))
         ? Math.max(0, Math.floor(Number(updatesCountRaw)))
         : 0;
-      await AppConfig.findOneAndUpdate(
+      /** Single upsert + `new: true` so the response always includes `supportEmail` (and other fields) from the written doc. */
+      const fresh = await AppConfig.findOneAndUpdate(
         { key: "main" },
         {
           $set: {
@@ -907,14 +908,8 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
             supportEmail: rawSupport
           }
         },
-        { upsert: true, new: false }
-      );
-      /** Read-after-write mirrors DB exactly (Discord + TikTok + YouTube). */
-      const fresh =
-        (await AppConfig.findOne({ key: "main" })
-          .select("discordInviteUrl discordUpdatesCount tiktokUrl youtubeUrl supportEmail")
-          .lean()) ||
-        null;
+        { upsert: true, new: true, setDefaultsOnInsert: true, lean: true }
+      ).exec();
       return res.json({
         success: true,
         discordInviteUrl: fresh && fresh.discordInviteUrl ? String(fresh.discordInviteUrl) : "",

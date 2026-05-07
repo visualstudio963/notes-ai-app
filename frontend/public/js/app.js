@@ -861,10 +861,13 @@ function renderDailyPlannerList() {
   const doneCount = tasks.filter((x) => x.done).length;
   const total = tasks.length;
   if (progress) {
+    const pct = total ? Math.round((doneCount / total) * 100) : 0;
     const label = t("dailyPlannerProgressLabel")
       .replace("{done}", String(doneCount))
       .replace("{total}", String(total));
-    progress.innerHTML = `<div class="daily-planner-progress__line"><span>${escapeHtml(label)}</span></div><div class="daily-planner-progress__track"><span style="width:${total ? Math.round((doneCount / total) * 100) : 0}%"></span></div>`;
+    progress.innerHTML = `<div class="daily-planner-progress__line"><span class="daily-planner-progress__label">${escapeHtml(
+      label
+    )}</span><span class="daily-planner-progress__pct">${pct}%</span></div><div class="daily-planner-progress__track"><span class="daily-planner-progress__fill" style="width:${pct}%"></span></div>`;
   }
   if (!tasks.length) {
     list.innerHTML = `<p class="daily-planner-empty" data-t="dailyPlannerEmpty">${escapeHtml(
@@ -885,6 +888,9 @@ function renderDailyPlannerList() {
             task.notificationEnabled ? " is-on" : ""
           }" onclick="dailyPlannerToggleNotification('${escapeHtmlAttr(task.id)}', this)" aria-label="Toggle reminder bell">🔔</button>`
         : "";
+      const kebabHtml = `<button type="button" class="daily-planner-item__kebab" onclick="dailyPlannerToggleTask('${escapeHtmlAttr(
+        task.id
+      )}')" aria-label="Toggle task"><span class="daily-planner-item__kebab-dot" aria-hidden="true"></span><span class="daily-planner-item__kebab-dot" aria-hidden="true"></span><span class="daily-planner-item__kebab-dot" aria-hidden="true"></span></button>`;
       const justAdded = task.id === dailyPlannerLastAddedTaskId ? " daily-planner-item--new" : "";
       return `<div class="daily-planner-item${doneClass}${justAdded}" data-daily-task-id="${escapeHtmlAttr(task.id)}">
         <button type="button" class="daily-planner-item__toggle" onclick="dailyPlannerToggleTask('${escapeHtmlAttr(
@@ -895,7 +901,7 @@ function renderDailyPlannerList() {
           ${timeHtml}
         </div>
         <div class="daily-planner-item__meta">
-          ${bellHtml}
+          ${bellHtml}${kebabHtml}
         </div>
       </div>`;
     })
@@ -910,6 +916,9 @@ function renderDailyPlannerList() {
             task.notificationEnabled ? " is-on" : ""
           }" onclick="dailyPlannerToggleNotification('${escapeHtmlAttr(task.id)}', this)" aria-label="Toggle reminder bell">🔔</button>`
         : "";
+      const kebabHtml = `<button type="button" class="daily-planner-item__kebab" onclick="dailyPlannerToggleTask('${escapeHtmlAttr(
+        task.id
+      )}')" aria-label="Toggle task"><span class="daily-planner-item__kebab-dot" aria-hidden="true"></span><span class="daily-planner-item__kebab-dot" aria-hidden="true"></span><span class="daily-planner-item__kebab-dot" aria-hidden="true"></span></button>`;
       const moved = task.id === dailyPlannerMovedTaskId ? " daily-planner-item--moved" : "";
       return `<div class="daily-planner-item${doneClass}${moved}" data-daily-task-id="${escapeHtmlAttr(task.id)}">
         <button type="button" class="daily-planner-item__toggle" onclick="dailyPlannerToggleTask('${escapeHtmlAttr(
@@ -920,18 +929,18 @@ function renderDailyPlannerList() {
           ${timeHtml}
         </div>
         <div class="daily-planner-item__meta">
-          ${bellHtml}
+          ${bellHtml}${kebabHtml}
         </div>
       </div>`;
     })
     .join("");
-  list.innerHTML = `<section class="daily-planner-group">
-    <div class="daily-planner-group__head"><h3>Për t'u bërë</h3><span>${todo.length}</span></div>
+  list.innerHTML = `<section class="daily-planner-group daily-planner-group--pending">
+    <div class="daily-planner-group__head daily-planner-group__head--pending"><h3>Për t'u bërë</h3><span class="daily-planner-group__count">${todo.length}</span></div>
     <div class="daily-planner-group__body">${todoHtml || `<p class="daily-planner-empty">${escapeHtml(t("dailyPlannerEmpty"))}</p>`}</div>
   </section>
   <section class="daily-planner-group daily-planner-group--completed">
-    <button type="button" class="daily-planner-group__head daily-planner-group__toggle" onclick="toggleDailyPlannerCompleted()">
-      <h3>Të përfunduara</h3><span>${completed.length} ${dailyPlannerCompletedOpen ? "▾" : "▸"}</span>
+    <button type="button" class="daily-planner-group__head daily-planner-group__head--completed daily-planner-group__toggle" onclick="toggleDailyPlannerCompleted()">
+      <h3>Të përfunduara</h3><span class="daily-planner-group__count">${completed.length}<span class="daily-planner-group__chev" aria-hidden="true">${dailyPlannerCompletedOpen ? "▾" : "▸"}</span></span>
     </button>
     <div class="daily-planner-group__body${dailyPlannerCompletedOpen ? "" : " hidden"}">${completedHtml || ""}</div>
   </section>`;
@@ -983,6 +992,7 @@ function openDailyPlannerModal() {
   modal.classList.remove("hidden");
   document.body.classList.add("modal-open");
   renderDailyPlannerList();
+  if (typeof applyTranslations === "function") applyTranslations();
   const input = document.getElementById("dailyPlannerTaskInput");
   if (input) input.focus();
 }

@@ -175,7 +175,7 @@
           <h2 id="admin-analytics-overview-h" class="admin-section-title">Analytics overview</h2>
           <div class="admin-analytics-overview-grid">
             <div class="admin-card admin-chart-card">
-              <h3 class="admin-chart-card-title">Free vs Pro</h3>
+              <h3 class="admin-chart-card-title">Plans · Free / Standard / Pro</h3>
               <div id="adminDonutUsers" class="admin-chart-slot"></div>
             </div>
             <div class="admin-card admin-chart-card">
@@ -403,7 +403,7 @@
           <div class="admin-page-head-text">
             <p class="admin-eyebrow">System</p>
             <h1>Settings</h1>
-            <p class="admin-lead">Community links (Discord, TikTok, YouTube), contact inbox, and integrations. Support, Moderators, and Admins can save these URLs.</p>
+            <p class="admin-lead">Community links (Discord, TikTok, YouTube), support email (opens user mail app), contact inbox, and integrations. Support, Moderators, and Admins can save these.</p>
           </div>
         </header>
 
@@ -422,6 +422,16 @@
               <input id="adminTiktokUrl" class="admin-discord-input" type="text" inputmode="url" placeholder="https://www.tiktok.com/@..." autocomplete="off" spellcheck="false" />
               <label for="adminYoutubeUrl">YouTube channel or video URL</label>
               <input id="adminYoutubeUrl" class="admin-discord-input" type="text" inputmode="url" placeholder="https://www.youtube.com/..." autocomplete="off" spellcheck="false" />
+              <label for="adminSupportEmail">Support email (Gmail or any address — users tap icon to write you)</label>
+              <input
+                id="adminSupportEmail"
+                class="admin-discord-input"
+                type="email"
+                inputmode="email"
+                placeholder="you@gmail.com"
+                autocomplete="off"
+                spellcheck="false"
+              />
               <div class="admin-discord-actions">
                 <button type="button" class="admin-btn" data-act="save-discord-config">Save community links</button>
               </div>

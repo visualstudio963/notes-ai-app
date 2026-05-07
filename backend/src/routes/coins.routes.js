@@ -9,6 +9,7 @@ const {
   ensureReferralCode,
   finalizeInviteBonus
 } = require("../features/coins/coinService");
+const { syncExpiredPremiumDocument } = require("../features/premium/subscriptionService");
 
 async function finalizePendingInviteRewards(User, userId) {
   let doc = await User.findById(userId);
@@ -23,6 +24,7 @@ function createCoinsRouter({ User, authMiddleware }) {
 
   router.get("/coins/status", authMiddleware, async (req, res) => {
     try {
+      await syncExpiredPremiumDocument(User, req.userId);
       let user = await User.findById(req.userId);
       if (!user) {
         return res.status(404).json({ error: "User not found" });
@@ -92,7 +94,15 @@ function createCoinsRouter({ User, authMiddleware }) {
       const fresh = await User.findById(req.userId).lean();
       res.json({ ok: true, coins: buildCoinsStatusPayload(fresh) });
     } catch (err) {
-      const status = err && err.statusCode === 404 ? 404 : 400;
+      const code = err && err.code ? String(err.code) : "";
+      const status =
+        err && err.statusCode === 404
+          ? 404
+          : err && err.statusCode === 409
+            ? 409
+            : code === "COIN_STANDARD_ACTIVE"
+              ? 409
+              : 400;
       res.status(status).json({ error: err && err.message ? err.message : "Redeem failed." });
     }
   });

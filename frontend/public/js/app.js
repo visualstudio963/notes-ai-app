@@ -124,6 +124,7 @@ let discordCommunityUrl = "";
 let discordUpdatesCount = 0;
 let tiktokCommunityUrl = "";
 let youtubeCommunityUrl = "";
+let supportContactEmail = "";
 let stripePublishableKey = "";
 /** Set from GET /api/public/app-config (GOOGLE_CLIENT_ID). Used by Sign in with Google. */
 let googleOAuthClientId = "";
@@ -4092,7 +4093,13 @@ async function coinsHubRedeemStandard() {
     await apiFetch("/api/coins/redeem-standard", { method: "POST", body: JSON.stringify({}) });
     showToast(typeof t === "function" ? t("coinsRedeemSuccess") : "Standard unlocked with coins.");
   } catch (e) {
-    showToast(e && e.message ? e.message : typeof t === "function" ? t("coinsActionFailed") : "Action failed.");
+    if (e && e.status === 409) {
+      showToast(
+        typeof t === "function" ? t("coinsRedeemAlreadyActive") : e.message || "Already active."
+      );
+    } else {
+      showToast(e && e.message ? e.message : typeof t === "function" ? t("coinsActionFailed") : "Action failed.");
+    }
     return;
   }
   await refreshCoinsHubUi();
@@ -4393,11 +4400,52 @@ function syncCommunitySocialLink(sidebarId, homeId, url, rowVisible) {
   return active;
 }
 
+function normalizeSupportEmailForMailto(raw) {
+  const s = String(raw || "").trim().replace(/^mailto:/i, "").trim();
+  if (!s) return "";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) return "";
+  return "mailto:" + s;
+}
+
+function syncCommunityMailtoLink(sidebarId, homeId, emailRaw, rowVisible) {
+  const href = normalizeSupportEmailForMailto(emailRaw);
+  const active = Boolean(href);
+  for (const id of [sidebarId, homeId]) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    if (!rowVisible) {
+      el.classList.add("hidden");
+      el.removeAttribute("href");
+      el.removeAttribute("target");
+      el.classList.remove("social-community-link--inactive");
+      el.removeAttribute("aria-disabled");
+      el.removeAttribute("tabindex");
+      continue;
+    }
+    el.classList.remove("hidden");
+    if (active) {
+      el.setAttribute("href", href);
+      el.removeAttribute("target");
+      el.classList.remove("social-community-link--inactive");
+      el.removeAttribute("aria-disabled");
+      el.removeAttribute("tabindex");
+    } else {
+      el.removeAttribute("href");
+      el.removeAttribute("target");
+      el.classList.add("social-community-link--inactive");
+      el.setAttribute("aria-disabled", "true");
+      el.setAttribute("tabindex", "-1");
+    }
+  }
+  return active;
+}
+
 function applyDiscordCommunityUi() {
   const hasAny =
     normalizeSocialInviteUrl(discordCommunityUrl) ||
     normalizeSocialInviteUrl(tiktokCommunityUrl) ||
-    normalizeSocialInviteUrl(youtubeCommunityUrl);
+    normalizeSocialInviteUrl(youtubeCommunityUrl) ||
+    Boolean(normalizeSupportEmailForMailto(supportContactEmail));
   const dOk = syncCommunitySocialLink(
     "sidebarSocialDiscord",
     "homeSocialDiscord",
@@ -4406,6 +4454,7 @@ function applyDiscordCommunityUi() {
   );
   syncCommunitySocialLink("sidebarSocialTiktok", "homeSocialTiktok", tiktokCommunityUrl, hasAny);
   syncCommunitySocialLink("sidebarSocialYoutube", "homeSocialYoutube", youtubeCommunityUrl, hasAny);
+  syncCommunityMailtoLink("sidebarSocialSupportEmail", "homeSocialSupportEmail", supportContactEmail, hasAny);
   const block = document.getElementById("sidebarSocialBlock");
   const card = document.getElementById("homeSocialCard");
   if (block) block.classList.toggle("hidden", !hasAny);
@@ -4420,9 +4469,11 @@ function applyDiscordCommunityUi() {
     ["sidebarSocialDiscord", "socialAriaDiscord"],
     ["sidebarSocialTiktok", "socialAriaTiktok"],
     ["sidebarSocialYoutube", "socialAriaYoutube"],
+    ["sidebarSocialSupportEmail", "socialAriaSupportEmail"],
     ["homeSocialDiscord", "socialAriaDiscord"],
     ["homeSocialTiktok", "socialAriaTiktok"],
-    ["homeSocialYoutube", "socialAriaYoutube"]
+    ["homeSocialYoutube", "socialAriaYoutube"],
+    ["homeSocialSupportEmail", "socialAriaSupportEmail"]
   ];
   if (typeof t === "function") {
     for (const [id, key] of ariaPairs) {
@@ -4460,6 +4511,7 @@ async function loadDiscordCommunityConfig() {
       discordUpdatesCount = Math.max(0, Number((data && data.discordUpdatesCount) || 0));
       tiktokCommunityUrl = String((data && data.tiktokUrl) || "").trim();
       youtubeCommunityUrl = String((data && data.youtubeUrl) || "").trim();
+      supportContactEmail = String((data && data.supportEmail) || "").trim();
       stripePublishableKey = String((data && data.stripePublishableKey) || "").trim();
       googleOAuthClientId = String((data && data.googleClientId) || "").trim();
     } catch {
@@ -4467,6 +4519,7 @@ async function loadDiscordCommunityConfig() {
       discordUpdatesCount = 0;
       tiktokCommunityUrl = "";
       youtubeCommunityUrl = "";
+      supportContactEmail = "";
       stripePublishableKey = "";
       googleOAuthClientId = "";
     } finally {

@@ -1,6 +1,6 @@
 const express = require("express");
 const stripe = require("stripe");
-const { getPremiumStatusPayload, getSubscriptionPlan, getUserPlan, grantPremium } = require("./subscriptionService");
+const { getPremiumStatusPayload, getSubscriptionPlan, getUserPlan, grantPremium, syncExpiredPremiumDocument } = require("./subscriptionService");
 
 function looksLikeEmail(s) {
   return typeof s === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
@@ -84,6 +84,7 @@ function createPremiumRouter({
 
   router.get("/premium/status", authMiddleware, async (req, res) => {
     try {
+      await syncExpiredPremiumDocument(User, req.userId);
       const user = await User.findById(req.userId).select(
         "isPremium premiumExpires premiumStartedAt createdAt billingCycle billingCustomerId stripeSubscriptionId plan subscriptionPlan membershipRole webChatOpenAiPeriod webChatOpenAiUsed coins trialEndsAt standardCoinExpiresAt referralCode"
       );

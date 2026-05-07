@@ -116,31 +116,40 @@ function boostStandardFromPromos(user, nowMs = Date.now()) {
  */
 
 function getUserPlan(user) {
-
-  let r = planRank(getStoredProductTier(user));
+  if (!user) return "free";
 
   const nowMs = Date.now();
 
   /** Only real boolean true counts — avoids truthy garbage from imports (e.g. string "false"). */
   const premiumBillingActive =
-    user &&
     user.isPremium === true &&
     (user.premiumExpires == null || new Date(user.premiumExpires).getTime() > nowMs);
 
+  const stored = getStoredProductTier(user);
+
+  /**
+   * Stored `plan` may still say "premium" after a time-limited comp expires; do not treat that as
+   * active premium unless {@link premiumBillingActive}. Stripe subscriptions use `isPremium` with
+   * `premiumExpires` null while active.
+   */
+  let r = planRank("free");
+  if (stored === "standard") {
+    r = planRank("standard");
+  } else if (stored === "free") {
+    r = planRank("free");
+  } else if (stored === "premium") {
+    r = premiumBillingActive ? planRank("premium") : planRank("free");
+  }
+
   if (premiumBillingActive) {
-
     r = Math.max(r, planRank("premium"));
-
   }
 
   if (boostStandardFromPromos(user, nowMs)) {
-
     r = Math.max(r, planRank("standard"));
-
   }
 
   return tierFromRank(r);
-
 }
 
 /**
@@ -609,6 +618,68 @@ async function applyProductPlan(User, userId, plan, options = {}) {
 
 
 
+/**
+
+ * Time-limited Premium (`premiumExpires` set) should roll the stored product tier back to Free
+
+ * once the window ends. Stripe/lifetime Premium keeps `premiumExpires` null — not touched here.
+
+ *
+
+ * @param {import("mongoose").Model} User
+
+ * @param {string} userId
+
+ * @returns {Promise<boolean>} true if a document was updated
+
+ */
+
+async function syncExpiredPremiumDocument(User, userId) {
+
+  if (!User || !userId) return false;
+
+  const now = new Date();
+
+  const r = await User.updateOne(
+
+    {
+
+      _id: userId,
+
+      isPremium: true,
+
+      premiumExpires: { $ne: null, $lte: now }
+
+    },
+
+    {
+
+      $set: {
+
+        isPremium: false,
+
+        plan: "free",
+
+        subscriptionPlan: "free",
+
+        membershipRole: "free",
+
+        premiumExpires: null,
+
+        premiumStartedAt: null
+
+      }
+
+    }
+
+  ).exec();
+
+  return Boolean(r && r.modifiedCount);
+
+}
+
+
+
 module.exports = {
 
   getUserPlan,
@@ -636,6 +707,8 @@ module.exports = {
   adminGrantPremiumMonths,
 
   adminGrantPremiumLifetime,
+
+  syncExpiredPremiumDocument,
 
   OPENAI_WEB_CHAT_MONTHLY_LIMIT,
 

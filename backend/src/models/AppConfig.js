@@ -6,7 +6,9 @@ const appConfigSchema = new mongoose.Schema(
     discordInviteUrl: { type: String, default: "" },
     discordUpdatesCount: { type: Number, default: 0 },
     tiktokUrl: { type: String, default: "" },
-    youtubeUrl: { type: String, default: "" }
+    youtubeUrl: { type: String, default: "" },
+    /** Support / contact email shown in app (mailto). Not a URL. */
+    supportEmail: { type: String, default: "" }
   },
   { timestamps: true }
 );

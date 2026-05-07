@@ -7,6 +7,14 @@ function sanitizeHttpUrl(raw) {
   return s;
 }
 
+function sanitizeSupportEmail(raw) {
+  let s = String(raw || "").trim().replace(/^mailto:/i, "").trim().toLowerCase();
+  if (!s) return "";
+  if (s.length > 320) return "";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) return "";
+  return s;
+}
+
 function createAppConfigRouter({ AppConfig, stripePublishableKey, googleClientId }) {
   const router = express.Router();
 
@@ -14,13 +22,14 @@ function createAppConfigRouter({ AppConfig, stripePublishableKey, googleClientId
     try {
       res.set("Cache-Control", "no-store, max-age=0");
       const doc = await AppConfig.findOne({ key: "main" })
-        .select("discordInviteUrl discordUpdatesCount tiktokUrl youtubeUrl")
+        .select("discordInviteUrl discordUpdatesCount tiktokUrl youtubeUrl supportEmail")
         .lean();
       return res.json({
         discordInviteUrl: sanitizeHttpUrl(doc && doc.discordInviteUrl),
         discordUpdatesCount: Math.max(0, Number((doc && doc.discordUpdatesCount) || 0)),
         tiktokUrl: sanitizeHttpUrl(doc && doc.tiktokUrl),
         youtubeUrl: sanitizeHttpUrl(doc && doc.youtubeUrl),
+        supportEmail: sanitizeSupportEmail(doc && doc.supportEmail),
         stripePublishableKey: stripePublishableKey || "",
         googleClientId: String(googleClientId || "").trim()
       });

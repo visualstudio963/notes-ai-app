@@ -140,16 +140,80 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
     });
   });
 
+  /** Standard-tier access: stored standard, active 7-day trial, or coins-unlocked standard — excludes premium bucket. */
+  function standardEffectiveUserQuery(now = new Date()) {
+    return {
+      $and: [
+        { $nor: [PREMIUM_USER_QUERY] },
+        {
+          $or: [
+            { plan: "standard" },
+            { subscriptionPlan: "standard" },
+            { membershipRole: "standard" },
+            { trialEndsAt: { $gt: now } },
+            { standardCoinExpiresAt: { $gt: now } }
+          ]
+        }
+      ]
+    };
+  }
+
+  /** Non-overlapping Standard buckets (priority: paid stored → coin unlock → trial). Excludes premium/pro bucket. */
+  function standardBreakdownQueries(now = new Date()) {
+    const notPremium = { $nor: [PREMIUM_USER_QUERY] };
+    const storedStandard = {
+      $or: [{ plan: "standard" }, { subscriptionPlan: "standard" }, { membershipRole: "standard" }]
+    };
+    const notStoredStandard = {
+      $and: [
+        { plan: { $ne: "standard" } },
+        { subscriptionPlan: { $ne: "standard" } },
+        { membershipRole: { $ne: "standard" } }
+      ]
+    };
+    return {
+      standardPaidUsers: { $and: [notPremium, storedStandard] },
+      standardCoinUsers: {
+        $and: [notPremium, notStoredStandard, { standardCoinExpiresAt: { $gt: now } }]
+      },
+      standardTrialUsers: {
+        $and: [
+          notPremium,
+          notStoredStandard,
+          { $nor: [{ standardCoinExpiresAt: { $gt: now } }] },
+          { trialEndsAt: { $gt: now } }
+        ]
+      }
+    };
+  }
+
   router.get("/stats", requireStaffMin(STAFF_RANK.SUPPORT), async (_req, res) => {
     try {
       const since = new Date(Date.now() - ACTIVE_WINDOW_MS);
-      const [totalUsers, totalNotes, totalReminders, premiumUsers, activeUsers] = await Promise.all([
+      const now = new Date();
+      const breakdownQ = standardBreakdownQueries(now);
+      const [
+        totalUsers,
+        totalNotes,
+        totalReminders,
+        premiumUsers,
+        standardUsers,
+        standardPaidUsers,
+        standardCoinUsers,
+        standardTrialUsers,
+        activeUsers
+      ] = await Promise.all([
         User.countDocuments(),
         Note.countDocuments(),
         Reminder.countDocuments(),
         User.countDocuments(PREMIUM_USER_QUERY),
+        User.countDocuments(standardEffectiveUserQuery(now)),
+        User.countDocuments(breakdownQ.standardPaidUsers),
+        User.countDocuments(breakdownQ.standardCoinUsers),
+        User.countDocuments(breakdownQ.standardTrialUsers),
         User.countDocuments({ lastActive: { $gte: since } })
       ]);
+      const freeUsers = Math.max(0, totalUsers - premiumUsers - standardUsers);
 
       res.json({
         totalUsers,
@@ -157,8 +221,15 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
         totalReminders,
         premiumUsers,
         proUsers: premiumUsers,
+        standardUsers,
+        freeUsers,
         activeUsers,
-        activeWithinMinutes: ACTIVE_WINDOW_MS / 60000
+        activeWithinMinutes: ACTIVE_WINDOW_MS / 60000,
+        standardBreakdown: {
+          paid: standardPaidUsers,
+          coin: standardCoinUsers,
+          trial: standardTrialUsers
+        }
       });
     } catch {
       res.status(500).json({ error: "Failed to load stats" });
@@ -175,11 +246,17 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
       const signupsRangeStart = new Date(startUtcDay);
       signupsRangeStart.setUTCDate(signupsRangeStart.getUTCDate() - 6);
 
+      const now = new Date();
+      const breakdownQ = standardBreakdownQueries(now);
       const [
         totalUsers,
         totalNotes,
         totalReminders,
         premiumUsers,
+        standardUsers,
+        standardPaidUsers,
+        standardCoinUsers,
+        standardTrialUsers,
         activeUsers,
         signupsLast7Days,
         remindersByStatus,
@@ -191,6 +268,10 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
         Note.countDocuments(),
         Reminder.countDocuments(),
         User.countDocuments(PREMIUM_USER_QUERY),
+        User.countDocuments(standardEffectiveUserQuery(now)),
+        User.countDocuments(breakdownQ.standardPaidUsers),
+        User.countDocuments(breakdownQ.standardCoinUsers),
+        User.countDocuments(breakdownQ.standardTrialUsers),
         User.countDocuments({ lastActive: { $gte: since } }),
         User.countDocuments({ createdAt: { $gte: sevenDaysAgo } }),
         Reminder.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }, { $sort: { count: -1 } }]).exec(),
@@ -207,16 +288,25 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
         Reminder.countDocuments({ sent: true })
       ]);
 
+      const freeUsers = Math.max(0, totalUsers - premiumUsers - standardUsers);
+
       const stats = {
         totalUsers,
         totalNotes,
         totalReminders,
         premiumUsers,
         proUsers: premiumUsers,
+        standardUsers,
+        freeUsers,
         activeUsers,
         activeUsersToday,
         activeWithinMinutes: ACTIVE_WINDOW_MS / 60000,
-        remindersSent: remindersSentAggregate
+        remindersSent: remindersSentAggregate,
+        standardBreakdown: {
+          paid: standardPaidUsers,
+          coin: standardCoinUsers,
+          trial: standardTrialUsers
+        }
       };
 
       const byDayMap = new Map((signupsByDayRows || []).map((row) => [row._id, row.count]));
@@ -756,13 +846,14 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
     try {
       res.set("Cache-Control", "no-store, max-age=0");
       const doc = await AppConfig.findOne({ key: "main" })
-        .select("discordInviteUrl discordUpdatesCount tiktokUrl youtubeUrl")
+        .select("discordInviteUrl discordUpdatesCount tiktokUrl youtubeUrl supportEmail")
         .lean();
       return res.json({
         discordInviteUrl: doc && doc.discordInviteUrl ? String(doc.discordInviteUrl) : "",
         discordUpdatesCount: Math.max(0, Number((doc && doc.discordUpdatesCount) || 0)),
         tiktokUrl: doc && doc.tiktokUrl ? String(doc.tiktokUrl) : "",
-        youtubeUrl: doc && doc.youtubeUrl ? String(doc.youtubeUrl) : ""
+        youtubeUrl: doc && doc.youtubeUrl ? String(doc.youtubeUrl) : "",
+        supportEmail: doc && doc.supportEmail ? String(doc.supportEmail).trim().toLowerCase() : ""
       });
     } catch {
       return res.status(500).json({ error: "Failed to load Discord config" });
@@ -780,6 +871,11 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
       const rawUrl = prependHttp(String(b.discordInviteUrl ?? "").trim());
       const rawTiktok = prependHttp(String((b.tiktokUrl ?? b.tikTokUrl ?? "") || "").trim());
       const rawYoutube = prependHttp(String((b.youtubeUrl ?? b.youtubeURL ?? "") || "").trim());
+      const rawSupport = String((b.supportEmail ?? b.contactEmail ?? "") || "")
+        .trim()
+        .replace(/^mailto:/i, "")
+        .trim()
+        .toLowerCase();
       const updatesCountRaw = b.discordUpdatesCount;
       if (rawUrl && !/^https?:\/\//i.test(rawUrl)) {
         return res.status(400).json({ error: "Discord URL must start with http:// or https://" });
@@ -789,6 +885,12 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
       }
       if (rawYoutube && !/^https?:\/\//i.test(rawYoutube)) {
         return res.status(400).json({ error: "YouTube URL must start with http:// or https://" });
+      }
+      if (rawSupport && rawSupport.length > 320) {
+        return res.status(400).json({ error: "Support email is too long" });
+      }
+      if (rawSupport && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawSupport)) {
+        return res.status(400).json({ error: "Support email must be a valid address (e.g. you@gmail.com)" });
       }
       const discordUpdatesCount = Number.isFinite(Number(updatesCountRaw))
         ? Math.max(0, Math.floor(Number(updatesCountRaw)))
@@ -801,21 +903,25 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
             discordInviteUrl: rawUrl,
             discordUpdatesCount,
             tiktokUrl: rawTiktok,
-            youtubeUrl: rawYoutube
+            youtubeUrl: rawYoutube,
+            supportEmail: rawSupport
           }
         },
         { upsert: true, new: false }
       );
       /** Read-after-write mirrors DB exactly (Discord + TikTok + YouTube). */
       const fresh =
-        (await AppConfig.findOne({ key: "main" }).select("discordInviteUrl discordUpdatesCount tiktokUrl youtubeUrl").lean()) ||
+        (await AppConfig.findOne({ key: "main" })
+          .select("discordInviteUrl discordUpdatesCount tiktokUrl youtubeUrl supportEmail")
+          .lean()) ||
         null;
       return res.json({
         success: true,
         discordInviteUrl: fresh && fresh.discordInviteUrl ? String(fresh.discordInviteUrl) : "",
         discordUpdatesCount: Math.max(0, Number((fresh && fresh.discordUpdatesCount) || 0)),
         tiktokUrl: fresh && fresh.tiktokUrl ? String(fresh.tiktokUrl) : "",
-        youtubeUrl: fresh && fresh.youtubeUrl ? String(fresh.youtubeUrl) : ""
+        youtubeUrl: fresh && fresh.youtubeUrl ? String(fresh.youtubeUrl) : "",
+        supportEmail: fresh && fresh.supportEmail ? String(fresh.supportEmail).trim().toLowerCase() : ""
       });
     } catch {
       return res.status(500).json({ error: "Failed to save Discord config" });

@@ -10,7 +10,8 @@
     discordInviteUrl: "",
     discordUpdatesCount: 0,
     tiktokUrl: "",
-    youtubeUrl: ""
+    youtubeUrl: "",
+    supportEmail: ""
   };
 
   function normalizeCommunityUrl(raw) {
@@ -36,7 +37,10 @@
         : String(prev.tiktokUrl || "").trim(),
       youtubeUrl: own.call(data, "youtubeUrl")
         ? String(data.youtubeUrl != null ? data.youtubeUrl : "").trim()
-        : String(prev.youtubeUrl || "").trim()
+        : String(prev.youtubeUrl || "").trim(),
+      supportEmail: own.call(data, "supportEmail")
+        ? String(data.supportEmail != null ? data.supportEmail : "").trim()
+        : String(prev.supportEmail || "").trim()
     };
     const urlInput = document.getElementById("adminDiscordInviteUrl");
     if (urlInput) urlInput.value = discordConfigCache.discordInviteUrl;
@@ -46,6 +50,8 @@
     if (tiktokInput) tiktokInput.value = discordConfigCache.tiktokUrl;
     const youtubeInput = document.getElementById("adminYoutubeUrl");
     if (youtubeInput) youtubeInput.value = discordConfigCache.youtubeUrl;
+    const supportEmailInput = document.getElementById("adminSupportEmail");
+    if (supportEmailInput) supportEmailInput.value = discordConfigCache.supportEmail;
   }
 
   /** @type {Map<string, object>} */
@@ -168,6 +174,25 @@
       return;
     }
     el.innerHTML = '<div class="admin-banner admin-banner--' + (kind || "info") + '">' + html + "</div>";
+  }
+
+  /** Scroll the alert strip into view (mobile users scroll past the top). */
+  function focusAdminAlert() {
+    const el = document.getElementById("adminAlert");
+    if (!el) return;
+    window.requestAnimationFrame(() => {
+      try {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      } catch {
+        el.scrollIntoView();
+      }
+    });
+  }
+
+  function dashboardRowId(v) {
+    if (v == null) return "";
+    if (typeof v === "object" && v !== null && typeof v.toString === "function") return String(v.toString());
+    return String(v);
   }
 
   function fmtDate(iso) {
@@ -308,39 +333,86 @@
     return list;
   }
 
-  function renderFreeVsProDonut(stats) {
+  function renderPlanMixDonut(stats) {
     const host = document.getElementById("adminDonutUsers");
     if (!host) return;
     const total = Number(stats.totalUsers) || 0;
     const pro = Number(stats.proUsers != null ? stats.proUsers : stats.premiumUsers) || 0;
-    const free = Math.max(0, total - pro);
+    const std =
+      stats.standardUsers != null && stats.standardUsers !== ""
+        ? Number(stats.standardUsers)
+        : NaN;
+    const standard = Number.isFinite(std) ? std : 0;
+    let free =
+      stats.freeUsers != null && stats.freeUsers !== "" ? Number(stats.freeUsers) : Math.max(0, total - pro - standard);
+    if (!Number.isFinite(free) || free < 0) free = Math.max(0, total - pro - standard);
     if (!total) {
       host.innerHTML = '<p class="admin-muted">No user data yet.</p>';
       return;
     }
-    const pctPro = Math.min(100, Math.round((pro / total) * 1000) / 10);
+    const pctPro = Math.min(100, Math.round((pro / total) * 100000) / 1000);
+    const pctStd = Math.min(100, Math.round((standard / total) * 100000) / 1000);
+    const cumPro = pctPro;
+    const cumStd = Math.min(100, pctPro + pctStd);
+    const bd =
+      stats.standardBreakdown && typeof stats.standardBreakdown === "object"
+        ? stats.standardBreakdown
+        : null;
+    const splitTrial = bd && bd.trial != null ? Number(bd.trial) : null;
+    const splitCoin = bd && bd.coin != null ? Number(bd.coin) : null;
+    const splitPaid = bd && bd.paid != null ? Number(bd.paid) : null;
+    const hasSplit =
+      bd &&
+      splitTrial !== null &&
+      splitCoin !== null &&
+      splitPaid !== null &&
+      Number.isFinite(splitTrial) &&
+      Number.isFinite(splitCoin) &&
+      Number.isFinite(splitPaid);
+    const splitHtml = hasSplit
+      ? '<div class="admin-standard-split">' +
+        '<div class="admin-standard-split-title">Standard — ndarje</div>' +
+        '<ul class="admin-standard-split-list">' +
+        "<li><span>Trial 7 ditë</span><strong>" +
+        escapeHtml(String(splitTrial)) +
+        "</strong></li>" +
+        "<li><span>Me coins</span><strong>" +
+        escapeHtml(String(splitCoin)) +
+        "</strong></li>" +
+        "<li><span>Standard i paguar</span><strong>" +
+        escapeHtml(String(splitPaid)) +
+        "</strong></li>" +
+        "</ul>" +
+        '<p class="admin-standard-split-hint">Një përdorues numërohet vetëm një herë: së pari si paguar, pastaj coins, pastaj trial.</p>' +
+        "</div>"
+      : "";
     host.innerHTML =
       '<div class="admin-donut-wrap">' +
-      '<div class="admin-donut" style="--pro-pct:' +
-      pctPro +
-      '%" role="img" aria-label="Pro ' +
-      pctPro +
-      ' percent"></div>' +
+      '<div class="admin-donut admin-donut--triple" role="img" aria-label="Plan mix: Pro, Standard, Free"></div>' +
       '<div class="admin-donut-legend">' +
       '<span><span class="admin-donut-dot" style="background:linear-gradient(135deg,#fbbf24,#f97316)"></span>Pro · <strong>' +
       escapeHtml(String(pro)) +
       "</strong></span>" +
+      '<span><span class="admin-donut-dot" style="background:linear-gradient(135deg,#38bdf8,#6366f1)"></span>Standard · <strong>' +
+      escapeHtml(String(standard)) +
+      "</strong></span>" +
       '<span><span class="admin-donut-dot" style="background:linear-gradient(135deg,#64748b,#94a3b8)"></span>Free · <strong>' +
       escapeHtml(String(free)) +
       "</strong></span>" +
-      "</div></div>";
+      "</div>" +
+      splitHtml +
+      "</div>";
     const d = host.querySelector(".admin-donut");
     if (d) {
       d.style.background =
-        "conic-gradient(rgba(251,191,36,0.95) 0 " +
-        pctPro +
-        "%, rgba(100,116,139,0.55) " +
-        pctPro +
+        "conic-gradient(rgba(251,191,36,0.95) 0% " +
+        cumPro +
+        "%, rgba(56,189,248,0.88) " +
+        cumPro +
+        "% " +
+        cumStd +
+        "%, rgba(100,116,139,0.6) " +
+        cumStd +
         "% 100%)";
       d.style.webkitMask =
         "radial-gradient(farthest-side, transparent calc(100% - 14px), #000 calc(100% - 13px))";
@@ -481,11 +553,13 @@
     const discordCount = document.getElementById("adminDiscordUpdatesCount");
     const tiktokUrl = document.getElementById("adminTiktokUrl");
     const youtubeUrl = document.getElementById("adminYoutubeUrl");
+    const supportEmail = document.getElementById("adminSupportEmail");
     const discordSaveBtn = document.querySelector('[data-act="save-discord-config"]');
     if (discordUrl) discordUrl.toggleAttribute("disabled", !canEditDiscord);
     if (discordCount) discordCount.toggleAttribute("disabled", !canEditDiscord);
     if (tiktokUrl) tiktokUrl.toggleAttribute("disabled", !canEditDiscord);
     if (youtubeUrl) youtubeUrl.toggleAttribute("disabled", !canEditDiscord);
+    if (supportEmail) supportEmail.toggleAttribute("disabled", !canEditDiscord);
     if (discordSaveBtn) {
       discordSaveBtn.hidden = !canEditDiscord;
       discordSaveBtn.disabled = !canEditDiscord;
@@ -875,7 +949,7 @@
     renderStats(st);
     renderAnalyticsPanels(data);
     renderNotesByCategory(data.notesByCategory || []);
-    renderFreeVsProDonut(st);
+    renderPlanMixDonut(st);
     renderCircularGauges(data);
     renderSignupSparkline(data);
     const ru = data.recentUsers || [];
@@ -1206,7 +1280,7 @@
   async function hydrateAnalyticsFromCache() {
     if (dashboardBundleCache) {
       renderAnalyticsPanels(dashboardBundleCache);
-      renderFreeVsProDonut(dashboardBundleCache.stats || {});
+      renderPlanMixDonut(dashboardBundleCache.stats || {});
       renderCircularGauges(dashboardBundleCache);
       renderSignupSparkline(dashboardBundleCache);
       return;
@@ -1431,7 +1505,8 @@
   }
 
   document.addEventListener("click", async (e) => {
-    const t = e.target;
+    let t = e.target;
+    if (t && t.nodeType === Node.TEXT_NODE && t.parentElement) t = t.parentElement;
     if (!(t instanceof HTMLElement)) return;
 
     const moreItem = t.closest(".admin-bnav-more-item[data-panel]");
@@ -1481,23 +1556,25 @@
       return;
     }
 
-    const go = t.getAttribute("data-go");
+    const goEl = t.closest("[data-go]");
+    const go = goEl instanceof HTMLElement ? goEl.getAttribute("data-go") : null;
     if (go) {
       await goPanel(go);
       if (isMobileShell()) setAdminDrawerOpen(false);
       return;
     }
 
-    const act = t.getAttribute("data-act");
+    const actHost = t.closest("[data-act]");
+    const act = actHost instanceof HTMLElement ? actHost.getAttribute("data-act") : null;
     if (act === "open-user") {
-      const id = t.getAttribute("data-id");
+      const id = actHost.getAttribute("data-id");
       if (id) void openUserDetailsModal(id);
       return;
     }
     if (act === "preview-note") {
-      const id = t.getAttribute("data-id");
+      const id = actHost.getAttribute("data-id");
       const rows = (dashboardBundleCache && dashboardBundleCache.recentNotes) || [];
-      const n = rows.find((x) => String(x.id) === String(id));
+      const n = rows.find((x) => dashboardRowId(x.id ?? x._id) === String(id || ""));
       if (n) {
         const body = cleanNotePreview(n.textPreview || "");
         const titlePart = n.title ? String(n.title).trim() : "";
@@ -1506,13 +1583,17 @@
           escapeHtml(body || "—")
         ).slice(0, 2000);
         setAlert("<strong>" + escapeHtml(n.username || "User") + "</strong><br/>" + block, "info");
+        focusAdminAlert();
+      } else {
+        setAlert("Preview unavailable — tap <strong>Refresh</strong> at the top of the dashboard.", "error");
+        focusAdminAlert();
       }
       return;
     }
     if (act === "preview-reminder") {
-      const id = t.getAttribute("data-id");
+      const id = actHost.getAttribute("data-id");
       const rows = (dashboardBundleCache && dashboardBundleCache.recentReminders) || [];
-      const r = rows.find((x) => String(x.id) === String(id));
+      const r = rows.find((x) => dashboardRowId(x.id ?? x._id) === String(id || ""));
       if (r) {
         setAlert(
           "<strong>" +
@@ -1527,6 +1608,10 @@
             escapeHtml(r.messagePreview || "—"),
           "info"
         );
+        focusAdminAlert();
+      } else {
+        setAlert("Preview unavailable — tap <strong>Refresh</strong> at the top of the dashboard.", "error");
+        focusAdminAlert();
       }
       return;
     }
@@ -1557,7 +1642,7 @@
       return;
     }
     if (act === "users-page") {
-      const dir = t.getAttribute("data-dir");
+      const dir = actHost.getAttribute("data-dir");
       if (dir === "prev" && usersState.page > 1) {
         usersState.page -= 1;
         await loadUsersPage();
@@ -1592,14 +1677,16 @@
       const countInput = document.getElementById("adminDiscordUpdatesCount");
       const tiktokInput = document.getElementById("adminTiktokUrl");
       const youtubeInput = document.getElementById("adminYoutubeUrl");
+      const supportEmailInput = document.getElementById("adminSupportEmail");
       const discordInviteUrl = normalizeCommunityUrl(urlInput ? String(urlInput.value || "").trim() : "");
       const discordUpdatesCount = countInput ? Math.max(0, Number(countInput.value || 0)) : 0;
       const tiktokUrl = normalizeCommunityUrl(tiktokInput ? String(tiktokInput.value || "").trim() : "");
       const youtubeUrl = normalizeCommunityUrl(youtubeInput ? String(youtubeInput.value || "").trim() : "");
+      const supportEmail = supportEmailInput ? String(supportEmailInput.value || "").trim() : "";
       try {
         const saved = await apiJson("/api/admin/config/discord", {
           method: "PUT",
-          body: JSON.stringify({ discordInviteUrl, discordUpdatesCount, tiktokUrl, youtubeUrl })
+          body: JSON.stringify({ discordInviteUrl, discordUpdatesCount, tiktokUrl, youtubeUrl, supportEmail })
         });
         applyDiscordConfigToInputs(saved);
         setAlert("Community links saved.", "info");
@@ -1609,7 +1696,7 @@
       return;
     }
     if (act === "grant-premium") {
-      const preset = t.getAttribute("data-preset");
+      const preset = actHost.getAttribute("data-preset");
       if (!(caps && caps.capabilities && caps.capabilities.canGrantPremium)) return;
       if (!selectedUserId || !preset) return;
       try {
@@ -1648,7 +1735,7 @@
       return;
     }
     if (act === "copy-id") {
-      const id = t.getAttribute("data-id");
+      const id = actHost.getAttribute("data-id");
       if (!id) return;
       try {
         await navigator.clipboard.writeText(id);
@@ -1713,7 +1800,7 @@
     }
     if (act === "del-msg") {
       if (!(caps && caps.capabilities && caps.capabilities.canDeleteContactMessages)) return;
-      const id = t.getAttribute("data-id");
+      const id = actHost.getAttribute("data-id");
       if (!confirm("Delete this message?")) return;
       try {
         await apiJson("/api/admin/messages/" + encodeURIComponent(id), { method: "DELETE" });

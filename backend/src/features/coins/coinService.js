@@ -283,12 +283,16 @@ async function redeemStandardWithCoins(User, userId) {
     throw err;
   }
 
-  const now = Date.now();
-  let base = now;
+  const nowMs = Date.now();
   const existingCoin = userLean.standardCoinExpiresAt ? new Date(userLean.standardCoinExpiresAt).getTime() : 0;
-  if (Number.isFinite(existingCoin) && existingCoin > base) base = existingCoin;
+  if (Number.isFinite(existingCoin) && existingCoin > nowMs) {
+    const err = new Error("Standard unlocked with coins is already active. You can redeem again after it ends.");
+    err.statusCode = 409;
+    err.code = "COIN_STANDARD_ACTIVE";
+    throw err;
+  }
 
-  const standardCoinExpiresAt = new Date(base + STANDARD_COIN_DURATION_MS);
+  const standardCoinExpiresAt = new Date(nowMs + STANDARD_COIN_DURATION_MS);
   const newCoins = clampCoins(coins - STANDARD_COIN_COST);
 
   const updated = await User.findOneAndUpdate(

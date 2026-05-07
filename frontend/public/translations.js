@@ -369,6 +369,7 @@ const translations = {
     socialAriaDiscord: "Discord (opens in a new tab)",
     socialAriaTiktok: "TikTok (opens in a new tab)",
     socialAriaYoutube: "YouTube (opens in a new tab)",
+    socialAriaSupportEmail: "Email support (opens your mail app)",
     homeCardAddNote: "+ Add note",
     shtepia: "Home",
     shtepiaSubtitle: "Personal notes & home tasks",
@@ -448,6 +449,8 @@ const translations = {
     coinsRedeemBtn: "Spend 600 coins → 30 days Standard",
     coinsRedeemConfirm: "Spend 600 coins for 30 more days of Standard access?",
     coinsRedeemSuccess: "Standard unlocked with coins.",
+    coinsRedeemAlreadyActive:
+      "Standard from coins is already active. You can use your coins again after it ends.",
     coinsInviteShareBtn: "Copy invite link",
     coinsInviteCodeLabel: "Your invite code",
     coinsInviteNote: "Earn when friends sign up & log in — monthly caps apply.",
@@ -1234,6 +1237,7 @@ const translations = {
     socialAriaDiscord: "Discord (hapet në një skedë të re)",
     socialAriaTiktok: "TikTok (hapet në një skedë të re)",
     socialAriaYoutube: "YouTube (hapet në një skedë të re)",
+    socialAriaSupportEmail: "Mbështetje me email (hap aplikacionin e postës)",
     homeCardAddNote: "+ Shënim i ri",
     shtepia: "Shtëpia",
     shtepiaSubtitle: "Shënime personale dhe detyra të shtëpisë",
@@ -1315,6 +1319,8 @@ const translations = {
     coinsRedeemBtn: "Përdor 600 monedha → Standard 30 ditë",
     coinsRedeemConfirm: "Ti përdor 600 monedha për 30 ditë më shumë Standard?",
     coinsRedeemSuccess: "Standard i aktivizuar me monedha.",
+    coinsRedeemAlreadyActive:
+      "Standardi me monedha është aktiv. Mund të shpenzosh përsëri monedhat pasi t’i mbarojë periudha.",
     coinsInviteShareBtn: "Kopjo linkun e ftesës",
     coinsInviteCodeLabel: "Kodi yt i ftesës",
     coinsInviteNote: "Fiton kur mikut i hapet llogaria dhe përdor aplikacionin — ka limit mujor.",

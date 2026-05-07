@@ -2,6 +2,7 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const { publicUser } = require("../utils/serializers");
 const { finalizeInviteBonusById, ensureReferralCode } = require("../features/coins/coinService");
+const { syncExpiredPremiumDocument } = require("../features/premium/subscriptionService");
 
 const USERNAME_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -10,6 +11,7 @@ function createUserRouter({ User, authMiddleware }) {
 
   router.get("/me", authMiddleware, async (req, res) => {
     try {
+      await syncExpiredPremiumDocument(User, req.userId);
       let user = await User.findById(req.userId);
       if (!user) {
         return res.status(404).json({ error: "User not found" });

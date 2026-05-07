@@ -1614,6 +1614,57 @@ body {
   justify-content: center;
   gap: 18px;
   width: 100%;
+  flex-direction: column;
+}
+
+.admin-standard-split {
+  width: 100%;
+  max-width: 280px;
+  margin-top: 4px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.admin-standard-split-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #64748b;
+  margin-bottom: 10px;
+}
+
+.admin-standard-split-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-standard-split-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.82rem;
+  color: #cbd5e1;
+}
+
+.admin-standard-split-list li strong {
+  font-variant-numeric: tabular-nums;
+  color: #f1f5f9;
+  font-weight: 750;
+}
+
+.admin-standard-split-hint {
+  margin: 10px 0 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: #64748b;
 }
 
 .admin-donut {

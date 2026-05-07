@@ -1,6 +1,6 @@
 /* global window */
 (function initApiBaseUrl(globalScope) {
-  const FALLBACK_API_URL = "https://notes-ai-backend-lykf.onrender.com";
+  const FALLBACK_API_URL = "https://notes-ai-app.onrender.com";
 
   function readViteApiUrl() {
     try {

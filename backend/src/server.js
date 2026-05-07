@@ -106,7 +106,24 @@ const signupLimiter = rateLimit({
   legacyHeaders: false
 });
 
-app.use(cors({ origin: true, credentials: true }));
+const allowedCorsOrigins = new Set([
+  "https://notes-ai-app-theta.vercel.app",
+  "https://notes-ai-app.onrender.com",
+  String(config.publicAppUrl || "").replace(/\/$/, ""),
+  "http://localhost:3000",
+  "http://127.0.0.1:3000"
+]);
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+      if (allowedCorsOrigins.has(origin)) return callback(null, true);
+      return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
+    credentials: true
+  })
+);
 
 if (config.stripeSecretKey && config.stripeWebhookSecret) {
   app.post(

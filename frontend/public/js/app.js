@@ -2974,14 +2974,8 @@ function syncAuthShellVisibility() {
 function syncAuthGoogleLinkHref() {
   const links = document.querySelectorAll("a.auth-google-link");
   if (!links || !links.length) return;
-  let href;
-  try {
-    href = buildApiUrl("/auth/google");
-  } catch {
-    const base =
-      typeof API_BASE_URL !== "undefined" && API_BASE_URL ? String(API_BASE_URL).replace(/\/+$/, "") : "";
-    href = base ? `${base}/auth/google` : "/auth/google";
-  }
+  /** OAuth must start on backend origin (never relative /auth/google on Vercel). */
+  const href = "https://notes-ai-app.onrender.com/auth/google";
   links.forEach((a) => {
     a.href = href;
     a.classList.remove("auth-shell__btn-google--disabled", "auth-shell__btn-google--unavailable");

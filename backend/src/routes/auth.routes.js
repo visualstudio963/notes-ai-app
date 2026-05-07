@@ -109,6 +109,10 @@ function baseUsernameFromProfile(name, email) {
   return base.slice(0, 28);
 }
 
+function isSyntheticEmail(value) {
+  return /@users\.notesai\.invalid$/i.test(String(value || "").trim());
+}
+
 async function allocateUsername(User, name, email) {
   let base = baseUsernameFromProfile(name, email);
   if (base.length < 3) base = "user";
@@ -157,6 +161,15 @@ async function upsertGoogleUserFromIdTokenPayload(User, payload, cleanDeviceId) 
     if (!user.googleId) {
       user.googleId = sub;
       user.emailVerified = true;
+    }
+    if (!user.email || isSyntheticEmail(user.email)) {
+      user.email = email;
+    }
+    if (!user.emailOrPhone || isSyntheticEmail(user.emailOrPhone)) {
+      user.emailOrPhone = email;
+    }
+    if (!user.provider) {
+      user.provider = "google";
     }
     if (cleanDeviceId) {
       const other = await User.findOne({ deviceId: cleanDeviceId, _id: { $ne: user._id } })
@@ -234,6 +247,12 @@ async function findOrLinkGoogleUser(User, { sub, email, name, picture }) {
       user.googleId = googleId;
       user.provider = "google";
       user.emailVerified = true;
+    }
+    if (!user.email || isSyntheticEmail(user.email)) {
+      user.email = emailNorm;
+    }
+    if (!user.emailOrPhone || isSyntheticEmail(user.emailOrPhone)) {
+      user.emailOrPhone = emailNorm;
     }
     const pic = String(picture || "").trim();
     if (pic && user.googlePicture !== pic) {

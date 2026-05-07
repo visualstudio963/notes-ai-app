@@ -37,6 +37,7 @@ const { createAdminMiddleware } = require("./middleware/admin");
 const { createTouchLastActiveMiddleware } = require("./middleware/touchLastActive");
 const sendWhatsAppMessage = require("./services/whatsappService");
 const aiMemoryService = require("./services/aiMemoryService");
+const { backfillMissingInviteCodes } = require("./features/coins/coinService");
 
 const FRONTEND_PUBLIC = path.join(__dirname, "../../frontend/public");
 
@@ -437,6 +438,13 @@ mongoose
     server.listen(config.port, () => {
       console.log(`Server listening on port ${config.port}`);
       purgePastReminders().catch(() => {});
+      backfillMissingInviteCodes(User, { limit: 5000 })
+        .then((s) => {
+          console.log(`[invite-backfill] scanned=${s.scanned} updated=${s.updated} limit=${s.limit}`);
+        })
+        .catch((err) => {
+          console.warn("[invite-backfill] skipped:", err && err.message ? err.message : err);
+        });
     });
   })
   .catch((err) => {

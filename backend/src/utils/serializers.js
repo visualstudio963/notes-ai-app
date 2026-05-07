@@ -1,14 +1,24 @@
 const { getPremiumStatusPayload, getUserPlan } = require("../features/premium/subscriptionService");
 
+function sanitizeDisplayEmail(primary, fallback) {
+  const a = String(primary || "").trim();
+  const b = String(fallback || "").trim();
+  const synthetic = /@users\.notesai\.invalid$/i;
+  if (a && !synthetic.test(a)) return a;
+  if (b && !synthetic.test(b)) return b;
+  return a || b || "";
+}
+
 function publicUser(user) {
   const premium = getPremiumStatusPayload(user);
   const plan = getUserPlan(user);
+  const displayEmail = sanitizeDisplayEmail(user.email, user.emailOrPhone);
   return {
     id: user._id,
     firstName: user.firstName,
     lastName: user.lastName,
     username: user.username,
-    email: user.email || user.emailOrPhone || "",
+    email: displayEmail,
     emailOrPhone: user.emailOrPhone,
     emailVerified: Boolean(user.emailVerified),
     role: user.role || "user",

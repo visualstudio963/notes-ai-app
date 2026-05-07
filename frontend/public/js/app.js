@@ -1819,8 +1819,16 @@ async function tryConsumePendingInviteCode() {
     mergePremiumStatusIntoCurrentUser(data);
     persistCurrentUserToStorage();
     updatePremiumUi();
-  } catch {
-    /* ignore — invalid invite or offline */
+  } catch (err) {
+    const status = err && Number(err.status);
+    if (status === 400 || status === 404 || status === 409) {
+      try {
+        sessionStorage.removeItem("aiNotesPendingInvite");
+      } catch {
+        /* ignore */
+      }
+    }
+    /* ignore — invalid invite, existing user, or offline */
   }
 }
 
@@ -8056,8 +8064,16 @@ function displayAccountInfo() {
   ln.textContent = currentUser.lastName || "-";
   un.textContent = currentUser.username || "-";
   {
-    const rawMail = String(currentUser.email || currentUser.emailOrPhone || "").trim();
-    em.textContent = /@users\.notesai\.invalid$/i.test(rawMail) ? "—" : rawMail || "-";
+    const syntheticRe = /@users\.notesai\.invalid$/i;
+    const emailPrimary = String(currentUser.email || "").trim();
+    const emailFallback = String(currentUser.emailOrPhone || "").trim();
+    const resolvedEmail =
+      emailPrimary && !syntheticRe.test(emailPrimary)
+        ? emailPrimary
+        : emailFallback && !syntheticRe.test(emailFallback)
+          ? emailFallback
+          : emailPrimary || emailFallback;
+    em.textContent = resolvedEmail && !syntheticRe.test(resolvedEmail) ? resolvedEmail : "—";
   }
 
   const premium =

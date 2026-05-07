@@ -107,7 +107,14 @@ function createCoinsRouter({ User, authMiddleware }) {
         coins: buildCoinsStatusPayload(merged)
       });
     } catch (err) {
-      const status = err && err.statusCode === 404 ? 404 : err && err.statusCode === 400 ? 400 : 500;
+      const status =
+        err && err.statusCode === 404
+          ? 404
+          : err && err.statusCode === 409
+            ? 409
+            : err && err.statusCode === 400
+              ? 400
+              : 500;
       res.status(status).json({ error: err && err.message ? err.message : "Could not attach invite." });
     }
   });

@@ -54,7 +54,17 @@ async function ensureReferralCode(User, userDoc) {
   const existingA = userDoc && userDoc.referralCode ? String(userDoc.referralCode).trim() : "";
   const existingB = userDoc && userDoc.inviteCode ? String(userDoc.inviteCode).trim() : "";
   const existing = existingA || existingB;
-  if (existing) return userDoc;
+  if (existing) {
+    const normalized = existing.toUpperCase();
+    if (!existingA || !existingB || existingA !== existingB) {
+      return User.findByIdAndUpdate(
+        userDoc._id,
+        { $set: { referralCode: normalized, inviteCode: normalized } },
+        { new: true, runValidators: false }
+      );
+    }
+    return userDoc;
+  }
   for (let i = 0; i < 8; i += 1) {
     const code = randomReferralCode();
     try {
@@ -117,7 +127,7 @@ async function finalizeInviteBonus(User, inviteeDoc) {
     return { capped: true };
   }
 
-  const reward = scaledReward(INVITE_REWARD, inviter.toObject());
+  const reward = INVITE_REWARD;
   inviter.inviteFriendMonthYm = ym;
   inviter.inviteFriendMonthCount = monthCount + 1;
   inviter.coins = clampCoins((Number(inviter.coins) || 0) + reward);
@@ -318,12 +328,51 @@ async function enrichCoinsStatusWithInviteStats(User, userLean, basePayload) {
     String(userLean.inviteFriendMonthYm || "") === ymNow
       ? Number(userLean.inviteFriendMonthCount || 0) || 0
       : 0;
-  const perInvite = scaledReward(INVITE_REWARD, userLean);
   return {
     ...basePayload,
     inviteFriendsTotal,
-    inviteCoinsEarnedThisMonth: monthCount * perInvite
+    inviteCoinsEarnedThisMonth: monthCount * INVITE_REWARD
   };
+}
+
+/**
+ * Best-effort startup/manual backfill for legacy users missing invite code aliases.
+ * Safe to run repeatedly; only touches referralCode/inviteCode fields.
+ */
+async function backfillMissingInviteCodes(User, options = {}) {
+  const limit = Math.max(1, Math.min(20000, Number(options.limit) || 5000));
+  let scanned = 0;
+  let updated = 0;
+  const cursor = User.find({
+    $or: [
+      { referralCode: { $exists: false } },
+      { referralCode: "" },
+      { inviteCode: { $exists: false } },
+      { inviteCode: "" }
+    ]
+  })
+    .select("_id referralCode inviteCode")
+    .lean()
+    .cursor();
+  for await (const u of cursor) {
+    scanned += 1;
+    if (scanned > limit) break;
+    try {
+      const doc = await User.findById(u._id);
+      if (!doc) continue;
+      const beforeA = String(doc.referralCode || "").trim();
+      const beforeB = String(doc.inviteCode || "").trim();
+      const after = await ensureReferralCode(User, doc);
+      const afterA = String((after && after.referralCode) || "").trim();
+      const afterB = String((after && after.inviteCode) || "").trim();
+      if (afterA && afterB && (afterA !== beforeA || afterB !== beforeB)) {
+        updated += 1;
+      }
+    } catch (_) {
+      /* keep going */
+    }
+  }
+  return { scanned, updated, limit };
 }
 
 function buildCoinsStatusPayload(userLean) {
@@ -380,6 +429,7 @@ module.exports = {
   finalizeInviteBonus,
   finalizeInviteBonusById,
   bindReferralCode,
+  backfillMissingInviteCodes,
   claimDailyLogin,
   claimVideoReward,
   redeemStandardWithCoins,

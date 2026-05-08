@@ -30,7 +30,11 @@ const config: CapacitorConfig = {
       promptLabelPicture: "Take a picture",
       promptLabelCancel: "Cancel"
     },
-    Filesystem: {}
+    Filesystem: {},
+    LocalNotifications: {
+      smallIcon: "ic_stat_notes_ai",
+      iconColor: "#22D3EE"
+    }
   }
 };
 

@@ -1,9 +1,18 @@
+let toastHideTimer = 0;
+
 function showToast(message) {
   const toast = document.getElementById("toast");
   if (!toast) return;
+  if (toastHideTimer) {
+    window.clearTimeout(toastHideTimer);
+    toastHideTimer = 0;
+  }
   toast.innerText = message;
   toast.classList.remove("hidden");
-  setTimeout(() => toast.classList.add("hidden"), 3000);
+  toastHideTimer = window.setTimeout(() => {
+    toast.classList.add("hidden");
+    toastHideTimer = 0;
+  }, 3000);
 }
 
 /** In-app line when a reminder fires while the tab is visible (system notification may be subdued). */

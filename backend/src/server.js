@@ -14,7 +14,10 @@ const cookieParser = require("cookie-parser");
 const {
   OAUTH_HANDOFF_AT,
   OAUTH_HANDOFF_RT,
-  getOAuthHandoffSetCookieOptions
+  OAUTH_NATIVE_HINT,
+  getOAuthHandoffSetCookieOptions,
+  getOAuthNativeHintCookieOptions,
+  clearOAuthNativeHintCookie
 } = require("./config/oauthHandoffCookies");
 const { createAuthMiddleware } = require("./middleware/auth");
 const { createApiRouter } = require("./routes");
@@ -298,14 +301,34 @@ app.get("/auth/google", googleOAuthLimiter, (req, res, next) => {
   if (!config.googleClientId || !config.googleClientSecret || !config.googleRedirectUri) {
     return res.status(503).send("Google OAuth is not configured (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL).");
   }
+  const wantsNative = String(req.query.native || "") === "1";
+  if (wantsNative) {
+    console.log("[auth/google] native APK flow (?native=1)");
+  }
   try {
     if (req.session) {
-      req.session.oauthNativeApp = String(req.query.native || "") === "1";
+      req.session.oauthNativeApp = wantsNative;
     }
   } catch (e) {
     console.error("[auth/google] session flag", e && e.message);
   }
-  passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
+  const runPassport = () => {
+    if (wantsNative) {
+      res.cookie(OAUTH_NATIVE_HINT, "1", getOAuthNativeHintCookieOptions(sessionCookieSecure));
+    }
+    passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
+  };
+  if (req.session && typeof req.session.save === "function") {
+    req.session.save((saveErr) => {
+      if (saveErr) {
+        console.error("[auth/google] session.save:", saveErr && saveErr.message);
+        return next(saveErr);
+      }
+      runPassport();
+    });
+    return;
+  }
+  runPassport();
 });
 
 app.get(
@@ -330,8 +353,11 @@ app.get(
         return res.redirect(302, `${frontendBase}/?google_oauth_error=${encodeURIComponent("user_missing")}`);
       }
       const { accessToken, refreshToken } = await issueSessionTokens(user._id);
-      const oauthNativeApp = Boolean(req.session && req.session.oauthNativeApp);
+      const sessionNative = Boolean(req.session && req.session.oauthNativeApp);
+      const cookieNative = String((req.cookies && req.cookies[OAUTH_NATIVE_HINT]) || "") === "1";
+      const oauthNativeApp = sessionNative || cookieNative;
       if (req.session) delete req.session.oauthNativeApp;
+      clearOAuthNativeHintCookie(res, sessionCookieSecure);
 
       const wantsJson = String(req.query.format || "").toLowerCase() === "json";
 
@@ -352,8 +378,8 @@ app.get(
       }
 
       /**
-       * Capacitor APK: external browser completes OAuth; redirect back into the app via custom scheme
-       * with a short-lived payload (same tokens JSON as cookie handoff — fragment not sent to servers).
+       * Capacitor APK: external Browser plugin completes OAuth; redirect into the app via custom scheme.
+       * Query param (`t=`) — URL hash is often stripped when Android resolves VIEW intents into the activity.
        */
       if (oauthNativeApp) {
         const fresh = await User.findById(user._id);
@@ -368,7 +394,8 @@ app.get(
           }),
           "utf8"
         ).toString("base64url");
-        const nativeRedirect = `com.notesai.app://oauth#${payload}`;
+        const nativeRedirect = `com.notesai.app://oauth?t=${encodeURIComponent(payload)}`;
+        console.log("[oauth native redirect]", nativeRedirect);
         if (typeof req.logout === "function") {
           req.logout((logoutErr) => {
             if (logoutErr) console.error("[auth/google/callback] req.logout:", logoutErr.message);

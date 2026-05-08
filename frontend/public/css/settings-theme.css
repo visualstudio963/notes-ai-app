@@ -102,6 +102,15 @@
   font-weight: 500;
 }
 
+.settings-debug-build-line {
+  margin: 20px 8px 6px;
+  font-size: 0.7rem;
+  line-height: 1.45;
+  color: #64748b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  word-break: break-word;
+}
+
 .settings-username-banner {
   margin: 0 0 14px;
   padding: 12px 14px;

@@ -1644,6 +1644,8 @@
                 </div>
               </div>
             </section>
+
+            <p id="settingsDebugBuildLine" class="settings-debug-build-line hidden" aria-label="App build"></p>
           </div>
         </div>
       </section>
@@ -2017,8 +2019,7 @@
   <div class="toast hidden" id="toast"></div>
   <div class="reminder-foreground-toast hidden" id="reminderForegroundToast" role="status" aria-live="polite" aria-hidden="true"></div>
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <!-- Scan Cam OCR: loaded on-demand from app.js to keep startup / APK first paint lighter -->
   <script src="/js/config/platform-native.js?v=local-mow4b27z"></script>
   <script src="/js/config/constants.js?v=local-mow4b27z"></script>
   <script src="/js/config/api-base.js?v=local-mow4b27z"></script>

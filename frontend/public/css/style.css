@@ -202,11 +202,11 @@ button {
 .site-footer-inner {
   max-width: 1180px;
   margin: 0 auto;
-  padding: 16px 20px 22px;
+  padding: 16px max(18px, env(safe-area-inset-left)) 22px max(18px, env(safe-area-inset-right));
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
   text-align: center;
 }
 
@@ -215,8 +215,10 @@ button {
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  gap: 2px 0;
-  row-gap: 6px;
+  gap: 8px 10px;
+  row-gap: 10px;
+  max-width: 36rem;
+  line-height: 1.62;
 }
 
 .site-footer-links a {
@@ -225,6 +227,9 @@ button {
   font-size: 0.82rem;
   letter-spacing: 0.02em;
   transition: color 0.2s ease;
+  line-height: inherit;
+  padding: 6px 2px;
+  display: inline-block;
 }
 
 .site-footer-links a:hover {
@@ -233,9 +238,34 @@ button {
 
 .site-footer-sep {
   color: #475569;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   user-select: none;
-  margin: 0 6px;
+  margin: 0;
+  opacity: 0.85;
+  align-self: center;
+}
+
+@media (max-width: 840px) {
+  /* Extra runway so last viewport lines of scrolling pages avoid fixed FAB zone */
+  .app .main {
+    padding-bottom: max(112px, calc(84px + env(safe-area-inset-bottom, 0px)));
+  }
+
+  .site-footer-inner {
+    padding-top: 18px;
+    padding-bottom: max(164px, calc(112px + env(safe-area-inset-bottom, 28px)));
+  }
+
+  .site-footer-links {
+    max-width: 100%;
+    column-gap: 12px;
+    row-gap: 12px;
+  }
+
+  .site-footer-copy {
+    line-height: 1.65;
+    margin-top: -2px;
+  }
 }
 
 .site-footer-copy {
@@ -5765,7 +5795,13 @@ button.save-button.secondary:hover {
     transform: translateX(-106%);
     transition: transform 0.28s ease;
     overflow-y: auto;
-    padding-top: calc(18px + env(safe-area-inset-top, 0px));
+    /* Lift Community + inset-bottom above Android gesture / nav bar (env often 0 in WebViews). */
+    scroll-padding-bottom: max(36px, calc(28px + env(safe-area-inset-bottom, 24px)));
+    padding:
+      calc(18px + env(safe-area-inset-top, 0px))
+      max(22px, env(safe-area-inset-right, 0px))
+      max(28px, calc(22px + env(safe-area-inset-bottom, 24px)))
+      max(22px, env(safe-area-inset-left, 0px));
   }
 
   body.mobile-nav-open .sidebar {
@@ -7222,7 +7258,12 @@ button.save-button.secondary:hover {
 
   .sidebar {
     width: min(86vw, 320px);
-    padding: calc(16px + env(safe-area-inset-top, 0px)) 14px 18px;
+    padding:
+      calc(16px + env(safe-area-inset-top, 0px))
+      max(14px, env(safe-area-inset-right, 0px))
+      max(32px, calc(22px + env(safe-area-inset-bottom, 26px)))
+      max(14px, env(safe-area-inset-left, 0px));
+    scroll-padding-bottom: max(40px, calc(28px + env(safe-area-inset-bottom, 26px)));
   }
 
   .brand-lockup {
@@ -8322,11 +8363,14 @@ button.save-button.secondary:hover {
   }
 
   #bot .premium-marketing {
-    padding: 4px 0 18px;
+    padding: 4px 0 max(52px, 28px + env(safe-area-inset-bottom, 0px));
   }
 
   #bot .premium-marketing-inner {
-    padding: 0 !important;
+    padding-left: max(12px, env(safe-area-inset-left)) !important;
+    padding-right: max(12px, env(safe-area-inset-right)) !important;
+    padding-top: 0 !important;
+    padding-bottom: max(154px, calc(112px + env(safe-area-inset-bottom, 0px))) !important;
   }
 
   #bot .premium-hero {
@@ -10982,6 +11026,7 @@ body {
 .pricing-lite-cta {
   width: 100%;
   min-height: 42px;
+  margin-top: 8px;
 }
 
 .pricing-lite-card--premium {
@@ -11000,7 +11045,7 @@ body {
 }
 
 .pricing-lite-social-proof {
-  margin: 0;
+  margin: 0 0 12px;
   font-size: 0.72rem;
   color: #c4b5fd;
 }
@@ -11099,15 +11144,18 @@ body {
 .pricing-lite-trust {
   margin-top: 14px;
   border-top: 1px solid rgba(148, 163, 184, 0.2);
-  padding-top: 10px;
+  padding-top: 12px;
+  padding-bottom: 6px;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 14px;
+  gap: 12px 16px;
+  row-gap: 12px;
 }
 
 .pricing-lite-trust p {
   margin: 0;
   font-size: 0.78rem;
+  line-height: 1.52;
   color: #cbd5e1;
 }
 
@@ -11153,14 +11201,23 @@ body {
   .pricing-lite-sticky-cta {
     display: inline-flex;
     position: sticky;
-    bottom: max(8px, env(safe-area-inset-bottom, 0px) + 6px);
+    /* Float above stacked planner + chat FABs (see mobile rules below) */
+    bottom: calc(max(16px, env(safe-area-inset-bottom, 0px)) + 174px);
     width: 100%;
     min-height: 44px;
-    margin-top: 10px;
+    margin-top: 18px;
+    margin-bottom: 8px;
     justify-content: center;
     z-index: 4;
     background: linear-gradient(135deg, rgba(168, 85, 247, 0.75), rgba(34, 211, 238, 0.6));
-    box-shadow: 0 0 18px rgba(167, 139, 250, 0.26), 0 10px 24px rgba(2, 8, 20, 0.3);
+    box-shadow:
+      0 -8px 20px rgba(2, 8, 20, 0.45),
+      0 0 18px rgba(167, 139, 250, 0.26),
+      0 10px 24px rgba(2, 8, 20, 0.3);
+  }
+
+  #bot .pricing-lite-trust {
+    margin-bottom: 4px;
   }
 }
 
@@ -12077,8 +12134,8 @@ body {
   .daily-planner-fab {
     width: 44px;
     height: 44px;
-    right: max(20px, env(safe-area-inset-right, 0px) + 12px);
-    bottom: calc(max(20px, env(safe-area-inset-bottom, 0px) + 12px) + 54px + 10px);
+    right: calc(max(20px, env(safe-area-inset-right, 0px) + 12px) + 4px);
+    bottom: calc(max(26px, env(safe-area-inset-bottom, 0px) + 14px) + 54px + 14px + 36px);
   }
 
   .daily-planner-modal-overlay.modal {
@@ -12393,28 +12450,28 @@ body.web-chat-drawer-open {
   .discord-fab {
     width: 52px;
     height: 52px;
-    left: max(20px, env(safe-area-inset-left, 0px) + 12px);
-    bottom: max(24px, env(safe-area-inset-bottom, 0px) + 16px);
+    left: max(18px, env(safe-area-inset-left, 0px) + 10px);
+    bottom: calc(max(26px, env(safe-area-inset-bottom, 0px) + 14px) + 32px);
   }
 
   .web-chat-fab {
     width: 54px;
     height: 54px;
-    right: max(20px, env(safe-area-inset-right, 0px) + 12px);
-    bottom: max(24px, env(safe-area-inset-bottom, 0px) + 16px);
+    right: calc(max(20px, env(safe-area-inset-right, 0px) + 12px) + 4px);
+    bottom: calc(max(26px, env(safe-area-inset-bottom, 0px) + 14px) + 32px);
   }
 
   .web-chat-fab-tip {
-    right: max(76px, env(safe-area-inset-right, 0px) + 70px);
-    bottom: max(34px, env(safe-area-inset-bottom, 0px) + 24px);
+    right: max(80px, env(safe-area-inset-right, 0px) + 76px);
+    bottom: calc(max(36px, env(safe-area-inset-bottom, 0px) + 22px) + 28px);
     font-size: 0.74rem;
   }
 
   .daily-planner-fab {
     width: 44px;
     height: 44px;
-    right: max(20px, env(safe-area-inset-right, 0px) + 12px);
-    bottom: calc(max(24px, env(safe-area-inset-bottom, 0px) + 16px) + 54px + 12px);
+    right: calc(max(20px, env(safe-area-inset-right, 0px) + 12px) + 4px);
+    bottom: calc(max(26px, env(safe-area-inset-bottom, 0px) + 14px) + 54px + 14px + 32px);
   }
 
   #webChat.web-chat-drawer .web-chat-messenger {
@@ -17481,5 +17538,47 @@ body:has(#webChat:not(.hidden)) .daily-planner-fab {
     box-shadow:
       0 14px 32px rgba(2, 8, 20, 0.32),
       0 0 1px rgba(255, 255, 255, 0.06);
+  }
+}
+
+/* APK: lighter inherited glass tokens — same hierarchy, cheaper compositing on scroll */
+html.capacitor-native {
+  --depth-glass-blur: 6px;
+  --depth-elev-1: 0 5px 20px rgba(0, 0, 0, 0.2);
+  --depth-elev-2: 0 12px 32px rgba(0, 0, 0, 0.28);
+  --ds-shadow: 0 10px 26px rgba(2, 8, 22, 0.26);
+  --ds-shadow-soft: 0 6px 18px rgba(2, 8, 22, 0.2);
+}
+
+@media (max-width: 600px), (pointer: coarse) {
+  html.capacitor-native {
+    --depth-glass-blur: 4px;
+    --depth-elev-1: 0 4px 14px rgba(0, 0, 0, 0.18);
+    --depth-elev-2: 0 10px 24px rgba(0, 0, 0, 0.24);
+    --ds-shadow: 0 8px 20px rgba(2, 8, 22, 0.22);
+    --ds-shadow-soft: 0 4px 14px rgba(2, 8, 22, 0.16);
+  }
+
+  html.capacitor-native #webChat.web-chat-drawer .web-chat-messenger {
+    backdrop-filter: blur(10px) saturate(118%);
+    -webkit-backdrop-filter: blur(10px) saturate(118%);
+  }
+
+  html.capacitor-native .web-chat-fab,
+  html.capacitor-native #webChatFab,
+  html.capacitor-native #dailyPlannerFab {
+    contain: layout paint;
+  }
+}
+
+@media (max-width: 840px) {
+  /* WebView-safe: extra lift when OS doesn’t populate safe-area insets for gesture/nav bars */
+  html.capacitor-native .sidebar {
+    padding-bottom: max(44px, calc(26px + env(safe-area-inset-bottom, 32px))) !important;
+    scroll-padding-bottom: max(48px, calc(32px + env(safe-area-inset-bottom, 32px)));
+  }
+
+  html.capacitor-native .site-footer-inner {
+    padding-bottom: max(172px, calc(116px + env(safe-area-inset-bottom, 32px))) !important;
   }
 }

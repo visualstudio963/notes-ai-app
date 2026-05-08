@@ -46,6 +46,94 @@ let scanCamTesseractWorker = null;
 /** @type {Promise<import("tesseract.js").Worker> | null} */
 let scanCamTesseractInitPromise = null;
 let scanCamPdfWorkerConfigured = false;
+/** Lazy-loaded Scan Cam CDN bundles (startup / scroll no longer parses multi‑MB OCR stacks). */
+let scanCamVendorScriptsPromise = null;
+let scanCamTesseractVendorPromise = null;
+const SCAN_CAM_VENDOR_PDF =
+  "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js";
+const SCAN_CAM_VENDOR_TESSERACT = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+
+function appendNotesAiVendorScript(src, slug, globalReady) {
+  return new Promise((resolve, reject) => {
+    if (globalReady()) {
+      resolve();
+      return;
+    }
+    const sel = `script[data-notes-ai-vendor="${slug}"]`;
+    const existing = document.querySelector(sel);
+    if (existing) {
+      if (globalReady()) {
+        resolve();
+        return;
+      }
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error(`vendor_${slug}`)), { once: true });
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = src;
+    s.async = true;
+    s.dataset.notesAiVendor = slug;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error(`vendor_${slug}`));
+    document.head.appendChild(s);
+  });
+}
+
+function scanCamEnsureTesseractVendorOnly() {
+  if (typeof Tesseract !== "undefined") return Promise.resolve();
+  if (scanCamTesseractVendorPromise) return scanCamTesseractVendorPromise;
+  scanCamTesseractVendorPromise = appendNotesAiVendorScript(
+    SCAN_CAM_VENDOR_TESSERACT,
+    "tesseract",
+    () => typeof Tesseract !== "undefined"
+  )
+    .then(() => {
+      if (typeof Tesseract === "undefined") throw new Error("vendor_missing_tesseract");
+    })
+    .catch((e) => {
+      scanCamTesseractVendorPromise = null;
+      throw e;
+    });
+  return scanCamTesseractVendorPromise;
+}
+
+function scanCamEnsureVendorScriptsLoaded() {
+  if (typeof pdfjsLib !== "undefined" && typeof Tesseract !== "undefined") {
+    return Promise.resolve();
+  }
+  if (scanCamVendorScriptsPromise) return scanCamVendorScriptsPromise;
+  scanCamVendorScriptsPromise = Promise.all([
+    appendNotesAiVendorScript(SCAN_CAM_VENDOR_PDF, "pdfjs", () => typeof pdfjsLib !== "undefined"),
+    typeof Tesseract !== "undefined"
+      ? Promise.resolve()
+      : appendNotesAiVendorScript(
+          SCAN_CAM_VENDOR_TESSERACT,
+          "tesseract",
+          () => typeof Tesseract !== "undefined"
+        )
+  ])
+    .then(() => {
+      if (typeof pdfjsLib === "undefined" || typeof Tesseract === "undefined") {
+        throw new Error("vendor_missing_globals");
+      }
+    })
+    .catch((e) => {
+      scanCamVendorScriptsPromise = null;
+      throw e;
+    });
+  return scanCamVendorScriptsPromise;
+}
+
+/** Quiet logs outside dev / explicit verbose flag — cuts WebView console overhead. */
+function notesAiVerboseLogs() {
+  try {
+    if (typeof window !== "undefined" && window.__NOTES_AI_VERBOSE_LOGS__ === true) return true;
+    return isAuthDevHost();
+  } catch {
+    return false;
+  }
+}
 
 /** Max PDF pages to OCR (keeps browser responsive on large files). */
 const SCAN_CAM_PDF_OCR_MAX_PAGES = 20;
@@ -111,6 +199,7 @@ let depthRevealObserver = null;
 let premiumTiltEnabled = false;
 let dailyPlannerMidnightTimer = null;
 let dailyPlannerNotifyTimer = null;
+let dailyPlannerNotifyLoopRegistered = false;
 let dailyPlannerCompletedOpen = false;
 let dailyPlannerLastAddedTaskId = "";
 let dailyPlannerMovedTaskId = "";
@@ -132,6 +221,16 @@ let googleOAuthClientId = "";
 let googleOAuthConfigLoaded = false;
 /** Coalesces overlapping /api/public/app-config fetches (e.g. DOMContentLoaded + goHome). */
 let loadDiscordCommunityConfigInflight = null;
+/** Successful app-config responses; avoids refetch on every navigation (Home spam). */
+let appPublicConfigCacheExpiresAt = 0;
+const APP_PUBLIC_CONFIG_CACHE_TTL_MS = 30 * 60 * 1000;
+const APP_PUBLIC_CONFIG_RETRY_MS = 15000;
+
+/** Dedupes overlapping web push subscribe attempts (permissions UI + reminders + settings). */
+let registerWebPushInFlight = null;
+
+/** Single offline flush interval (avoid duplicate timers if bootstrap is ever duplicated). */
+let offlineNotesFlushIntervalId = null;
 function getRenderBackendOrigin() {
   try {
     if (typeof window !== "undefined" && window.API_BASE_URL) {
@@ -145,8 +244,17 @@ function getRenderBackendOrigin() {
 const REMINDER_NOTIFY_PREFS_KEY = "webReminderNotificationPrefs";
 /** "0" = user turned off in-app reminder alerts (browser permission may still be "granted"). */
 const WEB_REMINDER_NOTIFICATIONS_APP_ENABLED_KEY = "aiNotesWebReminderNotificationsAppEnabled";
-/** New IDs force fresh Android channels after importance/sound tweaks (channels are immutable per id). */
-const ANDROID_REMINDERS_CHANNEL_ID = "notesai-reminders-v3";
+/** Fresh channel id keeps importance/visibility/sound sane; reschedule happens on sync. */
+const ANDROID_NOTES_AI_CHANNEL_ID = "notes-ai-main-v4";
+const NOTES_AI_LOCAL_NOTIF_ACTIONS_ID = "notes_ai_open_dismiss_v1";
+const NOTES_AI_LOCAL_ACTION_OPEN = "open_notes_ai";
+const NOTES_AI_LOCAL_ACTION_DISMISS = "dismiss_notes_ai";
+/** Group key — stacked like modern productivity shells (Discord / Tasks feel). */
+const NOTES_AI_ANDROID_NOTIFICATION_GROUP = "notes_ai_hub";
+/** Status bar tint (matches app cyan accent). */
+const NOTES_AI_ANDROID_ICON_COLOR = "#22D3EE";
+
+let notesAiNativeNotificationShellReady = false;
 
 /** Set when user clicks “Continue with Google” — handoff cookies are httpOnly, so we only POST handoff after this signal (or ?oauth_handoff=1). */
 const OAUTH_GOOGLE_RETURN_PENDING_KEY = "oauth_google_return_pending";
@@ -227,7 +335,9 @@ async function showReminderSystemNotification(title, options) {
       }
     }
   } catch (e) {
-    console.warn("[reminder] service worker showNotification failed", e);
+    if (notesAiVerboseLogs() && typeof console !== "undefined" && console.warn) {
+      console.warn("[reminder] service worker showNotification failed", e);
+    }
   }
   const n = new Notification(title, options);
   n.onclick = () => {
@@ -319,32 +429,40 @@ async function registerWebPushSubscription() {
   if (!("Notification" in window) || Notification.permission !== "granted") return false;
   if (!currentUser || !accessToken) return false;
   if (!webReminderNotificationsAppEnabled()) return false;
-  try {
-    const data = await apiFetch("/api/push/public-key");
-    const pubB64 = data && data.publicKey;
-    if (!pubB64) return false;
+  if (registerWebPushInFlight) return registerWebPushInFlight;
+  registerWebPushInFlight = (async () => {
+    try {
+      const data = await apiFetch("/api/push/public-key");
+      const pubB64 = data && data.publicKey;
+      if (!pubB64) return false;
 
-    const reg = await navigator.serviceWorker.getRegistration();
-    if (!reg || !reg.pushManager) return false;
-    const applicationServerKey = urlBase64ToUint8Array(pubB64);
-    let sub = await reg.pushManager.getSubscription();
-    if (!sub) {
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (!reg || !reg.pushManager) return false;
+      const applicationServerKey = urlBase64ToUint8Array(pubB64);
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey
+        });
+      }
+      await apiFetch("/api/push/subscribe", {
+        method: "POST",
+        body: JSON.stringify({ subscription: sub.toJSON() })
       });
+      void updateSettingsNotificationStatus();
+      return true;
+    } catch (err) {
+      if (notesAiVerboseLogs() && typeof console !== "undefined" && console.warn) {
+        console.warn("[web-push] register failed", err && err.message ? err.message : err);
+      }
+      void updateSettingsNotificationStatus();
+      return false;
+    } finally {
+      registerWebPushInFlight = null;
     }
-    await apiFetch("/api/push/subscribe", {
-      method: "POST",
-      body: JSON.stringify({ subscription: sub.toJSON() })
-    });
-    void updateSettingsNotificationStatus();
-    return true;
-  } catch (err) {
-    console.warn("[web-push] register failed", err && err.message ? err.message : err);
-    void updateSettingsNotificationStatus();
-    return false;
-  }
+  })();
+  return registerWebPushInFlight;
 }
 
 async function unregisterWebPushSubscriptionFromServerAndBrowser() {
@@ -489,40 +607,148 @@ async function requestNotificationPermissionIfNeeded(forceAsk = false) {
   }
 }
 
+function sanitizeNotificationPlainText(raw) {
+  let s = String(raw ?? "").replace(/\u00a0/g, " ");
+  try {
+    s = s.replace(/\p{Extended_Pictographic}/gu, " ");
+  } catch {
+    /* Engines without Unicode property escapes — skip strip */
+  }
+  return s.replace(/\s+/g, " ").trim();
+}
+
+/** ~2 rrjeshta në shumicën e pajisjeve; pa emoji dekorative në përmbajtje. */
+function truncateNativeNotificationPreview(text, maxChars = 170) {
+  const s = sanitizeNotificationPlainText(text);
+  if (!s) return "";
+  if (s.length <= maxChars) return s;
+  const cut = s.slice(0, maxChars - 1).trimEnd();
+  const softBreak = Math.max(cut.lastIndexOf(" "), cut.lastIndexOf("·"), cut.lastIndexOf(","));
+  const base = softBreak > Math.floor(maxChars * 0.45) ? cut.slice(0, softBreak).trimEnd() : cut;
+  return `${base}…`;
+}
+
+function formatPlannerNativeNotificationCaption(task) {
+  const txt = sanitizeNotificationPlainText(String((task && task.text) || ""));
+  const time = String((task && task.time) || "").trim();
+  if (time && txt) return `${time} · ${txt}`;
+  if (txt) return txt;
+  if (time) return `${time}`;
+  return "Daily planner";
+}
+
 async function ensureNativeNotificationChannel() {
   if (!isNativeLocalNotificationsAvailable()) return;
   const localNotifications = getLocalNotificationsPlugin();
   if (!localNotifications || typeof localNotifications.createChannel !== "function") return;
   try {
     /**
-     * Android 8+: importance 5 = IMPORTANCE_HIGH/MAX lane — banner “heads-up”, sound + vibration follow user channel settings.
-     * Omit custom filename sound (requires res/raw); OS default tone attaches to high-importance channels on most OEMs.
+     * Android 8+: importance 5 lane heads-up · visibility 1 = public lock screen.
+     * Sound fleksibel — pa res/raw përdoret default i canalit/OS.
      */
     await localNotifications.createChannel({
-      id: ANDROID_REMINDERS_CHANNEL_ID,
-      name: "Notes AI — reminders",
-      description: "Scheduled reminders & daily planner alarms with sound.",
+      id: ANDROID_NOTES_AI_CHANNEL_ID,
+      name: "Notes AI",
+      description: "Reminders & daily planner from your Notes AI workspace.",
       importance: 5,
       visibility: 1,
       vibration: true,
-      lights: true
+      lights: true,
+      lightColor: NOTES_AI_ANDROID_ICON_COLOR
     });
   } catch {
     /* ignore */
   }
 }
 
+async function initNotesAiNativeLocalNotificationShell() {
+  await ensureNativeNotificationChannel();
+  if (!isNativeLocalNotificationsAvailable() || notesAiNativeNotificationShellReady) return;
+
+  const plug = getLocalNotificationsPlugin();
+  if (!plug || typeof plug.addListener !== "function") return;
+
+  try {
+    if (typeof plug.registerActionTypes === "function") {
+      await plug.registerActionTypes({
+        types: [
+          {
+            id: NOTES_AI_LOCAL_NOTIF_ACTIONS_ID,
+            actions: [
+              { id: NOTES_AI_LOCAL_ACTION_OPEN, title: "Open", foreground: true },
+              { id: NOTES_AI_LOCAL_ACTION_DISMISS, title: "Dismiss" }
+            ]
+          }
+        ]
+      });
+    }
+    await plug.addListener("localNotificationActionPerformed", async (action) => {
+      const aid = action && action.actionId;
+      const notif = action && action.notification;
+      const nid = notif != null && notif.id != null ? Number(notif.id) : NaN;
+      if (aid !== NOTES_AI_LOCAL_ACTION_DISMISS || !Number.isFinite(nid)) return;
+      if (typeof plug.removeDeliveredNotifications !== "function") return;
+      try {
+        await plug.removeDeliveredNotifications({ notifications: [{ id: nid }] });
+      } catch {
+        /* ignore */
+      }
+    });
+  } catch {
+    return;
+  }
+
+  notesAiNativeNotificationShellReady = true;
+}
+
+/**
+ * @param {{ body?: string; at?: Date; variant?: "reminder" | "ai" }} common
+ */
 function scheduledLocalReminderPayload(common) {
-  const body = String(common.body ?? "").slice(0, 300);
+  const variant = common && common.variant === "ai" ? "ai" : "reminder";
+  const sanitizedFull = sanitizeNotificationPlainText(common && common.body != null ? common.body : "");
+  const collapsed = sanitizedFull.slice(0, 720);
+
+  /** Titull konsistent hierarkik; përdoruesi donte ⏰ në titullin e reminder-it. */
+  const title = variant === "ai" ? "Notes AI" : "⏰ Reminder";
+
+  let bodyLine = truncateNativeNotificationPreview(sanitizedFull, 174);
+  if (!bodyLine) {
+    bodyLine =
+      variant === "ai"
+        ? "You have something new inside Notes AI."
+        : "Reminder is due — tap to open your workspace.";
+  }
+
   const base = {
-    title: common.title || "Reminder ⏰",
-    body: body.slice(0, 180),
-    largeBody: body,
-    schedule: { at: common.at, allowWhileIdle: true },
-    channelId: ANDROID_REMINDERS_CHANNEL_ID,
+    title,
+    body: bodyLine,
+    largeBody: collapsed || undefined,
+    schedule: common && common.at ? { at: common.at, allowWhileIdle: true } : undefined,
+    channelId: ANDROID_NOTES_AI_CHANNEL_ID,
     autoCancel: true,
-    ...(capacitorPlatform() === "ios" ? { sound: "default" } : {})
+    ongoing: false,
+    actionTypeId: NOTES_AI_LOCAL_NOTIF_ACTIONS_ID,
+    extra: common && typeof common.extra === "object" && common.extra !== null ? common.extra : {},
+    ...(capacitorPlatform() === "ios" ? { sound: "default" } : {}),
+    ...(capacitorPlatform() === "ios" ? { threadIdentifier: NOTES_AI_ANDROID_NOTIFICATION_GROUP } : {}),
+    ...(capacitorPlatform() === "android"
+      ? {
+          smallIcon: "ic_stat_notes_ai",
+          largeIcon: "ic_notification_large_notes_ai",
+          iconColor: NOTES_AI_ANDROID_ICON_COLOR,
+          group: NOTES_AI_ANDROID_NOTIFICATION_GROUP
+        }
+      : {})
   };
+
+  if (collapsed && collapsed.length > bodyLine.length && capacitorPlatform() === "android") {
+    base.summaryText =
+      variant === "ai"
+        ? "Notes AI workspace"
+        : "Stay on top of reminders";
+  }
+
   return base;
 }
 
@@ -707,7 +933,6 @@ async function schedulePlannerLocalNotification(task) {
   const localNotifications = getLocalNotificationsPlugin();
   if (!localNotifications) return;
   const id = plannerNotificationId(task.id);
-  const text = String(task.text || "").trim();
   try {
     await localNotifications.cancel({ notifications: [{ id }] });
     await localNotifications.schedule({
@@ -715,9 +940,9 @@ async function schedulePlannerLocalNotification(task) {
         {
           id,
           ...scheduledLocalReminderPayload({
-            title: "Reminder ⏰",
-            body: text || "—",
-            at: when
+            body: formatPlannerNativeNotificationCaption(task),
+            at: when,
+            extra: { route: "planner", plannerTaskId: String(task.id) }
           })
         }
       ]
@@ -781,9 +1006,9 @@ async function scheduleReminderLocalNotification(reminder) {
         {
           id,
           ...scheduledLocalReminderPayload({
-            title: "Reminder ⏰",
             body: String(reminder.message || t("reminderDefaultBody")),
-            at: when
+            at: when,
+            extra: { route: "reminders", reminderId: String(reminder._id || "") }
           })
         }
       ]
@@ -848,6 +1073,8 @@ async function dailyPlannerMaybeTriggerNotifications() {
 }
 
 function scheduleDailyPlannerNotificationLoop() {
+  if (dailyPlannerNotifyLoopRegistered) return;
+  dailyPlannerNotifyLoopRegistered = true;
   if (isNativeLocalNotificationsAvailable()) {
     void syncPlannerLocalNotifications();
     return;
@@ -1024,8 +1251,7 @@ function openDailyPlannerModal() {
   document.body.classList.add("modal-open");
   renderDailyPlannerList();
   if (typeof applyTranslations === "function") applyTranslations();
-  const input = document.getElementById("dailyPlannerTaskInput");
-  if (input) input.focus();
+  /* No programmatic focus — Android/Capacitor otherwise opens the soft keyboard immediately. */
 }
 
 function closeDailyPlannerModal() {
@@ -1151,7 +1377,8 @@ function refreshDepthRevealObserversNow() {
   }
   document.querySelectorAll(targets).forEach((el) => {
     el.classList.add("depth-reveal");
-    if (!el.classList.contains("depth-reveal--in")) depthRevealObserver.observe(el);
+    if (el.classList.contains("depth-reveal--in")) return;
+    depthRevealObserver.observe(el);
   });
   refreshPremiumTiltTargets();
 }
@@ -3518,6 +3745,7 @@ async function submitAuthLogin(ev) {
 }
 
 function initAuthLandingUi() {
+  syncAuthGoogleLinkHref();
   const rememberCb = document.getElementById("authLoginRemember");
   if (rememberCb) {
     try {
@@ -3552,8 +3780,15 @@ function initAuthLandingUi() {
       }
       if (typeof isNativeApp === "function" && isNativeApp()) {
         ev.preventDefault();
-        const url =
-          (g.getAttribute("href") || "").trim() || `${backendAbsoluteUrl("/auth/google")}?native=1`;
+        const hrefRaw = String((g.getAttribute("href") || "").trim() || backendAbsoluteUrl("/auth/google"));
+        let url = hrefRaw;
+        try {
+          const u = new URL(hrefRaw);
+          u.searchParams.set("native", "1");
+          url = u.toString();
+        } catch {
+          url = hrefRaw.includes("native=1") ? hrefRaw : `${hrefRaw}${hrefRaw.includes("?") ? "&" : "?"}native=1`;
+        }
         try {
           const Browser = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
           if (Browser && typeof Browser.open === "function") {
@@ -3762,9 +3997,9 @@ function openCategory(cat) {
   }
 
   if (currentUser) {
-    loadNotes();
+    requestAnimationFrame(() => void loadNotes());
   } else {
-    renderNotes(getPublicNotes());
+    requestAnimationFrame(() => renderNotes(getPublicNotes()));
   }
   const webReminderSection = document.getElementById("webReminderSection");
   if (webReminderSection) webReminderSection.style.display = "none";
@@ -4551,22 +4786,26 @@ function applyDiscordCommunityUi() {
   }
 }
 
-async function loadDiscordCommunityConfig() {
+async function loadDiscordCommunityConfig(forceReload) {
+  const nowTs = Date.now();
+  if (!forceReload && appPublicConfigCacheExpiresAt > nowTs && googleOAuthConfigLoaded) {
+    applyDiscordCommunityUi();
+    syncAuthGoogleLinkHref();
+    return;
+  }
   if (loadDiscordCommunityConfigInflight) return loadDiscordCommunityConfigInflight;
   loadDiscordCommunityConfigInflight = (async () => {
+    const publicFetchOpts = {
+      method: "GET",
+      cache: "no-store",
+      /* Public endpoint — omit cookies avoids WebView/third-party quirks in Capacitor; same on web/PWA */
+      credentials: "omit"
+    };
     try {
       const primaryUrl = buildApiUrl("/api/public/app-config");
-      let res = await fetch(primaryUrl, {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store"
-      });
+      let res = await fetch(primaryUrl, publicFetchOpts);
       if (res.status === 404) {
-        res = await fetch(backendAbsoluteUrl("/api/public/app-config"), {
-          method: "GET",
-          credentials: "include",
-          cache: "no-store"
-        });
+        res = await fetch(backendAbsoluteUrl("/api/public/app-config"), publicFetchOpts);
       }
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to load app config");
@@ -4577,6 +4816,7 @@ async function loadDiscordCommunityConfig() {
       supportContactEmail = String((data && data.supportEmail) || "").trim();
       stripePublishableKey = String((data && data.stripePublishableKey) || "").trim();
       googleOAuthClientId = String((data && data.googleClientId) || "").trim();
+      appPublicConfigCacheExpiresAt = Date.now() + APP_PUBLIC_CONFIG_CACHE_TTL_MS;
     } catch {
       discordCommunityUrl = "";
       discordUpdatesCount = 0;
@@ -4585,6 +4825,7 @@ async function loadDiscordCommunityConfig() {
       supportContactEmail = "";
       stripePublishableKey = "";
       googleOAuthClientId = "";
+      appPublicConfigCacheExpiresAt = Date.now() + APP_PUBLIC_CONFIG_RETRY_MS;
     } finally {
       googleOAuthConfigLoaded = true;
     }
@@ -4611,22 +4852,58 @@ function decodeNativeOAuthFragment(hash) {
 }
 
 /**
- * Capacitor: backend redirects to `com.notesai.app://oauth#<base64url JSON>` after Google OAuth (`?native=1`).
+ * Prefer explicit hash; else query `t` (current backend). Android VIEW intents often drop the fragment.
+ */
+function extractNativeOAuthPayloadSegment(rawUrl) {
+  const full = String(rawUrl || "").trim();
+  const marker = "com.notesai.app://oauth";
+  const at = full.indexOf(marker);
+  if (at < 0) return "";
+  const fromScheme = full.slice(at);
+
+  const hashIdx = fromScheme.indexOf("#");
+  if (hashIdx >= 0) {
+    const seg = fromScheme.slice(hashIdx + 1).trim();
+    if (seg) return seg;
+  }
+  try {
+    const parsed = new URL(fromScheme);
+    const t = parsed.searchParams.get("t");
+    if (!t) return "";
+    try {
+      return decodeURIComponent(t);
+    } catch {
+      return String(t || "").trim();
+    }
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Capacitor: backend redirects to `com.notesai.app://oauth?t=<base64url JSON>` (legacy: `#fragment`) after `?native=1`.
  */
 async function consumeNativeOAuthUrlIfAny(rawUrl) {
   if (nativeOAuthDeepLinkHandled) return false;
   const url = String(rawUrl || "");
   if (!url.includes("com.notesai.app://oauth")) return false;
-  const hashIdx = url.indexOf("#");
-  const hashPart = hashIdx >= 0 ? url.slice(hashIdx + 1) : "";
-  if (!hashPart) {
+  try {
+    if (typeof isNativeApp === "function" && isNativeApp() && typeof console !== "undefined" && console.info) {
+      const short = url.length > 160 ? `${url.slice(0, 156)}…` : url;
+      console.info("[native OAuth] deep link", short);
+    }
+  } catch {
+    /* ignore */
+  }
+  const segment = extractNativeOAuthPayloadSegment(url);
+  if (!segment) {
     nativeOAuthDeepLinkHandled = true;
     showToast("Google sign-in could not be completed.");
     return true;
   }
   let payload;
   try {
-    payload = decodeNativeOAuthFragment(hashPart);
+    payload = decodeNativeOAuthFragment(segment);
   } catch {
     nativeOAuthDeepLinkHandled = true;
     showToast("Google sign-in could not be completed.");
@@ -4650,13 +4927,24 @@ async function consumeNativeOAuthUrlIfAny(rawUrl) {
   return true;
 }
 
+let nativeOAuthDeepLinkListenerReady = false;
+
 async function initNativeOAuthDeepLinks() {
   if (typeof isNativeApp !== "function" || !isNativeApp()) return;
+  if (nativeOAuthDeepLinkListenerReady) return;
   const AppPlugin = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
   if (!AppPlugin || typeof AppPlugin.addListener !== "function") return;
-  AppPlugin.addListener("appUrlOpen", (ev) => {
-    void consumeNativeOAuthUrlIfAny(ev && ev.url);
-  });
+  try {
+    await AppPlugin.addListener("appUrlOpen", (ev) => {
+      void consumeNativeOAuthUrlIfAny(ev && ev.url);
+    });
+    nativeOAuthDeepLinkListenerReady = true;
+  } catch (e) {
+    if (typeof console !== "undefined" && console.warn) {
+      console.warn("[native OAuth] App.addListener(appUrlOpen) failed:", e);
+    }
+    return;
+  }
   try {
     const launch = await AppPlugin.getLaunchUrl();
     if (launch && launch.url) await consumeNativeOAuthUrlIfAny(launch.url);
@@ -4733,6 +5021,7 @@ async function presentPendingPostOAuthLandingIfAny() {
 }
 
 function markGoogleOAuthFlowDeparting() {
+  nativeOAuthDeepLinkHandled = false;
   try {
     sessionStorage.setItem(OAUTH_GOOGLE_RETURN_PENDING_KEY, "1");
     sessionStorage.removeItem(OAUTH_HANDOFF_SESSION_DONE_KEY);
@@ -5615,7 +5904,9 @@ function scanCamExtractStructuredText(ocrData) {
       if (fromLines) return scanCamNormalizeOcrOutput(fromLines);
     }
   } catch (e) {
-    console.warn("[Scan Cam] structured OCR", e);
+    if (notesAiVerboseLogs() && typeof console !== "undefined" && console.warn) {
+      console.warn("[Scan Cam] structured OCR", e);
+    }
   }
   return scanCamNormalizeOcrOutput(String(ocrData.text || "").trim());
 }
@@ -5651,6 +5942,7 @@ function scanCamCanvasFromImgElement(img, maxSide = 3600) {
 }
 
 async function scanCamEnsureTesseractWorker() {
+  await scanCamEnsureTesseractVendorOnly();
   if (typeof Tesseract === "undefined") {
     throw new Error("MISSING_TESSERACT");
   }
@@ -5675,12 +5967,16 @@ async function scanCamEnsureTesseractWorker() {
                 user_defined_dpi: "300"
               });
             } catch (e2) {
-              console.warn("[Scan Cam] Tesseract setParameters", e2 && e2.message);
+              if (notesAiVerboseLogs() && typeof console !== "undefined" && console.warn) {
+                console.warn("[Scan Cam] Tesseract setParameters", e2 && e2.message);
+              }
             }
           }
           return scanCamTesseractWorker;
         } catch (e) {
-          console.warn("[Scan Cam] Tesseract init", lang, e && e.message);
+          if (notesAiVerboseLogs() && typeof console !== "undefined" && console.warn) {
+            console.warn("[Scan Cam] Tesseract init", lang, e && e.message);
+          }
           scanCamTesseractWorker = null;
         }
       }
@@ -5697,6 +5993,7 @@ async function scanCamEnsureTesseractWorker() {
 }
 
 async function scanCamRecognizeFromPdfUrl(pdfUrl) {
+  await scanCamEnsureVendorScriptsLoaded();
   if (typeof pdfjsLib === "undefined") {
     throw new Error("MISSING_PDFJS");
   }
@@ -5761,7 +6058,9 @@ async function scanCamRunOcr() {
     let text = "";
 
     if (hasImg) {
-      if (typeof Tesseract === "undefined") {
+      try {
+        await scanCamEnsureTesseractVendorOnly();
+      } catch {
         showToast(t("scanCamTesseractMissing"));
         return;
       }
@@ -5779,8 +6078,10 @@ async function scanCamRunOcr() {
         : await worker.recognize(preview.src);
       text = data ? scanCamExtractStructuredText(data) : "";
     } else if (hasPdf) {
-      if (typeof Tesseract === "undefined" || typeof pdfjsLib === "undefined") {
-        showToast(t("scanCamTesseractMissing"));
+      try {
+        await scanCamEnsureVendorScriptsLoaded();
+      } catch {
+        showToast(t("scanCamPdfJsMissing"));
         return;
       }
       text = await scanCamRecognizeFromPdfUrl(scanCamPdfObjectUrl);
@@ -5802,7 +6103,9 @@ async function scanCamRunOcr() {
     if (status) status.textContent = t("scanCamDone");
     scanCamShowResultPanel();
   } catch (e) {
-    console.warn("[Scan Cam OCR]", e);
+    if (notesAiVerboseLogs() && typeof console !== "undefined" && console.warn) {
+      console.warn("[Scan Cam OCR]", e);
+    }
     let msg = t("scanCamOcrFailed");
     if (e && e.message === "MISSING_TESSERACT") msg = t("scanCamTesseractMissing");
     else if (e && e.message === "MISSING_PDFJS") msg = t("scanCamPdfJsMissing");
@@ -7127,6 +7430,54 @@ function openReminderHistory() {
   void renderReminderHistory();
 }
 
+async function refreshSettingsDebugBuildLine() {
+  const el = document.getElementById("settingsDebugBuildLine");
+  if (!el) return;
+  try {
+    const meta = document.querySelector('meta[name="notes-ai-build"]');
+    const webBundle =
+      (meta && meta.getAttribute("content")) ||
+      (typeof window !== "undefined" && window.__NOTES_AI_BUILD__) ||
+      "—";
+    let line = "";
+    if (typeof isNativeApp === "function" && isNativeApp()) {
+      let appLine = "";
+      try {
+        const AppPlugin = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+        if (AppPlugin && typeof AppPlugin.getInfo === "function") {
+          const info = await AppPlugin.getInfo();
+          if (info) {
+            appLine =
+              `${String(info.name || "").trim()} ${String(info.version || "").trim()} · build ${String(info.build || "").trim()}`.trim();
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+      line = appLine ? `Debug: APK ${appLine} · bundle ${webBundle}` : `Debug: APK · bundle ${webBundle}`;
+      el.textContent = line;
+      el.classList.remove("hidden");
+    } else if (typeof isAuthDevHost === "function" && isAuthDevHost()) {
+      el.textContent = `Debug: bundle ${webBundle}`;
+      el.classList.remove("hidden");
+    } else {
+      el.textContent = "";
+      el.classList.add("hidden");
+    }
+    if (
+      notesAiVerboseLogs() &&
+      typeof isNativeApp === "function" &&
+      isNativeApp() &&
+      typeof console !== "undefined" &&
+      typeof console.debug === "function"
+    ) {
+      console.debug("[Notes AI]", el.textContent);
+    }
+  } catch {
+    el.classList.add("hidden");
+  }
+}
+
 async function openSettings() {
   setBodyHomePage(false);
   activateMenu("menuSettings");
@@ -7150,6 +7501,7 @@ async function openSettings() {
   toggleSettingsProfileEdit(false);
   const searchInput = document.getElementById("settingsSearchInput");
   if (searchInput) searchInput.value = "";
+  void refreshSettingsDebugBuildLine();
 }
 
 function openSettingsSection(sectionKey) {
@@ -7243,43 +7595,54 @@ async function updateHomeDashboardStats() {
     return;
   }
 
-  const name = currentUser.firstName || currentUser.username || "";
-  welcomeEl.textContent = t("homeWelcomeNamed").replace("{name}", name);
+  if (homeDashboardStatsInFlight) return homeDashboardStatsInFlight;
 
-  try {
-    const [notesData, remData] = await Promise.all([
-      apiFetch("/api/notes?count=1"),
-      fetchWebRemindersListDeduped()
-    ]);
-    /** Prefer lightweight `count`; if server ignores query (older deploy / proxy), fallback to notes array length. */
-    let notesCount = 0;
-    const rawCount = notesData && notesData.count;
-    if (rawCount !== undefined && rawCount !== null && rawCount !== "") {
-      const parsed = typeof rawCount === "number" ? rawCount : parseInt(String(rawCount), 10);
-      if (!Number.isNaN(parsed)) notesCount = parsed;
-    } else if (Array.isArray(notesData && notesData.notes)) {
-      notesCount = notesData.notes.length;
-    }
-    /* Scan Cam shënime lokale (jo në DB) — përfshihen në listat e app-it, duhet edhe në kryefaqe */
-    notesCount += readScanCamLocalNotes().length;
+  const p = (async () => {
+    const name = currentUser.firstName || currentUser.username || "";
+    welcomeEl.textContent = t("homeWelcomeNamed").replace("{name}", name);
 
-    const reminders = remData.reminders || [];
-    notesEl.textContent = String(notesCount);
-    remEl.textContent = String(reminders.length);
-  } catch (err) {
-    if (err && (err.authSkipped || err.authSessionEnded)) {
-      welcomeEl.textContent = t("homeWelcomeGuest");
+    try {
+      const [notesData, remData] = await Promise.all([
+        apiFetch("/api/notes?count=1"),
+        fetchWebRemindersListDeduped()
+      ]);
+      /** Prefer lightweight `count`; if server ignores query (older deploy / proxy), fallback to notes array length. */
+      let notesCount = 0;
+      const rawCount = notesData && notesData.count;
+      if (rawCount !== undefined && rawCount !== null && rawCount !== "") {
+        const parsed = typeof rawCount === "number" ? rawCount : parseInt(String(rawCount), 10);
+        if (!Number.isNaN(parsed)) notesCount = parsed;
+      } else if (Array.isArray(notesData && notesData.notes)) {
+        notesCount = notesData.notes.length;
+      }
+      /* Scan Cam shënime lokale (jo në DB) — përfshihen në listat e app-it, duhet edhe në kryefaqe */
+      notesCount += readScanCamLocalNotes().length;
+
+      const reminders = remData.reminders || [];
+      notesEl.textContent = String(notesCount);
+      remEl.textContent = String(reminders.length);
+    } catch (err) {
+      if (err && (err.authSkipped || err.authSessionEnded)) {
+        welcomeEl.textContent = t("homeWelcomeGuest");
+        notesEl.textContent = "—";
+        remEl.textContent = "—";
+        return;
+      }
       notesEl.textContent = "—";
       remEl.textContent = "—";
-      return;
     }
-    notesEl.textContent = "—";
-    remEl.textContent = "—";
-  }
+  })();
+
+  homeDashboardStatsInFlight = p.finally(() => {
+    homeDashboardStatsInFlight = null;
+  });
+  return homeDashboardStatsInFlight;
 }
 
 /** Shares one GET /api/reminders/web promise while concurrent callers await (hub + reminders panel + polling overlap). */
 let webRemindersListFetchPromise = null;
+/** Dedupes Home stats (/api/notes?count + reminders) bursts from goHome + parallel UI. */
+let homeDashboardStatsInFlight = null;
 
 function fetchWebRemindersListDeduped() {
   if (!isAuthSessionReady() || authInvalidated) {
@@ -7517,7 +7880,7 @@ function requestNotificationPermission() {
   requestNotificationPermissionIfNeeded(true).then((granted) => {
     if (granted) {
       setWebReminderNotificationsAppEnabled(true);
-      void ensureNativeNotificationChannel();
+      void initNotesAiNativeLocalNotificationShell();
       showToast(t("notificationsEnabledToast"));
       void syncPlannerLocalNotifications();
       if (currentUser && accessToken) {
@@ -7665,8 +8028,8 @@ let webNotificationVisibilityHooked = false;
 /** Coalesces overlapping due-check passes (interval + visibility + concurrent UI). */
 let reminderDueCheckInFlight = null;
 let lastReminderVisibilityPollMs = 0;
-const REMINDER_POLL_INTERVAL_MS = 45000;
-const REMINDER_VISIBILITY_POLL_MIN_MS = 28000;
+const REMINDER_POLL_INTERVAL_MS = 90000;
+const REMINDER_VISIBILITY_POLL_MIN_MS = 50000;
 
 function stopWebReminderPollingScheduler() {
   if (webNotificationSchedulerIntervalId != null) {
@@ -7679,7 +8042,9 @@ function stopWebReminderPollingScheduler() {
 /** Clear session after invalid/expired tokens without toast; idempotent. */
 function invalidateAuthSessionSilently() {
   refreshAccessTokenPromise = null;
+  registerWebPushInFlight = null;
   authInvalidated = true;
+  appPublicConfigCacheExpiresAt = 0;
   stopWebReminderPollingScheduler();
   webChatSessionTurns = [];
   webChatLastReminderUserRaw = null;
@@ -7702,17 +8067,9 @@ function startWebNotificationScheduler() {
     void syncPlannerLocalNotifications();
     return;
   }
-  var intervalMs = REMINDER_POLL_INTERVAL_MS;
-  try {
-    if (typeof isNativeApp === "function" && isNativeApp()) {
-      intervalMs = 60000;
-    }
-  } catch {
-    /* ignore */
-  }
   webNotificationSchedulerIntervalId = window.setInterval(() => {
     void checkForDueReminders();
-  }, intervalMs);
+  }, REMINDER_POLL_INTERVAL_MS);
   if (!webNotificationVisibilityHooked) {
     webNotificationVisibilityHooked = true;
     document.addEventListener(
@@ -9014,6 +9371,7 @@ function getOrCreateDeviceId() {
 }
 
 function logoutUser() {
+  nativeOAuthDeepLinkHandled = false;
   stopWebReminderPollingScheduler();
   webChatSessionTurns = [];
   webChatLastReminderUserRaw = null;
@@ -9833,7 +10191,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   handleGoogleOAuthQueryParams();
 
   initAuthLandingUi();
-  void ensureNativeNotificationChannel();
+  void initNotesAiNativeLocalNotificationShell();
   // Initialize theme and language
   applyTheme(getCurrentTheme());
   applyTranslations();
@@ -9871,7 +10229,10 @@ window.addEventListener("DOMContentLoaded", async () => {
     syncOfflineIndicatorUi();
     if (typeof applyTranslations === "function") applyTranslations();
   });
-  window.setInterval(() => {
+  if (offlineNotesFlushIntervalId != null) {
+    window.clearInterval(offlineNotesFlushIntervalId);
+  }
+  offlineNotesFlushIntervalId = window.setInterval(() => {
     if (isBrowserOnline() && offlineNotesReadQueue().length) void offlineNotesFlushQueue();
   }, 45000);
   syncOfflineIndicatorUi();
@@ -9962,23 +10323,49 @@ window.addEventListener("DOMContentLoaded", async () => {
   });
 
   let mobileScrollRaf = 0;
+  let lastDepthParallaxRounded = -1;
+  let lastFloatingScrolledState = null;
+  let lastMobileScrolledState = null;
   const syncMobileScrollState = () => {
+    const y = window.scrollY || 0;
     const canvas = document.querySelector(".background-canvas");
     if (canvas) {
-      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        canvas.style.setProperty("--depth-parallax-y", "0px");
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const nativeWebView = typeof isNativeApp === "function" && isNativeApp();
+      if (reduce || nativeWebView) {
+        if (lastDepthParallaxRounded !== 0) {
+          lastDepthParallaxRounded = 0;
+          canvas.style.setProperty("--depth-parallax-y", "0px");
+        }
       } else {
-        const y = Math.min(window.scrollY * 0.065, 96);
-        canvas.style.setProperty("--depth-parallax-y", `${y}px`);
+        const parallax = Math.min(y * 0.065, 96);
+        const rounded = Math.round(parallax * 4) / 4;
+        if (rounded !== lastDepthParallaxRounded) {
+          lastDepthParallaxRounded = rounded;
+          canvas.style.setProperty("--depth-parallax-y", `${rounded}px`);
+        }
       }
     }
+    const scrolled = y > 8;
     if (!isMobileViewport()) {
-      document.body.classList.remove("mobile-scrolled");
-      document.body.classList.toggle("floating-scrolled", window.scrollY > 8);
+      if (lastMobileScrolledState !== false) {
+        lastMobileScrolledState = false;
+        document.body.classList.remove("mobile-scrolled");
+      }
+      if (lastFloatingScrolledState !== scrolled) {
+        lastFloatingScrolledState = scrolled;
+        document.body.classList.toggle("floating-scrolled", scrolled);
+      }
       return;
     }
-    document.body.classList.toggle("mobile-scrolled", window.scrollY > 8);
-    document.body.classList.toggle("floating-scrolled", window.scrollY > 8);
+    if (lastMobileScrolledState !== scrolled) {
+      lastMobileScrolledState = scrolled;
+      document.body.classList.toggle("mobile-scrolled", scrolled);
+    }
+    if (lastFloatingScrolledState !== scrolled) {
+      lastFloatingScrolledState = scrolled;
+      document.body.classList.toggle("floating-scrolled", scrolled);
+    }
   };
   const onScrollParallaxThrottled = () => {
     if (mobileScrollRaf) return;
@@ -9998,6 +10385,10 @@ window.addEventListener("DOMContentLoaded", async () => {
       if (!isMobileViewport()) closeMobileNav();
       syncMobileHeaderActionUi();
       initPremiumTiltSystem();
+      lastDepthParallaxRounded = -1;
+      lastFloatingScrolledState = null;
+      lastMobileScrolledState = null;
+      syncMobileScrollState();
     });
   });
   const chooseBtn = document.getElementById("chooseUsernameContinue");

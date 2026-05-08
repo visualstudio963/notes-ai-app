@@ -74,3 +74,12 @@ $env:CAP_SERVER_URL="http://192.168.1.20:3000"; npm run cap:sync:dev
 ```
 
 Still set `VITE_API_URL` / inject API base if the dev server HTML includes `__API_BASE_URL__` tokens.
+
+## APK UI still looks like an old bundle
+
+1. **Live reload overriding assets** — If you ever ran `CAP_SERVER_URL=http://… cap sync`, `android/app/src/main/assets/capacitor.config.json` will contain `"server":{"url":"…"}`. The WebView then loads JS/CSS from **that URL**, not `android/app/src/main/assets/public/`. For a packaged APK, regenerate without `CAP_SERVER_URL` set (production `cap sync`); the bundled config should **omit** `"server"` entirely.
+2. **Wrong install target** — Reinstall **debug** vs **release** consistently; uninstall the store/dev copy first so Android does not keep an older sibling app.
+3. **Gradle caches** — After changing `frontend/public`, run **`npx cap sync android`** then **Build → Clean Project** (or `./gradlew clean`) before **Run**.
+4. **Verify copy** — After sync, `android/app/src/main/assets/public/js/app.js` must match `frontend/public/js/app.js` (same `notes-ai-channel` markers, etc.). **Settings → Embedded web bundle** shows `<meta name="notes-ai-build">` / `__NOTES_AI_BUILD__`; bump `apk-emb-…` in `index.html` whenever you ship a native build so testers can sight‑check the APK they installed.
+
+`backend/src/server.js` only serves `frontend/public` for **hosted** web/API; **it does not affect the Capacitor-bundled WebView**.

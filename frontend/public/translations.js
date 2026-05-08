@@ -586,6 +586,10 @@ const translations = {
     noteExportToolsLoading: "Export tools are still loading. Try again in a few seconds.",
     noteExportPdfUnavailable: "Could not build the PDF. Try again in a few seconds or use TXT.",
     noteExportJpgUnavailable: "Could not create the image. Try again in a few seconds or use TXT.",
+    noteExportNativeSaved: "File saved",
+    noteExportNativeShareReady: "Ready to share",
+    noteExportNativeFailed: "Could not save the file. Try again.",
+    noteExportShareDialogTitle: "Export",
     noteShareTitle: "Share",
     noteShareLead: "Choose how to share this note",
     noteShareWhatsApp: "WhatsApp",
@@ -606,6 +610,7 @@ const translations = {
     // Settings
     settingsTitle: "Settings",
     settingsSubtitle: "Manage your account and preferences",
+    settingsAppVersionLine: "Version update {version}",
     accountSettings: "Account Settings",
     accountInfo: "Your Information",
     firstName: "First Name",
@@ -1468,6 +1473,10 @@ const translations = {
     noteExportToolsLoading: "Mjetet e eksportit ende po ngarkohen. Provo përsëri pas disa sekondash.",
     noteExportPdfUnavailable: "Nuk u ndërtua PDF. Provo përsëri pas disa sekondash ose përdor TXT.",
     noteExportJpgUnavailable: "Nuk u krijua imazhi. Provo përsëri pas disa sekondash ose përdor TXT.",
+    noteExportNativeSaved: "Skedari u ruajt",
+    noteExportNativeShareReady: "Gati për ndarje",
+    noteExportNativeFailed: "Nuk u ruajt skedari. Provo përsëri.",
+    noteExportShareDialogTitle: "Eksporto",
     noteShareTitle: "Ndaj",
     noteShareLead: "Zgjidh si ta ndash këtë shënim",
     noteShareWhatsApp: "WhatsApp",
@@ -1488,6 +1497,7 @@ const translations = {
     // Settings
     settingsTitle: "Cilësimet",
     settingsSubtitle: "Menaxhoni llogarinë dhe preferencat tuaja",
+    settingsAppVersionLine: "Përditësim versioni {version}",
     accountSettings: "Cilësimet e Llogarisë",
     accountInfo: "Informacioni Juaj",
     firstName: "Emri",
@@ -2071,6 +2081,43 @@ const translations = {
     categoryAriaShkolla: "Kategori Skola"
   }
 };
+
+/**
+ * Infer chat reply locale from user text (Albanian vs English). Not UI language — used for Web Chat bot copy only.
+ * @param {string} text
+ * @returns {"sq"|"en"}
+ */
+function inferWebChatMessageLang(text) {
+  const s = String(text || "").trim();
+  if (!s) return "en";
+  if (/[çëÇË]/.test(s)) return "sq";
+  const sqWord =
+    /\b(pershendetje|persh[eë]ndetje|p[eë]rsh|tung|tungjatjeta|faleminderit|flm|mir[eë]mbr[eë]ma|m[eë]rzitur|d[eë]shir|ju\s+faleminderit|me\s+kujto|m[eë]\s+kujto|kujto|neser|nes[eë]r|pasneser|pasnes[eë]r|pasdite|pas\s+dite|m[eë]ngjes|oren|or[eë]n|sot|shqipë|shqip|cfare|çfare|cfar[eë]|si\s+jeni|si\s+je)\b/i;
+  if (sqWord.test(s)) return "sq";
+  const enWord =
+    /\b(hello|hi\b|hey\b|thanks|thank\s+you|remind\s+me|please\b|good\s+morning|tomorrow\b|today\b|afternoon|evening)\b/i;
+  if (enWord.test(s)) return "en";
+  return "en";
+}
+
+/**
+ * Resolve a translation key for an explicit locale (sq | en), same merge rules as {@link t}.
+ * @param {string} key
+ * @param {"sq"|"en"|string} langCode
+ */
+function tForLang(key, langCode) {
+  const code = translations[langCode] ? langCode : "en";
+  const en = translations.en || {};
+  if (code === "en") {
+    const v = en[key];
+    return v !== undefined && v !== null && v !== "" ? v : key;
+  }
+  const overlay = translations[code] || {};
+  const v = overlay[key];
+  if (v !== undefined && v !== null && v !== "") return v;
+  const fallback = en[key];
+  return fallback !== undefined && fallback !== null && fallback !== "" ? fallback : key;
+}
 
 // Get current language or default to English (fixes invalid / stale codes in localStorage)
 function getCurrentLanguage() {

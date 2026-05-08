@@ -7,18 +7,20 @@
     content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
   />
   <title>Notes AI</title>
-  <meta name="notes-ai-build" content="local-mow4b27z" />
+  <meta name="notes-ai-build" content="apk-emb-260508-v1" />
+  <!-- User-facing app version (bump when you ship a new APK / embedded web build). Single source for Settings footer. -->
+  <meta name="notes-ai-app-version" content="1.0" />
   <meta name="notes-ai-api-base" content="https://notes-ai-app.onrender.com" />
   <script>
-    window.__NOTES_AI_BUILD__ = "local-mow4b27z";
+    window.__NOTES_AI_BUILD__ = "apk-emb-260508-v1";
     window.__APP_ENV__ = window.__APP_ENV__ || {};
     window.__APP_ENV__.VITE_API_URL = "https://notes-ai-app.onrender.com";
   </script>
-  <link rel="manifest" href="/manifest.json?v=local-mow4b27z" />
+  <link rel="manifest" href="/manifest.json?v=apk-emb-260508-v1" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="stylesheet" href="/css/style.css?v=local-mow4b27z" />
-  <link rel="stylesheet" href="/css/settings-theme.css?v=local-mow4b27z" />
-  <script defer src="/js/sw-register.js?v=local-mow4b27z"></script>
+  <link rel="stylesheet" href="/css/style.css?v=apk-emb-260508-v1" />
+  <link rel="stylesheet" href="/css/settings-theme.css?v=apk-emb-260508-v1" />
+  <script defer src="/js/sw-register.js?v=apk-emb-260508-v1"></script>
 </head>
 <body>
   <div class="background-canvas" aria-hidden="true">
@@ -1645,9 +1647,9 @@
               </div>
             </section>
 
-            <p id="settingsDebugBuildLine" class="settings-debug-build-line hidden" aria-label="App build"></p>
           </div>
         </div>
+        <p id="settingsAppVersionLine" class="settings-app-version" role="status" aria-live="polite"></p>
       </section>
     </main>
   </div>
@@ -2020,18 +2022,18 @@
   <div class="reminder-foreground-toast hidden" id="reminderForegroundToast" role="status" aria-live="polite" aria-hidden="true"></div>
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <!-- Scan Cam OCR: loaded on-demand from app.js to keep startup / APK first paint lighter -->
-  <script src="/js/config/platform-native.js?v=local-mow4b27z"></script>
-  <script src="/js/config/constants.js?v=local-mow4b27z"></script>
-  <script src="/js/config/api-base.js?v=local-mow4b27z"></script>
-  <script src="/js/features/premium.js?v=local-mow4b27z"></script>
-  <script src="/js/features/note-export.js?v=local-mow4b27z"></script>
-  <script src="/js/features/web-chat-intents.js?v=local-mow4b27z"></script>
-  <script src="/js/features/web-chat-reminder-parse.js?v=local-mow4b27z"></script>
-  <script src="/js/services/socket-client.js?v=local-mow4b27z"></script>
-  <script src="/translations.js?v=local-mow4b27z"></script>
-  <script src="/js/components/toast.js?v=local-mow4b27z"></script>
-  <script src="/js/note-rich-editor.bundle.js?v=local-mow4b27z"></script>
-  <script src="/js/app.js?v=local-mow4b27z"></script>
-  <script src="/js/onboarding-tutorial.js?v=local-mow4b27z"></script>
+  <script src="/js/config/platform-native.js?v=apk-emb-260508-v1"></script>
+  <script src="/js/config/constants.js?v=apk-emb-260508-v1"></script>
+  <script src="/js/config/api-base.js?v=apk-emb-260508-v1"></script>
+  <script src="/js/features/premium.js?v=apk-emb-260508-v1"></script>
+  <script src="/js/features/note-export.js?v=apk-emb-260508-v1"></script>
+  <script src="/js/features/web-chat-intents.js?v=apk-emb-260508-v1"></script>
+  <script src="/js/features/web-chat-reminder-parse.js?v=apk-emb-260508-v1"></script>
+  <script src="/js/services/socket-client.js?v=apk-emb-260508-v1"></script>
+  <script src="/translations.js?v=apk-emb-260508-v1"></script>
+  <script src="/js/components/toast.js?v=apk-emb-260508-v1"></script>
+  <script src="/js/note-rich-editor.bundle.js?v=apk-emb-260508-v1"></script>
+  <script src="/js/app.js?v=apk-emb-260508-v1"></script>
+  <script src="/js/onboarding-tutorial.js?v=apk-emb-260508-v1"></script>
 </body>
 </html>

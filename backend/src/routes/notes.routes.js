@@ -1,6 +1,11 @@
 const express = require("express");
 const mongoose = require("mongoose");
-const { hasActivePremium, hasScanCamAccess, hasStandardTierAccess } = require("../features/premium/subscriptionService");
+const {
+  hasActivePremium,
+  hasScanCamAccess,
+  hasStandardTierAccess,
+  LEAN_USER_SUBSCRIPTION_TIER_FIELDS
+} = require("../features/premium/subscriptionService");
 
 const ALLOWED_NOTE_CATEGORIES = ["shtepia", "puna", "shkolla", "scan_cam"];
 
@@ -124,9 +129,7 @@ function createNotesRouter({ User, Note, authMiddleware, sendWhatsAppMessage, ge
       if (!ALLOWED_NOTE_CATEGORIES.includes(catKey)) {
         return res.status(400).json({ error: "Invalid category" });
       }
-      const user = await User.findById(req.userId)
-        .select("isPremium premiumExpires plan subscriptionPlan membershipRole")
-        .lean();
+      const user = await User.findById(req.userId).select(LEAN_USER_SUBSCRIPTION_TIER_FIELDS).lean();
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }

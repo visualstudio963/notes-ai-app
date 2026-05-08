@@ -680,7 +680,16 @@ async function syncExpiredPremiumDocument(User, userId) {
 
 
 
+/**
+ * Minimal User projection for {@link getUserPlan} / {@link hasStandardTierAccess} on `.lean()` docs.
+ * Must include promo fields (`trialEndsAt`, `standardCoinExpiresAt`) or trial/coin Standard is invisible.
+ */
+const LEAN_USER_SUBSCRIPTION_TIER_FIELDS =
+  "isPremium premiumExpires plan subscriptionPlan membershipRole trialEndsAt standardCoinExpiresAt";
+
 module.exports = {
+
+  LEAN_USER_SUBSCRIPTION_TIER_FIELDS,
 
   getUserPlan,
 

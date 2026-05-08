@@ -102,13 +102,16 @@
   font-weight: 500;
 }
 
-.settings-debug-build-line {
-  margin: 20px 8px 6px;
-  font-size: 0.7rem;
-  line-height: 1.45;
-  color: #64748b;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  word-break: break-word;
+/* Discrete app release version (from index.html meta notes-ai-app-version) */
+.settings-app-version {
+  margin: 1.25rem 0 0;
+  padding: 0 1rem 1.25rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: #94a3b8;
+  font-weight: 500;
+  text-align: center;
+  letter-spacing: 0.02em;
 }
 
 .settings-username-banner {

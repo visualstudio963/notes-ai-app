@@ -24,6 +24,7 @@ const config: CapacitorConfig = {
       }
     : undefined,
   plugins: {
+    Share: {},
     Camera: {
       promptLabelHeader: "Camera access",
       promptLabelPhoto: "Pick from gallery",

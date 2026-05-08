@@ -163,40 +163,181 @@
     }, 2500);
   }
 
-  /**
-   * WebView / Android: anchor download is unreliable. Try Web Share API (files) first in native app.
-   */
-  function downloadBlob(blob, filename) {
-    if (!blob) return;
-    var name = String(filename || "download").replace(/[\\/:*?"<>|]+/g, "-");
-    var useNativeShare =
+  function isNativeExportTarget() {
+    return (
       typeof window !== "undefined" &&
       typeof window.isNativeApp === "function" &&
-      window.isNativeApp();
-    if (!useNativeShare) {
-      downloadBlobWithAnchor(blob, name);
-      return;
-    }
-    try {
-      if (
-        typeof navigator !== "undefined" &&
-        navigator.share &&
-        typeof File !== "undefined"
-      ) {
-        var file = new File([blob], name, {
-          type: blob.type || "application/octet-stream"
-        });
-        if (!navigator.canShare || navigator.canShare({ files: [file] })) {
-          navigator.share({ files: [file], title: name }).catch(function () {
-            downloadBlobWithAnchor(blob, name);
-          });
+      window.isNativeApp()
+    );
+  }
+
+  function getCapFsPlugin() {
+    var c = typeof window !== "undefined" ? window.Capacitor : null;
+    if (!c || !c.Plugins) return null;
+    return c.Plugins.Filesystem || null;
+  }
+
+  function getCapSharePlugin() {
+    var c = typeof window !== "undefined" ? window.Capacitor : null;
+    if (!c || !c.Plugins) return null;
+    return c.Plugins.Share || null;
+  }
+
+  function blobToBase64(blob) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onloadend = function () {
+        var data = reader.result;
+        if (typeof data !== "string") {
+          reject(new Error("Could not read file data"));
           return;
         }
-      }
-    } catch (e) {
-      /* fall through */
+        var comma = data.indexOf(",");
+        resolve(comma >= 0 ? data.slice(comma + 1) : data);
+      };
+      reader.onerror = function () {
+        reject(reader.error || new Error("Could not read file data"));
+      };
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function toastExportNative(msgKey, fallback) {
+    var msg =
+      typeof t === "function" ? t(msgKey) : typeof fallback === "string" ? fallback : "Done.";
+    if (typeof showToast === "function") showToast(msg);
+  }
+
+  function toastExportNativeError(err) {
+    var base =
+      typeof t === "function" ? t("noteExportNativeFailed") : "Could not save the file. Try again.";
+    var extra = err && err.message ? String(err.message) : "";
+    if (extra && typeof showToast === "function") {
+      showToast(base + (extra.length < 120 ? " " + extra : ""));
+      return;
     }
-    downloadBlobWithAnchor(blob, name);
+    if (typeof showToast === "function") showToast(base);
+  }
+
+  /**
+   * Capacitor: write to app cache via Filesystem, then open the native Share sheet (@capacitor/share).
+   * Falls back to <a download> on failure. Web / PWA keeps anchor-only behavior.
+   */
+  function saveBlobNative(blob, filename) {
+    var Fs = getCapFsPlugin();
+    var safeName = String(filename || "download").replace(/[\\/:*?"<>|]+/g, "-");
+    var relPath = "note-export/" + Date.now() + "-" + safeName;
+
+    if (!Fs || typeof Fs.writeFile !== "function" || typeof Fs.getUri !== "function") {
+      toastExportNativeError(new Error("Filesystem plugin unavailable"));
+      downloadBlobWithAnchor(blob, safeName);
+      return Promise.resolve();
+    }
+
+    var cacheDir = "CACHE";
+    var isUtf8Text =
+      (blob && blob.type && String(blob.type).indexOf("text/plain") === 0) ||
+      /\.txt$/i.test(safeName);
+
+    var writePromise;
+    if (isUtf8Text) {
+      writePromise = new Promise(function (resolve, reject) {
+        var fr = new FileReader();
+        fr.onload = function () {
+          resolve(String(fr.result || ""));
+        };
+        fr.onerror = function () {
+          reject(fr.error || new Error("read text"));
+        };
+        fr.readAsText(blob, "utf-8");
+      }).then(function (text) {
+        return Fs.writeFile({
+          path: relPath,
+          data: text,
+          directory: cacheDir,
+          encoding: "utf8",
+          recursive: true
+        });
+      });
+    } else {
+      writePromise = blobToBase64(blob).then(function (b64) {
+        return Fs.writeFile({
+          path: relPath,
+          data: b64,
+          directory: cacheDir,
+          recursive: true
+        });
+      });
+    }
+
+    return writePromise
+      .then(function () {
+        return Fs.getUri({ path: relPath, directory: cacheDir });
+      })
+      .then(function (uriResult) {
+        var uri = uriResult && uriResult.uri ? String(uriResult.uri) : "";
+        if (!uri) throw new Error("Could not resolve file location");
+
+        var Share = getCapSharePlugin();
+        var dlg =
+          typeof t === "function" ? t("noteExportShareDialogTitle") : "Export";
+
+        if (Share && typeof Share.share === "function") {
+          var opts = {
+            title: safeName,
+            text: safeName,
+            dialogTitle: dlg
+          };
+          if (/^content:|^file:/i.test(uri)) {
+            opts.files = [uri];
+          } else {
+            opts.url = uri;
+          }
+          return Share.share(opts)
+            .then(function () {
+              toastExportNative("noteExportNativeShareReady", "Ready to share");
+            })
+            .catch(function () {
+              var fallback = { title: safeName, text: safeName, url: uri, dialogTitle: dlg };
+              return Share.share(fallback)
+                .then(function () {
+                  toastExportNative("noteExportNativeShareReady", "Ready to share");
+                })
+                .catch(function () {
+                  toastExportNative("noteExportNativeSaved", "File saved");
+                });
+            });
+        }
+
+        toastExportNative("noteExportNativeSaved", "File saved");
+        return null;
+      })
+      .catch(function (err) {
+        toastExportNativeError(err);
+        try {
+          downloadBlobWithAnchor(blob, safeName);
+        } catch (e2) {
+          /* ignore */
+        }
+      });
+  }
+
+  /**
+   * @returns {Promise<void>} Resolves when download/share path completes (web resolves immediately).
+   */
+  function saveOrDownloadBlob(blob, filename) {
+    if (!blob) return Promise.resolve();
+    var name = String(filename || "download").replace(/[\\/:*?"<>|]+/g, "-");
+    if (!isNativeExportTarget()) {
+      downloadBlobWithAnchor(blob, name);
+      return Promise.resolve();
+    }
+    return saveBlobNative(blob, name);
+  }
+
+  /** @deprecated use saveOrDownloadBlob — kept for any inline callers */
+  function downloadBlob(blob, filename) {
+    return saveOrDownloadBlob(blob, filename);
   }
 
   function canvasToBlob(canvas, type, quality) {
@@ -551,7 +692,7 @@
     var body = getTxtBodyFromHtml(sanitizeExportHtml(getNoteHtmlBody(note))) || sanitizeExportText(getNotePlainBody(note));
     var content = sanitizeExportText(title ? title + "\n\n" + body : body);
     var blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    downloadBlob(blob, sanitizeExportBasename(note) + ".txt");
+    return saveOrDownloadBlob(blob, sanitizeExportBasename(note) + ".txt");
   }
 
   function exportNotePdf(note) {
@@ -593,7 +734,31 @@
       pageIndex += 1;
     }
 
-    doc.save(sanitizeExportBasename(note) + ".pdf");
+    var outName = sanitizeExportBasename(note) + ".pdf";
+    var pdfBlob = null;
+    try {
+      if (doc.output && typeof doc.output === "function") {
+        pdfBlob = doc.output("blob");
+      }
+    } catch (e) {
+      pdfBlob = null;
+    }
+    if (!(pdfBlob instanceof Blob) || pdfBlob.size < 1) {
+      try {
+        var ab =
+          doc.output && typeof doc.output === "function" ? doc.output("arraybuffer") : null;
+        if (ab && ab.byteLength) {
+          pdfBlob = new Blob([ab], { type: "application/pdf" });
+        }
+      } catch (e2) {
+        pdfBlob = null;
+      }
+    }
+    if (!(pdfBlob instanceof Blob) || pdfBlob.size < 1) {
+      toastExportPdfFailed();
+      return false;
+    }
+    await saveOrDownloadBlob(pdfBlob, outName);
     return true;
     })().catch(function () {
       toastExportPdfFailed();
@@ -612,7 +777,9 @@
       })
       .then(function (blob) {
         if (!blob) throw new Error("JPG export failed");
-        downloadBlob(blob, sanitizeExportBasename(note) + ".jpg");
+        return saveOrDownloadBlob(blob, sanitizeExportBasename(note) + ".jpg");
+      })
+      .then(function () {
         return true;
       })
       .catch(function () {
@@ -679,7 +846,13 @@
         if (typeof openBot === "function") openBot();
         return;
       }
-      exportNoteTxt(note);
+      try {
+        await exportNoteTxt(note);
+      } catch (e) {
+        if (typeof showToast === "function") {
+          showToast(typeof t === "function" ? t("noteExportNativeFailed") : "Could not save the file.");
+        }
+      }
       window.closeNoteExportModal();
       return;
     }

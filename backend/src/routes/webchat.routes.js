@@ -63,7 +63,7 @@ function createWebChatRouter({ User, authMiddleware, openAiApiKey }) {
             {
               role: "system",
               content:
-                "You are Notes AI assistant in a notes/reminders app. Keep answers concise, practical, and safe."
+                "You are Notes AI assistant in a notes/reminders app. Always reply in the same language as the user's latest message (if they write Albanian, answer in Albanian; if English, answer in English). Do not follow app UI or device locale — only mirror the user's writing language. Keep answers concise, practical, and safe."
             },
             { role: "user", content: message }
           ],

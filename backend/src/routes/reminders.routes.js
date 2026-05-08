@@ -1,6 +1,10 @@
 const express = require("express");
 const mongoose = require("mongoose");
-const { hasActivePremium, hasStandardTierAccess } = require("../features/premium/subscriptionService");
+const {
+  hasActivePremium,
+  hasStandardTierAccess,
+  LEAN_USER_SUBSCRIPTION_TIER_FIELDS
+} = require("../features/premium/subscriptionService");
 const { PREMIUM_CODE } = require("../features/premium/createRequirePremium");
 
 const FUTURE_MS_SLOP = 5000;
@@ -173,9 +177,7 @@ function createRemindersRouter({ User, Reminder, authMiddleware, aiMemoryService
       }
 
       if (source === "web_chat") {
-        const u = await User.findById(req.userId)
-          .select("isPremium premiumExpires plan subscriptionPlan membershipRole")
-          .lean();
+        const u = await User.findById(req.userId).select(LEAN_USER_SUBSCRIPTION_TIER_FIELDS).lean();
         if (!hasStandardTierAccess(u)) {
           return res.status(403).json({
             error: "Web Chat reminders require Standard or Premium.",

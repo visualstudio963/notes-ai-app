@@ -123,8 +123,14 @@ function isAllowedCorsOrigin(origin) {
   if (allowedCorsOrigins.has(origin)) return true;
   try {
     const u = new URL(origin);
-    if (u.protocol !== "https:" && u.protocol !== "http:") return false;
     const host = String(u.hostname || "").toLowerCase();
+    /** Capacitor / Ionic WebView (Android APK, iOS shell) — required for fetch + credentials to Render API */
+    if (u.protocol === "capacitor:" || u.protocol === "ionic:") {
+      return host === "localhost" || host === "";
+    }
+    if (u.protocol !== "https:" && u.protocol !== "http:") return false;
+    /** Same-machine dev servers + Capacitor bundled origin (any port) */
+    if (host === "localhost" || host === "127.0.0.1") return true;
     if (host.endsWith(".vercel.app")) return true;
     return false;
   } catch {
@@ -292,6 +298,13 @@ app.get("/auth/google", googleOAuthLimiter, (req, res, next) => {
   if (!config.googleClientId || !config.googleClientSecret || !config.googleRedirectUri) {
     return res.status(503).send("Google OAuth is not configured (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL).");
   }
+  try {
+    if (req.session) {
+      req.session.oauthNativeApp = String(req.query.native || "") === "1";
+    }
+  } catch (e) {
+    console.error("[auth/google] session flag", e && e.message);
+  }
   passport.authenticate("google", { scope: ["profile", "email"] })(req, res, next);
 });
 
@@ -317,6 +330,9 @@ app.get(
         return res.redirect(302, `${frontendBase}/?google_oauth_error=${encodeURIComponent("user_missing")}`);
       }
       const { accessToken, refreshToken } = await issueSessionTokens(user._id);
+      const oauthNativeApp = Boolean(req.session && req.session.oauthNativeApp);
+      if (req.session) delete req.session.oauthNativeApp;
+
       const wantsJson = String(req.query.format || "").toLowerCase() === "json";
 
       if (wantsJson) {
@@ -333,6 +349,34 @@ app.get(
           });
         });
         return;
+      }
+
+      /**
+       * Capacitor APK: external browser completes OAuth; redirect back into the app via custom scheme
+       * with a short-lived payload (same tokens JSON as cookie handoff — fragment not sent to servers).
+       */
+      if (oauthNativeApp) {
+        const fresh = await User.findById(user._id);
+        if (!fresh) {
+          return res.redirect(302, `${frontendBase}/?google_oauth_error=${encodeURIComponent("user_missing")}`);
+        }
+        const payload = Buffer.from(
+          JSON.stringify({
+            accessToken,
+            refreshToken,
+            user: publicUser(fresh)
+          }),
+          "utf8"
+        ).toString("base64url");
+        const nativeRedirect = `com.notesai.app://oauth#${payload}`;
+        if (typeof req.logout === "function") {
+          req.logout((logoutErr) => {
+            if (logoutErr) console.error("[auth/google/callback] req.logout:", logoutErr.message);
+            res.redirect(302, nativeRedirect);
+          });
+          return;
+        }
+        return res.redirect(302, nativeRedirect);
       }
 
       /**

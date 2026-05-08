@@ -3421,8 +3421,11 @@ function syncAuthShellVisibility() {
 function syncAuthGoogleLinkHref() {
   const links = document.querySelectorAll("a.auth-google-link");
   if (!links || !links.length) return;
-  /** OAuth must start on backend origin (never relative /auth/google on Vercel). */
-  const href = "https://notes-ai-app.onrender.com/auth/google";
+  /** OAuth must start on API origin (`API_BASE_URL`), never the WebView / Vercel origin. */
+  let href = backendAbsoluteUrl("/auth/google");
+  if (typeof isNativeApp === "function" && isNativeApp()) {
+    href += href.includes("?") ? "&native=1" : "?native=1";
+  }
   links.forEach((a) => {
     a.href = href;
     a.classList.remove("auth-shell__btn-google--disabled", "auth-shell__btn-google--unavailable");
@@ -3539,13 +3542,29 @@ function initAuthLandingUi() {
     if (e.target === landing) closeAccountModal();
   });
   document.querySelectorAll("a.auth-google-link").forEach((g) => {
-    g.addEventListener("click", () => {
+    g.addEventListener("click", async (ev) => {
       markGoogleOAuthFlowDeparting();
       if (googleOAuthConfigLoaded && !googleOAuthClientId) {
         console.warn(
           "[Google sign-in] Public client id missing from app-config — still navigating to backend OAuth. " +
             "Ensure GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_CALLBACK_URL are set on the server."
         );
+      }
+      if (typeof isNativeApp === "function" && isNativeApp()) {
+        ev.preventDefault();
+        const url =
+          (g.getAttribute("href") || "").trim() || `${backendAbsoluteUrl("/auth/google")}?native=1`;
+        try {
+          const Browser = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
+          if (Browser && typeof Browser.open === "function") {
+            await Browser.open({ url });
+          } else {
+            window.open(url, "_blank");
+          }
+        } catch (err) {
+          console.warn("[Google sign-in] Browser.open failed:", err);
+          window.open(url, "_blank");
+        }
       }
     });
   });
@@ -4576,6 +4595,73 @@ async function loadDiscordCommunityConfig() {
     await loadDiscordCommunityConfigInflight;
   } finally {
     loadDiscordCommunityConfigInflight = null;
+  }
+}
+
+let nativeOAuthDeepLinkHandled = false;
+
+function decodeNativeOAuthFragment(hash) {
+  const h = String(hash || "").trim();
+  if (!h) throw new Error("empty_oauth_fragment");
+  let b64 = h.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = b64.length % 4;
+  if (pad) b64 += "=".repeat(4 - pad);
+  const json = atob(b64);
+  return JSON.parse(json);
+}
+
+/**
+ * Capacitor: backend redirects to `com.notesai.app://oauth#<base64url JSON>` after Google OAuth (`?native=1`).
+ */
+async function consumeNativeOAuthUrlIfAny(rawUrl) {
+  if (nativeOAuthDeepLinkHandled) return false;
+  const url = String(rawUrl || "");
+  if (!url.includes("com.notesai.app://oauth")) return false;
+  const hashIdx = url.indexOf("#");
+  const hashPart = hashIdx >= 0 ? url.slice(hashIdx + 1) : "";
+  if (!hashPart) {
+    nativeOAuthDeepLinkHandled = true;
+    showToast("Google sign-in could not be completed.");
+    return true;
+  }
+  let payload;
+  try {
+    payload = decodeNativeOAuthFragment(hashPart);
+  } catch {
+    nativeOAuthDeepLinkHandled = true;
+    showToast("Google sign-in could not be completed.");
+    return true;
+  }
+  try {
+    const Browser = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
+    if (Browser && typeof Browser.close === "function") await Browser.close();
+  } catch {
+    /* ignore */
+  }
+  await finalizeGoogleOAuthSession(payload);
+  oauthHandoffConsumed = true;
+  nativeOAuthDeepLinkHandled = true;
+  try {
+    sessionStorage.removeItem(OAUTH_GOOGLE_RETURN_PENDING_KEY);
+    sessionStorage.removeItem(OAUTH_HANDOFF_SESSION_DONE_KEY);
+  } catch {
+    /* ignore */
+  }
+  return true;
+}
+
+async function initNativeOAuthDeepLinks() {
+  if (typeof isNativeApp !== "function" || !isNativeApp()) return;
+  const AppPlugin = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+  if (!AppPlugin || typeof AppPlugin.addListener !== "function") return;
+  AppPlugin.addListener("appUrlOpen", (ev) => {
+    void consumeNativeOAuthUrlIfAny(ev && ev.url);
+  });
+  try {
+    const launch = await AppPlugin.getLaunchUrl();
+    if (launch && launch.url) await consumeNativeOAuthUrlIfAny(launch.url);
+  } catch {
+    /* ignore */
   }
 }
 
@@ -9734,6 +9820,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     if (window.NoteRichEditor && typeof window.NoteRichEditor.initNoteRichEditorBridge === "function") {
       window.NoteRichEditor.initNoteRichEditorBridge();
     }
+    await initNativeOAuthDeepLinks();
     await runAuthBootstrap();
   } catch (err) {
     console.error("[auth-bootstrap]", err);

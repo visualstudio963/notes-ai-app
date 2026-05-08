@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="notes-ai-api-base" content="__API_BASE_URL__" />
+  <meta name="notes-ai-api-base" content="https://notes-ai-app.onrender.com" />
   <title>Contact — Notes AI</title>
   <script>
     window.__APP_ENV__ = window.__APP_ENV__ || {};
-    window.__APP_ENV__.VITE_API_URL = "__API_BASE_URL__";
+    window.__APP_ENV__.VITE_API_URL = "https://notes-ai-app.onrender.com";
   </script>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="stylesheet" href="css/legal-page.css?v=__BUILD_HASH__" />
+  <link rel="stylesheet" href="css/legal-page.css?v=local-mow4b27z" />
 </head>
 <body>
   <div class="legal-shell">
@@ -39,8 +39,8 @@
       <p class="legal-form-note" id="contactStatus" role="status"></p>
     </form>
   </div>
-  <script src="js/config/platform-native.js?v=__BUILD_HASH__"></script>
-  <script src="js/config/api-base.js?v=__BUILD_HASH__"></script>
+  <script src="js/config/platform-native.js?v=local-mow4b27z"></script>
+  <script src="js/config/api-base.js?v=local-mow4b27z"></script>
   <script>
     document.getElementById("contactForm").addEventListener("submit", async function (e) {
       e.preventDefault();

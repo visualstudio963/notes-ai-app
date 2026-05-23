@@ -6,7 +6,6 @@ const { createUserRouter } = require("./user.routes");
 const { createPremiumRouter } = require("../features/premium/premium.routes");
 const { createContactRouter } = require("./contact.routes");
 const { createAdminRouter } = require("./admin.routes");
-const { createWebChatRouter } = require("./webchat.routes");
 const { createCoinsRouter } = require("./coins.routes");
 const { createAppConfigRouter } = require("./app-config.routes");
 const { createPushRouter } = require("./push.routes");
@@ -29,16 +28,11 @@ function createApiRouter(app, deps) {
     authLimiter,
     signupLimiter,
     contactLimiter,
-    sendWhatsAppMessage,
-    aiMemoryService,
     premiumDevSecret,
     stripeSecretKey,
     stripeStandardMonthlyLookupKey,
     stripeStandardYearlyLookupKey,
-    stripePremiumMonthlyLookupKey,
-    stripePremiumYearlyLookupKey,
     stripePublishableKey,
-    openAiApiKey,
     publicAppUrl,
     emailVerificationBypassUsernames,
     googleClientId,
@@ -102,7 +96,6 @@ function createApiRouter(app, deps) {
       User,
       Note,
       authMiddleware,
-      sendWhatsAppMessage,
       getIo
     })
   );
@@ -122,8 +115,6 @@ function createApiRouter(app, deps) {
       stripeSecretKey: stripeSecretKey || null,
       stripeStandardMonthlyLookupKey: stripeStandardMonthlyLookupKey || null,
       stripeStandardYearlyLookupKey: stripeStandardYearlyLookupKey || null,
-      stripePremiumMonthlyLookupKey: stripePremiumMonthlyLookupKey || null,
-      stripePremiumYearlyLookupKey: stripePremiumYearlyLookupKey || null,
       publicAppUrl: publicAppUrl || null
     })
   );
@@ -132,8 +123,7 @@ function createApiRouter(app, deps) {
     createRemindersRouter({
       User,
       Reminder,
-      authMiddleware,
-      aiMemoryService
+      authMiddleware
     })
   );
 
@@ -141,14 +131,6 @@ function createApiRouter(app, deps) {
     createUserRouter({
       User,
       authMiddleware
-    })
-  );
-
-  api.use(
-    createWebChatRouter({
-      User,
-      authMiddleware,
-      openAiApiKey: openAiApiKey || null
     })
   );
 

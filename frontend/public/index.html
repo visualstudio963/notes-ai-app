@@ -7,19 +7,20 @@
     content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
   />
   <title>Notes AI</title>
-  <meta name="notes-ai-build" content="apk-emb-260508-v1" />
+  <meta name="notes-ai-build" content="apk-emb-260523-v7" />
   <!-- User-facing app version (bump when you ship a new APK / embedded web build). Single source for Settings footer. -->
   <meta name="notes-ai-app-version" content="1.0" />
   <meta name="notes-ai-api-base" content="https://notes-ai-app.onrender.com" />
   <script>
-    window.__NOTES_AI_BUILD__ = "apk-emb-260508-v1";
+    window.__NOTES_AI_BUILD__ = "apk-emb-260523-v7";
     window.__APP_ENV__ = window.__APP_ENV__ || {};
     window.__APP_ENV__.VITE_API_URL = "https://notes-ai-app.onrender.com";
   </script>
   <link rel="manifest" href="/manifest.json?v=apk-emb-260508-v1" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="stylesheet" href="/css/style.css?v=apk-emb-260508-v1" />
-  <link rel="stylesheet" href="/css/settings-theme.css?v=apk-emb-260508-v1" />
+  <link rel="stylesheet" href="/css/style.css?v=apk-emb-260523-v10" />
+  <link rel="stylesheet" href="/css/settings-theme.css?v=apk-emb-260523-v2" />
+  <link rel="stylesheet" href="/css/mobile-responsive.css?v=apk-emb-260523-v9" />
   <script defer src="/js/sw-register.js?v=apk-emb-260508-v1"></script>
 </head>
 <body>
@@ -140,10 +141,10 @@
         </button>
         <p class="trial-gift-modal__badge" data-t="trialGiftBadge">New-user gift</p>
         <h2 id="trialGiftTitle" class="trial-gift-modal__title" data-t="trialGiftTitle">
-          7-day Standard — on us
+          14-day Standard — free gift
         </h2>
         <p class="trial-gift-modal__lead" data-t="trialGiftLead">
-          As a new user, we&apos;re gifting you 7 days of Standard access for free. Tap Claim to continue — your trial is ready.
+          As a new user, we&apos;re gifting you 14 days of Standard access for free. Tap Claim to continue — your trial is ready.
         </p>
         <ul class="trial-gift-modal__list">
           <li data-t="trialGiftItem1">Full Web Chat (local bot flows + saving reminders from chat)</li>
@@ -153,7 +154,7 @@
           <li data-t="trialGiftItem5">Coins — start collecting for Standard after trial</li>
         </ul>
         <p class="trial-gift-modal__note" data-t="trialGiftAfter">
-          After 7 days you move to the Free plan unless you subscribe or redeem Standard with coins. Open Rewards &amp; coins anytime during the trial.
+          After 14 days you move to the Free plan unless you subscribe or redeem Standard with coins. Open Rewards &amp; coins anytime during the trial.
         </p>
         <div class="trial-gift-modal__actions">
           <button type="button" class="save-button trial-gift-modal__cta" onclick="dismissTrialGiftModal()" data-t="trialGiftCta">
@@ -441,7 +442,7 @@
                 <div class="home-intro-head">
                   <p class="eyebrow" data-t="welcomeBack">Welcome back</p>
                   <h2 class="home-hero-title" data-t="pickCategory">Pick a category and start smart planning.</h2>
-                  <p class="home-copy" data-t="homeDescription">Your notes, reminders, and WhatsApp follow-ups live in one polished dashboard. Tap any tile to browse or create fast category notes.</p>
+                  <p class="home-copy" data-t="homeDescription">Plan quickly and simply.</p>
                 </div>
               </div>
 
@@ -801,9 +802,9 @@
                     </p>
                   </article>
                   <article class="scan-cam-mini-card scan-cam-mini-card--accent">
-                    <h3 class="scan-cam-mini-card__title" data-t="scanCamPremiumCardTitle">Standard &amp; Premium</h3>
-                    <p class="scan-cam-mini-card__body" data-t="scanCamPremiumCardBody">
-                      Full Scan Cam (convert, save, export, share) is included on Standard and Premium.
+                    <h3 class="scan-cam-mini-card__title" data-t="scanCamStandardCardTitle">Standard</h3>
+                    <p class="scan-cam-mini-card__body" data-t="scanCamStandardCardBody">
+                      Full Scan Cam (convert, save, export, share) is included on Standard.
                     </p>
                   </article>
                 </div>
@@ -842,14 +843,14 @@
         <div class="page-header bot-page-header">
           <button type="button" class="back-button" onclick="goHome()">&#x2190; Home</button>
           <div>
-            <p class="eyebrow" data-t="botWorkspaceEyebrow">Reminders</p>
-            <h2 data-t="botWorkspaceTitle">WhatsApp &amp; AI</h2>
+            <p class="eyebrow" data-t="botWorkspaceEyebrow">Plans</p>
+            <h2 data-t="botWorkspaceTitle">Upgrade plan</h2>
           </div>
         </div>
 
         <p id="botGuestStrip" class="home-copy bot-context-strip hidden" data-t="botPageGuestHint">Log in to sync notes and unlock paid tiers when billing is ready.</p>
 
-        <div id="premiumWhatsAppUpsell" class="premium-marketing hidden">
+        <div id="premiumMarketingPanel" class="premium-marketing hidden">
           <div class="premium-marketing-inner">
             <header class="premium-hero pricing-lite-hero">
               <h1 class="premium-hero-title" data-t="premiumLiteHeroTitle">Unlock full power 🚀</h1>
@@ -878,7 +879,7 @@
                   </ul>
                 </article>
 
-                <article class="pricing-lite-card" data-lite-plan="standard" onclick="premiumLiteSelectPlan('standard')">
+                <article class="pricing-lite-card pricing-lite-card--featured" data-lite-plan="standard" onclick="premiumLiteSelectPlan('standard')">
                   <div class="pricing-lite-card__head">
                     <h3 data-t="premiumPlanStandardName">Standard</h3>
                     <span class="pricing-lite-badge" data-t="premiumLiteBadgeValue">⚖️ Best value</span>
@@ -891,30 +892,8 @@
                     <li data-t="premiumLiteStd3">Export notes — PDF, JPG &amp; TXT</li>
                     <li data-t="premiumLiteStd4">Daily planner &amp; richer workspace flows</li>
                     <li data-t="premiumLiteStd5">Rewards &amp; coins (e.g. 30‑day unlock)</li>
-                    <li data-t="premiumLiteStd6">May show ads — Premium removes them</li>
                   </ul>
                   <button type="button" id="premiumLiteStandardCta" class="save-button pricing-lite-cta" onclick="event.stopPropagation(); premiumPlanCheckoutClick('standard')" data-t="premiumLiteCtaStandard">Start Standard</button>
-                </article>
-
-                <article class="pricing-lite-card pricing-lite-card--premium" data-lite-plan="premium" onclick="premiumLiteSelectPlan('premium')">
-                  <div class="pricing-lite-card__head">
-                    <h3 data-t="premiumPlanPremiumTierName">Premium</h3>
-                    <span class="pricing-lite-badge pricing-lite-badge--highlight" data-t="premiumLiteBadgeChosen">🔥 Most chosen</span>
-                  </div>
-                  <p class="pricing-lite-price"><span id="premiumLitePremiumPriceMain">€4.99</span> <span id="premiumLitePremiumPricePeriod">/month</span></p>
-                  <p id="premiumLitePremiumSub" class="pricing-lite-subline hidden"></p>
-                  <p id="premiumLiteSaveLine" class="pricing-lite-save" data-t="premiumLitePremSubtitle">
-                    On top of full Standard workspace
-                  </p>
-                  <ul class="pricing-lite-benefits pricing-lite-benefits--premium">
-                    <li data-t="premiumLitePremOpenAi">OpenAI in Web Chat — 130 credits / month</li>
-                    <li data-t="premiumLitePremWa">WhatsApp bot — coming soon</li>
-                    <li data-t="premiumLitePremNoAds">No ads — clean Premium experience</li>
-                  </ul>
-                  <p id="premiumLiteSocialProof" class="pricing-lite-social-proof" data-t="premiumLiteSocialProofSoft">
-                    OpenAI quota resets each billing month · WhatsApp rollout announced later
-                  </p>
-                  <button type="button" id="premiumLitePremiumCta" class="save-button pricing-lite-cta pricing-lite-cta--premium" onclick="event.stopPropagation(); premiumPlanCheckoutClick('premium')" data-t="premiumLiteCtaPremium2">Unlock Premium 🚀</button>
                 </article>
               </div>
 
@@ -923,30 +902,20 @@
                   <span data-t="premiumLiteCompareFeature">Feature</span>
                   <span data-t="premiumPlanFreeName">Free</span>
                   <span data-t="premiumPlanStandardName">Standard</span>
-                  <span data-t="premiumPlanPremiumTierName">Premium</span>
                 </div>
                 <div class="pricing-lite-compare__row">
-                  <span data-t="premiumLiteCmpWorkspace">Web Chat • Scan • planner</span><span>❌</span><span>✔️</span><span>✔️</span>
+                  <span data-t="premiumLiteCmpWorkspace">Web Chat • Scan • planner</span><span>❌</span><span>✔️</span>
                 </div>
                 <div class="pricing-lite-compare__row">
-                  <span data-t="premiumLiteCmpAi130">OpenAI (130 credits / mo)</span><span>❌</span><span>❌</span><span>✔️</span>
+                  <span data-t="premiumLiteCmpExports">PDF, JPG &amp; TXT export</span><span>TXT</span><span>✔️</span>
                 </div>
                 <div class="pricing-lite-compare__row">
-                  <span data-t="premiumLiteCmpWaBot">WhatsApp bot</span>
-                  <span data-t="premiumLiteCmpSoon">Soon</span>
-                  <span data-t="premiumLiteCmpSoon">Soon</span>
-                  <span data-t="premiumLiteCmpSoon">Soon</span>
-                </div>
-                <div class="pricing-lite-compare__row">
-                  <span data-t="premiumLiteCmpAds">In-app ads</span>
-                  <span data-t="premiumLiteCmpAdsFree">Yes</span>
-                  <span data-t="premiumLiteCmpAdsStd">Yes</span>
-                  <span data-t="premiumLiteCmpAdsPrem">None</span>
+                  <span data-t="premiumLiteCmpReminders">Web &amp; app reminders</span><span>✔️</span><span>✔️</span>
                 </div>
               </div>
             </section>
 
-            <section class="pricing-lite-why" aria-label="Why premium">
+            <section class="pricing-lite-why" aria-label="Why Standard">
               <div class="pricing-lite-why__item"><span>⚡</span><p data-t="premiumLiteWhy1">Faster performance</p></div>
               <div class="pricing-lite-why__item"><span>🧠</span><p data-t="premiumLiteWhy2">Smarter AI</p></div>
               <div class="pricing-lite-why__item"><span>🔒</span><p data-t="premiumLiteWhy3">Priority access</p></div>
@@ -957,12 +926,15 @@
               <p data-t="premiumLiteTrust2">💳 Cards supported</p>
               <p data-t="premiumLiteTrust3">❌ No card data stored</p>
             </footer>
-            <button type="button" id="premiumLiteStickyCta" class="save-button pricing-lite-sticky-cta" onclick="premiumPlanCheckoutClick('premium')" data-t="premiumLiteCtaPremium2">Unlock Premium 🚀</button>
+            <button type="button" id="premiumLiteStickyCta" class="save-button pricing-lite-sticky-cta" onclick="premiumPlanCheckoutClick('standard')" data-t="premiumLiteCtaStandard">Start Standard</button>
           </div>
         </div>
       </section>
 
       <section id="webChat" class="page hidden web-chat-page web-chat-page--messenger web-chat-drawer" aria-label="Web chat" onclick="closeWebChatDrawer()">
+        <select id="webChatModelMode" class="visually-hidden" tabindex="-1" aria-hidden="true">
+          <option value="chatbot" selected>chatbot</option>
+        </select>
         <div class="web-chat-messenger chat-container chat-bot-mode" onclick="event.stopPropagation()">
           <div class="web-chat-sheet-handle" aria-hidden="true">
             <span class="web-chat-sheet-handle__bar"></span>
@@ -984,7 +956,7 @@
           <p id="webChatFreeQuotaHint" class="web-chat-quota web-chat-quota--slim hidden" aria-live="polite"></p>
 
           <div id="webChatSoftLockHint" class="web-chat-soft-lock web-chat-soft-lock--slim hidden" aria-live="polite">
-            <span class="web-chat-soft-lock__text" data-t="webChatSoftLockBody">Web Chat unlimited use is on Standard &amp; Premium.</span>
+            <span class="web-chat-soft-lock__text" data-t="webChatSoftLockBody">Web Chat unlimited use is on Standard.</span>
             <button type="button" class="web-chat-soft-lock__cta save-button secondary" onclick="openBot()" data-t="upgradePlan">Upgrade plan</button>
             <button
               type="button"
@@ -1002,93 +974,6 @@
           </div>
 
           <footer class="web-chat-messenger__footer">
-            <div class="web-chat-mode-pills" role="tablist" aria-labelledby="webChatModelLabelText">
-              <span id="webChatModelLabelText" class="sr-only" data-t="webChatModelLabel">Response mode</span>
-              <button
-                type="button"
-                role="tab"
-                id="webChatPill-chatbot"
-                class="web-chat-mode-pill is-active"
-                data-web-chat-mode="chatbot"
-                aria-selected="true"
-                data-t-title="webChatModeTooltipChatbot"
-                onclick="webChatModelSelectOption(event, 'chatbot')"
-              >
-                <span data-t="webChatModeChatbot">Chat Bot</span>
-              </button>
-              <button
-                type="button"
-                role="tab"
-                id="webChatPill-auto"
-                class="web-chat-mode-pill"
-                data-web-chat-mode="auto"
-                aria-selected="false"
-                data-t-title="webChatModeTooltipAuto"
-                onclick="webChatModelSelectOption(event, 'auto')"
-              >
-                <span class="web-chat-mode-pill__inner">
-                  <span data-t="webChatModeAuto">Auto</span>
-                  <span class="web-chat-mode-pill__lock" aria-hidden="true">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-                  </span>
-                </span>
-              </button>
-              <button
-                type="button"
-                role="tab"
-                id="webChatPill-openai"
-                class="web-chat-mode-pill"
-                data-web-chat-mode="openai"
-                aria-selected="false"
-                data-t-title="webChatModeTooltipOpenAi"
-                onclick="webChatModelSelectOption(event, 'openai')"
-              >
-                <span class="web-chat-mode-pill__inner">
-                  <span data-t="webChatModeOpenAi">OpenAI</span>
-                  <span class="web-chat-mode-pill__lock" aria-hidden="true">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-                  </span>
-                </span>
-              </button>
-            </div>
-            <select id="webChatModelMode" class="visually-hidden" tabindex="-1" aria-hidden="true" onchange="webChatModelModeChanged()">
-              <option value="chatbot">chatbot</option>
-              <option value="auto">auto</option>
-              <option value="openai">openai</option>
-            </select>
-
-            <div id="webChatModelLockBanner" class="web-chat-model-lock-banner web-chat-model-lock-banner--slim hidden" role="status">
-              <span id="webChatModelLockBannerText" class="web-chat-model-lock-banner__text" data-t="webChatModelLockedUpgrade">Upgrade to unlock this feature.</span>
-              <button type="button" class="web-chat-model-lock-banner__cta" onclick="openBot()" data-t="webChatModelUpgradeCta">Upgrade</button>
-              <button
-                type="button"
-                class="web-chat-model-lock-banner__dismiss"
-                onclick="webChatModelDismissLockBanner()"
-                data-t-title="webChatModelLockDismissTip"
-                aria-label="Dismiss"
-              >
-                ×
-              </button>
-            </div>
-
-            <div id="webChatOpenAiUsageWrap" class="web-chat-openai-usage web-chat-openai-usage--slim hidden" aria-live="polite">
-              <div class="web-chat-openai-usage__line">
-                <span id="webChatOpenAiUsageLabel" class="web-chat-openai-usage__label"></span>
-                <span id="webChatOpenAiUsageCounts" class="web-chat-openai-usage__counts"></span>
-              </div>
-              <div
-                class="web-chat-openai-usage__track"
-                role="progressbar"
-                aria-valuemin="0"
-                aria-valuemax="130"
-                aria-valuenow="0"
-                id="webChatOpenAiUsageTrack"
-              >
-                <div id="webChatOpenAiUsageFill" class="web-chat-openai-usage__fill"></div>
-              </div>
-              <p id="webChatOpenAiUsageWarn" class="web-chat-openai-usage__warn hidden" data-t="webChatOpenAiNearLimit">You are close to your monthly OpenAI limit.</p>
-            </div>
-
             <div class="web-chat-composer-bar">
               <div class="web-chat-composer">
                 <label class="sr-only" for="webChatInput" data-t="webChatInputLabel">Message</label>
@@ -1259,11 +1144,11 @@
             </summary>
             <div class="coins-dash-details-body">
               <ul class="coins-dash-guide-ul coins-dash-guide-ul--short">
-                <li data-t="coinsDashGuideShort1">🎁 Trial gives 7-day Standard — earn coins while it lasts.</li>
+                <li data-t="coinsDashGuideShort1">🎁 Trial gives 14-day Standard — earn coins while it lasts.</li>
                 <li data-t="coinsDashGuideShort2">💰 Wallet max 1200 — daily streak, videos (cap/day), invites.</li>
                 <li data-t="coinsDashGuideShort3">🔄 Spend 600 coins for +30 Standard days from your latest expiry.</li>
                 <li data-t="coinsDashGuideShort4">👥 Invite link credits you when someone signs up and logs in.</li>
-                <li data-t="coinsDashGuideShort5">⭐ Premium extras (OpenAI, future WhatsApp, no ads) are separate upgrades.</li>
+                <li data-t="coinsDashGuideShort5">⭐ Web Chat reminders are included with Standard.</li>
                 <li data-t="coinsDashGuideShort6">⚡ Paid Standard slightly lowers earn speed — trials stay full speed.</li>
               </ul>
             </div>
@@ -1389,7 +1274,7 @@
               </button>
               <button type="button" class="settings-nav-btn" data-settings-tab="premium" onclick="openSettingsSection('premium')">
                 <span aria-hidden="true">💎</span>
-                <span data-t="settingsTabPremium">Premium</span>
+                <span data-t="settingsTabPlan">Plan</span>
               </button>
               <button type="button" class="settings-nav-btn" data-settings-tab="appearance" onclick="openSettingsSection('appearance')">
                 <span aria-hidden="true">🎨</span>
@@ -1505,14 +1390,14 @@
             >
               <div class="settings-premium-top">
                 <div>
-                  <p class="settings-premium-badge">PREMIUM</p>
-                  <h3 class="section-title settings-premium-title" data-t="premiumSectionTitle">Premium</h3>
-                  <p id="settingsPremiumLead" class="preference-desc settings-premium-lead" data-t="settingsPremiumPitch">Compare Free, Standard, and Premium on Upgrade plan. Browser alerts on Home stay free.</p>
+                  <p class="settings-premium-badge" data-t="settingsPlanBadgeLabel">PLAN</p>
+                  <h3 class="section-title settings-premium-title" data-t="settingsPlanSectionTitle">Subscription</h3>
+                  <p id="settingsPremiumLead" class="preference-desc settings-premium-lead" data-t="settingsPlanPitch">Compare Free and Standard on Upgrade plan. Browser alerts on Home stay free.</p>
                 </div>
                 <span id="settingsPlanBadge" class="settings-plan-badge">Free</span>
               </div>
               <div class="settings-billing-panel">
-                <p id="settingsPremiumActiveBadge" class="settings-premium-active-badge hidden">Premium Active ✅</p>
+                <p id="settingsPremiumActiveBadge" class="settings-premium-active-badge hidden" data-t="settingsStandardActiveBadge">Standard Active ✅</p>
                 <div class="settings-billing-grid">
                   <div class="info-item">
                     <label>Plan</label>
@@ -1539,7 +1424,7 @@
                 Cancel Subscription
               </button>
               <p id="settingsCancelSubscriptionHint" class="preference-desc hidden"></p>
-              <p id="settingsPremiumActiveNote" class="settings-premium-active hidden" data-t="settingsPremiumYourePremium">You have Premium. Use the AI Bot workspace for WhatsApp and SMS.</p>
+              <p id="settingsPremiumActiveNote" class="settings-premium-active hidden" data-t="settingsStandardActiveNote">You have Standard. Use Web Chat, Scan Cam, and exports from the sidebar.</p>
             </section>
 
             <section id="settingsSection-appearance" class="settings-section settings-section-pane hidden" data-settings-pane="appearance">
@@ -1844,7 +1729,7 @@
         </li>
       </ul>
       <p id="noteExportPlanHint" class="note-export-plan-hint" data-t="noteExportPlanHint">
-        Free: TXT only. Standard: PDF + TXT. Premium: PDF + JPG + TXT.
+        Free: TXT only. Standard: PDF + JPG + TXT.
       </p>
     </div>
   </div>
@@ -1857,12 +1742,6 @@
       </div>
       <p class="note-export-lead" data-t="noteShareLead">Send this note</p>
       <ul class="note-export-options">
-        <li>
-          <button type="button" class="note-export-option" onclick="shareNoteViaWhatsApp()">
-            <span class="note-export-option__ext" data-t="noteShareWhatsApp">WhatsApp</span>
-            <span class="note-export-option__meta">wa.me</span>
-          </button>
-        </li>
         <li>
           <button type="button" class="note-export-option" onclick="shareNoteViaEmail()">
             <span class="note-export-option__ext" data-t="noteShareEmail">Email</span>
@@ -1887,8 +1766,7 @@
       </div>
       <p class="scan-cam-share-modal__hint" data-t="scanCamShareModalHint">Send extracted text using one of the options below.</p>
       <div class="scan-cam-share-modal__actions">
-        <button type="button" class="save-button" onclick="scanCamShareWhatsApp()" data-t="scanCamShareWhatsApp">WhatsApp</button>
-        <button type="button" class="save-button secondary" onclick="scanCamShareEmail()" data-t="scanCamShareEmail">Email</button>
+        <button type="button" class="save-button" onclick="scanCamShareEmail()" data-t="scanCamShareEmail">Email</button>
         <button type="button" class="save-button secondary" onclick="scanCamShareCopy()" data-t="scanCamShareCopy">Copy text</button>
       </div>
     </div>
@@ -1901,7 +1779,7 @@
         <button class="close-button" type="button" onclick="closeScanCamUpgradeModal()" aria-label="Close">✕</button>
       </div>
       <p class="scan-cam-upgrade-modal__lead" data-t="scanCamUpgradeModalLead">
-        Converting to text, PDF export, image download, and sharing are included on Standard and Premium. You can still capture or upload a preview on Free.
+        Converting to text, PDF export, image download, and sharing are included on Standard. You can still capture or upload a preview on Free.
       </p>
       <div class="scan-cam-upgrade-modal__actions">
         <button type="button" class="save-button" onclick="closeScanCamUpgradeModal(); openBot();" data-t="scanCamUpgradeCta">See plans</button>
@@ -2025,15 +1903,14 @@
   <script src="/js/config/platform-native.js?v=apk-emb-260508-v1"></script>
   <script src="/js/config/constants.js?v=apk-emb-260508-v1"></script>
   <script src="/js/config/api-base.js?v=apk-emb-260508-v1"></script>
-  <script src="/js/features/premium.js?v=apk-emb-260508-v1"></script>
-  <script src="/js/features/note-export.js?v=apk-emb-260508-v1"></script>
+  <script src="/js/features/premium.js?v=apk-emb-260523-v8"></script>
+  <script src="/js/features/note-export.js?v=apk-emb-260523-v1"></script>
   <script src="/js/features/web-chat-intents.js?v=apk-emb-260508-v1"></script>
   <script src="/js/features/web-chat-reminder-parse.js?v=apk-emb-260508-v1"></script>
-  <script src="/js/services/socket-client.js?v=apk-emb-260508-v1"></script>
-  <script src="/translations.js?v=apk-emb-260508-v1"></script>
+  <script src="/js/services/socket-client.js?v=apk-emb-260523-v9"></script>
+  <script src="/translations.js?v=apk-emb-260523-v7"></script>
   <script src="/js/components/toast.js?v=apk-emb-260508-v1"></script>
-  <script src="/js/note-rich-editor.bundle.js?v=apk-emb-260508-v1"></script>
-  <script src="/js/app.js?v=apk-emb-260508-v1"></script>
+  <script src="/js/app.js?v=apk-emb-260523-v10"></script>
   <script src="/js/onboarding-tutorial.js?v=apk-emb-260508-v1"></script>
 </body>
 </html>

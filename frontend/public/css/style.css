@@ -246,14 +246,15 @@ button {
 }
 
 @media (max-width: 840px) {
-  /* Extra runway so last viewport lines of scrolling pages avoid fixed FAB zone */
+  /* FAB clearance on main scroll only; footer sits below with normal safe-area padding */
   .app .main {
-    padding-bottom: max(112px, calc(84px + env(safe-area-inset-bottom, 0px)));
+    padding-bottom: max(96px, calc(72px + env(safe-area-inset-bottom, 0px)));
+    scroll-padding-bottom: max(96px, calc(72px + env(safe-area-inset-bottom, 0px)));
   }
 
   .site-footer-inner {
-    padding-top: 18px;
-    padding-bottom: max(164px, calc(112px + env(safe-area-inset-bottom, 28px)));
+    padding-top: 16px;
+    padding-bottom: max(18px, calc(10px + env(safe-area-inset-bottom, 0px)));
   }
 
   .site-footer-links {
@@ -4083,14 +4084,14 @@ body.modal-open {
 
 .web-chat-messenger__footer {
   flex-shrink: 0;
-  padding: 12px 12px 14px;
+  padding: 10px 12px max(12px, env(safe-area-inset-bottom, 0px));
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .web-chat-messenger__hint {
@@ -5720,6 +5721,7 @@ button.save-button.secondary:hover {
   .app {
     display: block;
     min-height: 100vh;
+    min-height: 100dvh;
   }
 
   .mobile-menu-toggle {
@@ -5787,6 +5789,11 @@ button.save-button.secondary:hover {
     top: 0;
     left: 0;
     bottom: 0;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
+    max-height: 100dvh;
     z-index: 1250;
     width: min(82vw, 320px);
     max-width: 320px;
@@ -5794,7 +5801,10 @@ button.save-button.secondary:hover {
     border-bottom: none;
     transform: translateX(-106%);
     transition: transform 0.28s ease;
+    overflow-x: hidden;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
     /* Lift Community + inset-bottom above Android gesture / nav bar (env often 0 in WebViews). */
     scroll-padding-bottom: max(36px, calc(28px + env(safe-area-inset-bottom, 24px)));
     padding:
@@ -5806,10 +5816,27 @@ button.save-button.secondary:hover {
 
   body.mobile-nav-open .sidebar {
     transform: translateX(0);
+    background: linear-gradient(180deg, rgb(15, 23, 42) 0%, rgb(10, 18, 36) 100%);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: 8px 0 40px rgba(2, 8, 20, 0.55);
+  }
+
+  /* Footer is outside .app — lift app layer above it while the drawer is open */
+  body.mobile-nav-open .app {
+    z-index: 1200;
+  }
+
+  body.mobile-nav-open .site-footer {
+    visibility: hidden;
+    pointer-events: none;
+    user-select: none;
   }
 
   body.mobile-nav-open {
     overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: none;
   }
 
   .main {
@@ -6203,12 +6230,6 @@ button.save-button.secondary:hover {
   gap: 10px;
 }
 
-.premium-whatsapp-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-}
-
 .bot-context-strip {
   max-width: 1040px;
   margin: 0 auto 20px;
@@ -6218,7 +6239,10 @@ button.save-button.secondary:hover {
   line-height: 1.55;
 }
 
-.bot-page-header {
+#bot .bot-page-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   max-width: 1040px;
   margin-left: auto;
   margin-right: auto;
@@ -6226,36 +6250,20 @@ button.save-button.secondary:hover {
   padding-right: 8px;
 }
 
-#bot .bot-page-header {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  grid-template-areas: "left title right";
-  align-items: center;
-  column-gap: 10px;
-}
-
-#bot .bot-page-header::after {
-  content: "";
-  grid-area: right;
-  width: 96px;
-  min-height: 1px;
-}
-
 #bot .bot-page-header .back-button {
-  grid-area: left;
-  min-width: 96px;
-  justify-self: start;
+  flex-shrink: 0;
+  min-width: 88px;
 }
 
 #bot .bot-page-header > div {
-  grid-area: title;
-  justify-self: center;
+  flex: 1;
+  min-width: 0;
   text-align: center;
 }
 
 /* Premium upgrade marketing (logged-in free tier) */
 .premium-marketing {
-  padding: 8px 0 48px;
+  padding: 4px 0 32px;
 }
 
 .premium-marketing-inner {
@@ -6322,7 +6330,7 @@ button.save-button.secondary:hover {
 }
 
 .premium-plans-section {
-  margin-bottom: 40px;
+  margin-bottom: 24px;
 }
 
 .premium-plan-grid {
@@ -7612,6 +7620,10 @@ button.save-button.secondary:hover {
   body:not(.theme-normal) .sidebar {
     background: linear-gradient(180deg, rgba(10, 21, 42, 0.98), rgba(8, 18, 36, 0.99));
   }
+
+  body.mobile-nav-open:not(.theme-normal) .sidebar {
+    background: linear-gradient(180deg, rgb(10, 21, 42) 0%, rgb(8, 18, 36) 100%);
+  }
 }
 
 @media (max-width: 560px) {
@@ -8319,34 +8331,24 @@ button.save-button.secondary:hover {
   #bot .bot-page-header {
     padding: 0 !important;
     margin-bottom: 10px !important;
-    display: grid !important;
-    grid-template-columns: auto 1fr auto !important;
-    grid-template-areas: "left title right" !important;
+    display: flex !important;
     align-items: center !important;
-    column-gap: 8px;
-  }
-
-  #bot .bot-page-header::after {
-    content: "";
-    grid-area: right;
-    width: 92px;
-    min-height: 1px;
+    gap: 8px !important;
   }
 
   #bot .bot-page-header .back-button {
-    grid-area: left;
+    flex-shrink: 0;
     width: auto !important;
-    min-width: 92px;
+    min-width: 88px;
     padding: 8px 12px !important;
     min-height: 38px !important;
     font-size: 0.82rem !important;
     border-radius: 12px !important;
-    justify-self: start;
   }
 
   #bot .bot-page-header > div {
-    grid-area: title !important;
-    justify-self: center !important;
+    flex: 1 !important;
+    min-width: 0 !important;
     text-align: center !important;
   }
 
@@ -8370,7 +8372,7 @@ button.save-button.secondary:hover {
     padding-left: max(12px, env(safe-area-inset-left)) !important;
     padding-right: max(12px, env(safe-area-inset-right)) !important;
     padding-top: 0 !important;
-    padding-bottom: max(154px, calc(112px + env(safe-area-inset-bottom, 0px))) !important;
+    padding-bottom: max(96px, calc(72px + env(safe-area-inset-bottom, 0px))) !important;
   }
 
   #bot .premium-hero {
@@ -10370,6 +10372,25 @@ body {
   gap: 10px;
 }
 
+#webChat .web-chat-mode-static {
+  margin: 0;
+  padding: 0 2px 2px;
+  text-align: center;
+}
+
+#webChat .web-chat-mode-static__pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 650;
+  color: #e2e8f0;
+  background: rgba(56, 189, 248, 0.18);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
 #webChat .web-chat-mode-pills {
   display: flex;
   width: 100%;
@@ -10877,8 +10898,9 @@ body {
 
 .pricing-lite-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
+  align-items: stretch;
 }
 
 .pricing-lite-topbar {
@@ -10931,11 +10953,24 @@ body {
   border: 1px solid rgba(148, 163, 184, 0.2);
   background: rgba(15, 23, 42, 0.6);
   padding: 16px;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   cursor: pointer;
   transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.2s ease, opacity 0.2s ease;
   animation: pricingLiteCardIn 240ms ease both;
+  min-height: 100%;
+}
+
+.pricing-lite-card--free {
+  justify-content: flex-start;
+}
+
+.pricing-lite-card--featured,
+.pricing-lite-card[data-lite-plan="standard"].is-selected {
+  border-color: rgba(167, 139, 250, 0.42);
+  background: linear-gradient(155deg, rgba(88, 28, 135, 0.22), rgba(15, 23, 42, 0.88));
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.1), 0 16px 36px rgba(0, 0, 0, 0.24);
 }
 
 .pricing-lite-card:nth-child(1) {
@@ -11016,6 +11051,7 @@ body {
   list-style: none;
   display: grid;
   gap: 6px;
+  flex: 1;
 }
 
 .pricing-lite-benefits li {
@@ -11097,7 +11133,7 @@ body {
 .pricing-lite-compare__head,
 .pricing-lite-compare__row {
   display: grid;
-  grid-template-columns: 1.8fr repeat(3, 1fr);
+  grid-template-columns: 1.8fr repeat(2, 1fr);
   gap: 8px;
   align-items: center;
   padding: 9px 10px;
@@ -11115,7 +11151,7 @@ body {
 }
 
 .pricing-lite-why {
-  margin-top: 18px;
+  margin-top: 16px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
@@ -11194,19 +11230,18 @@ body {
 
   .pricing-lite-compare__head,
   .pricing-lite-compare__row {
-    grid-template-columns: 1.4fr repeat(3, 1fr);
+    grid-template-columns: 1.4fr repeat(2, 1fr);
     font-size: 0.74rem;
   }
 
   .pricing-lite-sticky-cta {
     display: inline-flex;
     position: sticky;
-    /* Float above stacked planner + chat FABs (see mobile rules below) */
-    bottom: calc(max(16px, env(safe-area-inset-bottom, 0px)) + 206px);
+    bottom: calc(max(16px, env(safe-area-inset-bottom, 0px)) + 132px);
     width: 100%;
     min-height: 44px;
-    margin-top: 18px;
-    margin-bottom: 8px;
+    margin-top: 14px;
+    margin-bottom: 4px;
     justify-content: center;
     z-index: 4;
     background: linear-gradient(135deg, rgba(168, 85, 247, 0.75), rgba(34, 211, 238, 0.6));
@@ -12136,7 +12171,7 @@ body {
     width: 44px;
     height: 44px;
     right: calc(max(20px, env(safe-area-inset-right, 0px) + 12px) + 4px);
-    bottom: calc(max(30px, env(safe-area-inset-bottom, 0px) + 18px) + 54px + 28px + 36px);
+    bottom: calc(max(30px, env(safe-area-inset-bottom, 0px) + 18px) + 54px + 14px);
   }
 
   .daily-planner-modal-overlay.modal {
@@ -12378,6 +12413,56 @@ body.web-chat-drawer-open {
   overflow: hidden;
 }
 
+/* Mobile / APK: hide floating controls while chat drawer is open (FAB z-index > drawer) */
+@media (max-width: 840px) {
+  .web-chat-fab,
+  #webChatFab,
+  .daily-planner-fab,
+  #dailyPlannerFab,
+  .web-chat-fab-tip,
+  #webChatFabTip {
+    transition:
+      transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 260ms ease,
+      visibility 0s linear 280ms;
+  }
+
+  body.web-chat-drawer-open .web-chat-fab,
+  body.web-chat-drawer-open #webChatFab,
+  body.web-chat-drawer-open .daily-planner-fab,
+  body.web-chat-drawer-open #dailyPlannerFab,
+  body.web-chat-drawer-open .web-chat-fab-tip,
+  body.web-chat-drawer-open #webChatFabTip {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transform: translate3d(115%, 0, 0) scale(0.92);
+    animation: none;
+    transition:
+      transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 260ms ease,
+      visibility 0s linear 0s;
+  }
+
+  body.web-chat-drawer-open .web-chat-fab::before,
+  body.web-chat-drawer-open .web-chat-fab::after,
+  body.web-chat-drawer-open .daily-planner-fab::after {
+    opacity: 0;
+    animation: none;
+  }
+}
+
+@media (max-width: 840px) and (prefers-reduced-motion: reduce) {
+  body.web-chat-drawer-open .web-chat-fab,
+  body.web-chat-drawer-open #webChatFab,
+  body.web-chat-drawer-open .daily-planner-fab,
+  body.web-chat-drawer-open #dailyPlannerFab,
+  body.web-chat-drawer-open .web-chat-fab-tip,
+  body.web-chat-drawer-open #webChatFabTip {
+    transform: none;
+  }
+}
+
 @keyframes webChatFabPulse {
   0%,
   100% {
@@ -12459,12 +12544,12 @@ body.web-chat-drawer-open {
     width: 54px;
     height: 54px;
     right: calc(max(20px, env(safe-area-inset-right, 0px) + 12px) + 4px);
-    bottom: calc(max(30px, env(safe-area-inset-bottom, 0px) + 18px) + 44px);
+    bottom: max(30px, env(safe-area-inset-bottom, 0px) + 18px);
   }
 
   .web-chat-fab-tip {
     right: max(80px, env(safe-area-inset-right, 0px) + 76px);
-    bottom: calc(max(42px, env(safe-area-inset-bottom, 0px) + 26px) + 36px);
+    bottom: calc(max(30px, env(safe-area-inset-bottom, 0px) + 18px) + 54px + 14px);
     font-size: 0.74rem;
   }
 
@@ -12472,7 +12557,7 @@ body.web-chat-drawer-open {
     width: 44px;
     height: 44px;
     right: calc(max(20px, env(safe-area-inset-right, 0px) + 12px) + 4px);
-    bottom: calc(max(30px, env(safe-area-inset-bottom, 0px) + 18px) + 54px + 28px + 44px);
+    bottom: calc(max(30px, env(safe-area-inset-bottom, 0px) + 18px) + 54px + 14px);
   }
 
   #webChat.web-chat-drawer .web-chat-messenger {
@@ -12493,6 +12578,21 @@ body.floating-scrolled .web-chat-fab:hover,
 body.floating-scrolled .daily-planner-fab:hover,
 body.floating-scrolled .discord-fab:hover {
   opacity: 1;
+}
+
+@media (max-width: 840px) {
+  body.web-chat-drawer-open.floating-scrolled .web-chat-fab,
+  body.web-chat-drawer-open.floating-scrolled #webChatFab,
+  body.web-chat-drawer-open.floating-scrolled .daily-planner-fab,
+  body.web-chat-drawer-open.floating-scrolled #dailyPlannerFab,
+  body.web-chat-drawer-open.floating-scrolled .web-chat-fab-tip,
+  body.web-chat-drawer-open.floating-scrolled #webChatFabTip {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transform: translate3d(115%, 0, 0) scale(0.92);
+    animation: none;
+  }
 }
 
 /* ========== My Notes warm redesign ========== */
@@ -12640,7 +12740,7 @@ body.floating-scrolled .discord-fab:hover {
 }
 
 .settings-content-card {
-  min-height: 460px;
+  min-height: 0;
 }
 
 .settings-page-heading h2 {
@@ -12674,6 +12774,19 @@ body.floating-scrolled .discord-fab:hover {
 .settings-nav-list {
   display: grid;
   gap: 6px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 480px) {
+  .settings-nav-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-nav-btn:nth-child(5):last-child {
+    grid-column: 1 / -1;
+    max-width: calc(50% - 3px);
+    justify-self: center;
+  }
 }
 
 .settings-nav-btn {
@@ -12922,6 +13035,12 @@ body.floating-scrolled .discord-fab:hover {
 
   .settings-nav-list {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .settings-nav-btn:nth-child(5):last-child {
+    grid-column: 1 / -1;
+    max-width: calc(50% - 3px);
+    justify-self: center;
   }
 
   .settings-content-card {
@@ -16451,27 +16570,29 @@ body.theme-normal .welcome-sheet__close {
   border-color: rgba(148, 163, 184, 0.18);
 }
 
-.web-chat-fab {
-  width: 50px;
-  height: 50px;
-  right: max(14px, env(safe-area-inset-right, 0px) + 8px);
-  bottom: max(32px, env(safe-area-inset-bottom, 0px) + 20px);
-  border-radius: 14px;
-  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.34), 0 0 0 1px rgba(125, 211, 252, 0.22);
-}
+@media (min-width: 841px) {
+  .web-chat-fab {
+    width: 50px;
+    height: 50px;
+    right: max(14px, env(safe-area-inset-right, 0px) + 8px);
+    bottom: max(32px, env(safe-area-inset-bottom, 0px) + 20px);
+    border-radius: 14px;
+    box-shadow: 0 10px 24px rgba(2, 6, 23, 0.34), 0 0 0 1px rgba(125, 211, 252, 0.22);
+  }
 
-.daily-planner-fab {
-  width: 46px;
-  height: 46px;
-  right: max(14px, env(safe-area-inset-right, 0px) + 8px);
-  bottom: max(102px, env(safe-area-inset-bottom, 0px) + 68px);
-  border-radius: 14px;
-  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.34), 0 0 0 1px rgba(125, 211, 252, 0.18);
-}
+  .daily-planner-fab {
+    width: 46px;
+    height: 46px;
+    right: max(14px, env(safe-area-inset-right, 0px) + 8px);
+    bottom: max(102px, env(safe-area-inset-bottom, 0px) + 68px);
+    border-radius: 14px;
+    box-shadow: 0 10px 24px rgba(2, 6, 23, 0.34), 0 0 0 1px rgba(125, 211, 252, 0.18);
+  }
 
-.web-chat-fab::after,
-.daily-planner-fab::after {
-  opacity: 0.35;
+  .web-chat-fab::after,
+  .daily-planner-fab::after {
+    opacity: 0.35;
+  }
 }
 
 @media (max-width: 560px) {
@@ -16486,9 +16607,6 @@ body.theme-normal .welcome-sheet__close {
   }
   #webChat .web-chat-messenger__footer {
     padding: 8px 8px 10px;
-  }
-  .daily-planner-fab {
-    bottom: max(96px, env(safe-area-inset-bottom, 0px) + 66px);
   }
 }
 
@@ -16869,26 +16987,28 @@ body.theme-normal .welcome-sheet__close {
   background: rgba(30, 41, 59, 0.7);
 }
 
-body:has(#webChat:not(.hidden)) .web-chat-fab {
-  bottom: max(36px, env(safe-area-inset-bottom, 0px) + 20px);
-}
+@media (min-width: 841px) {
+  body:has(#webChat:not(.hidden)) .web-chat-fab {
+    bottom: max(36px, env(safe-area-inset-bottom, 0px) + 20px);
+  }
 
-body:has(#webChat:not(.hidden)) .daily-planner-fab {
-  bottom: max(102px, env(safe-area-inset-bottom, 0px) + 70px);
-}
+  body:has(#webChat:not(.hidden)) .daily-planner-fab {
+    bottom: max(102px, env(safe-area-inset-bottom, 0px) + 70px);
+  }
 
-.web-chat-fab,
-.daily-planner-fab {
-  width: 42px;
-  height: 42px;
-  right: max(14px, env(safe-area-inset-right, 0px) + 8px);
-  border-radius: 12px;
-  box-shadow: 0 8px 18px rgba(2, 6, 23, 0.34), 0 0 0 1px rgba(148, 163, 184, 0.16);
-}
+  .web-chat-fab,
+  .daily-planner-fab {
+    width: 42px;
+    height: 42px;
+    right: max(14px, env(safe-area-inset-right, 0px) + 8px);
+    border-radius: 12px;
+    box-shadow: 0 8px 18px rgba(2, 6, 23, 0.34), 0 0 0 1px rgba(148, 163, 184, 0.16);
+  }
 
-.web-chat-fab::after,
-.daily-planner-fab::after {
-  opacity: 0.22;
+  .web-chat-fab::after,
+  .daily-planner-fab::after {
+    opacity: 0.22;
+  }
 }
 
 @media (max-width: 840px) {
@@ -17213,27 +17333,29 @@ body:has(#webChat:not(.hidden)) .daily-planner-fab {
   font-size: 12px !important;
 }
 
-/* floating buttons */
-.floating-chat-btn,
-.floating-calendar-btn,
-.chat-fab,
-.calendar-fab,
-.web-chat-fab,
-.daily-planner-fab {
-  width: 50px !important;
-  height: 50px !important;
-  border-radius: 50% !important;
-  background: linear-gradient(145deg, rgba(30, 55, 120, 0.92), rgba(20, 20, 65, 0.96)) !important;
-  border: 1px solid rgba(125, 150, 255, 0.24) !important;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.32) !important;
-}
+/* floating buttons — desktop only; mobile stack lives in mobile-responsive.css */
+@media (min-width: 841px) {
+  .floating-chat-btn,
+  .floating-calendar-btn,
+  .chat-fab,
+  .calendar-fab,
+  .web-chat-fab,
+  .daily-planner-fab {
+    width: 50px !important;
+    height: 50px !important;
+    border-radius: 50% !important;
+    background: linear-gradient(145deg, rgba(30, 55, 120, 0.92), rgba(20, 20, 65, 0.96)) !important;
+    border: 1px solid rgba(125, 150, 255, 0.24) !important;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.32) !important;
+  }
 
-body:has(#webChat:not(.hidden)) .daily-planner-fab {
-  bottom: max(102px, env(safe-area-inset-bottom, 0px) + 70px) !important;
-}
+  body:has(#webChat:not(.hidden)) .daily-planner-fab {
+    bottom: max(102px, env(safe-area-inset-bottom, 0px) + 70px) !important;
+  }
 
-body:has(#webChat:not(.hidden)) .web-chat-fab {
-  bottom: max(36px, env(safe-area-inset-bottom, 0px) + 20px) !important;
+  body:has(#webChat:not(.hidden)) .web-chat-fab {
+    bottom: max(36px, env(safe-area-inset-bottom, 0px) + 20px) !important;
+  }
 }
 
 /* prevent bottom overlap — extra scroll room matches lifted FAB stack */
@@ -17571,7 +17693,64 @@ html.capacitor-native {
     scroll-padding-bottom: max(48px, calc(32px + env(safe-area-inset-bottom, 32px)));
   }
 
-  html.capacitor-native .site-footer-inner {
-    padding-bottom: max(172px, calc(116px + env(safe-area-inset-bottom, 32px))) !important;
+}
+
+/* —— UI balance pass (Free + Standard, Chat Bot only) —— */
+.premium-hero {
+  padding: 8px 0 16px;
+}
+
+.premium-hero-lead {
+  margin-bottom: 10px;
+}
+
+.pricing-lite-plans .premium-section-heading {
+  margin-bottom: 12px;
+}
+
+.pricing-lite-card--free .pricing-lite-benefits--compact {
+  min-height: 4.5rem;
+}
+
+#webChat .web-chat-messenger__header {
+  padding-bottom: 10px;
+}
+
+#webChat .web-chat-soft-lock--slim {
+  margin: 4px 10px 0;
+}
+
+.settings-section-pane {
+  padding: 2px 0 4px;
+}
+
+.settings-premium-card .settings-billing-grid {
+  gap: 10px 12px;
+}
+
+.settings-upgrade-btn {
+  margin-top: 10px;
+}
+
+#bot .bot-context-strip {
+  margin-bottom: 14px;
+}
+
+@media (max-width: 840px) {
+  .home-dashboard-top {
+    gap: 16px;
+  }
+
+  .home-dashboard-primary {
+    gap: 12px;
+  }
+
+  #bot .premium-hero {
+    padding: 6px 0 12px;
+  }
+
+  .pricing-lite-trust {
+    justify-content: center;
+    text-align: center;
   }
 }

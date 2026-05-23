@@ -92,7 +92,7 @@ function serializeNote(n) {
   };
 }
 
-function createNotesRouter({ User, Note, authMiddleware, sendWhatsAppMessage, getIo }) {
+function createNotesRouter({ User, Note, authMiddleware, getIo }) {
   const router = express.Router();
 
   router.get("/notes/:category", authMiddleware, async (req, res) => {

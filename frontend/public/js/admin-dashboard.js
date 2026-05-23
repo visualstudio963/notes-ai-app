@@ -375,7 +375,7 @@
       ? '<div class="admin-standard-split">' +
         '<div class="admin-standard-split-title">Standard — ndarje</div>' +
         '<ul class="admin-standard-split-list">' +
-        "<li><span>Trial 7 ditë</span><strong>" +
+        "<li><span>Trial 14 ditë</span><strong>" +
         escapeHtml(String(splitTrial)) +
         "</strong></li>" +
         "<li><span>Me coins</span><strong>" +
@@ -507,7 +507,8 @@
   }
 
   function normalizePlan(value) {
-    if (value === "premium" || value === "standard" || value === "free") return value;
+    if (value === "premium") return "standard";
+    if (value === "standard" || value === "free") return value;
     return "free";
   }
 
@@ -653,7 +654,6 @@
   }
 
   function planBadge(plan) {
-    if (plan === "premium") return '<span class="admin-badge admin-badge--premium">Premium</span>';
     if (plan === "standard") return '<span class="admin-badge admin-badge--standard">Standard</span>';
     return '<span class="admin-badge admin-badge--free">Free</span>';
   }
@@ -739,7 +739,7 @@
 
   function reminderChannelPill(type) {
     const t = (type || "web").toLowerCase();
-    if (t === "whatsapp") return '<span class="admin-pill admin-pill--wa">WhatsApp</span>';
+    if (t === "whatsapp") return '<span class="admin-pill admin-pill--wa">Legacy</span>';
     return '<span class="admin-pill admin-pill--web">Web</span>';
   }
 
@@ -1173,7 +1173,7 @@
             "</div>" +
             '<div class="admin-dash-user-meta">' +
             on +
-            "<span>Premium until " +
+            "<span>Standard until " +
             escapeHtml(expires) +
             "</span></div>" +
             '<div class="admin-dash-card-actions">' +
@@ -1186,7 +1186,7 @@
         .join("") +
       '<p class="admin-card-hint" style="margin-top:12px">Showing ' +
       rows.length +
-      " premium accounts — the full premium list stays in the desktop table.</p>";
+      " Standard accounts — the full list stays in the desktop table.</p>";
   }
 
   async function loadUsersPage() {
@@ -1196,7 +1196,7 @@
       page: String(usersState.page),
       limit: String(usersState.limit),
       ...(usersState.search.trim() ? { search: usersState.search.trim() } : {}),
-      ...(usersState.tier === "premium" ? { tier: "premium" } : {})
+      ...(usersState.tier === "standard" ? { tier: "standard" } : {})
     });
     const path = `/api/admin/users?${qs}`;
     try {
@@ -1225,7 +1225,7 @@
 
   async function loadSubscriptionsPanel() {
     const qs = new URLSearchParams({
-      tier: "premium",
+      tier: "standard",
       limit: "50",
       page: "1"
     });
@@ -1235,8 +1235,8 @@
     if (!tbody) return;
 
     if (!(data.users || []).length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="admin-cell-muted">No premium matches yet.</td></tr>';
-      if (cardsHost) cardsHost.innerHTML = '<p class="admin-muted">No premium matches yet.</p>';
+      tbody.innerHTML = '<tr><td colspan="6" class="admin-cell-muted">No Standard subscribers yet.</td></tr>';
+      if (cardsHost) cardsHost.innerHTML = '<p class="admin-muted">No Standard subscribers yet.</p>';
       mergeCapabilityUi();
       return;
     }
@@ -1707,7 +1707,7 @@
           body: JSON.stringify({ preset })
         });
         if (out && out.user) stashUser(out.user);
-        setAlert("Premium grant applied.", "info");
+        setAlert("Standard grant applied.", "info");
         await Promise.all([loadUsersPage(), loadDashboard()]);
         await openUserDetailsModal(selectedUserId);
       } catch (err) {
@@ -1756,7 +1756,7 @@
       if (!selectedUserId) return;
       const planSelect = document.getElementById("adminDetailPlanSelect");
       const plan = planSelect ? planSelect.value : "";
-      if (plan !== "free" && plan !== "standard" && plan !== "premium") return;
+      if (plan !== "free" && plan !== "standard") return;
       try {
         const out = await apiJson("/api/admin/users/" + encodeURIComponent(selectedUserId) + "/plan", {
           method: "PATCH",

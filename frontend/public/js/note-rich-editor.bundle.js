@@ -23291,6 +23291,8 @@ ${prefix}
 
   // editor/note-rich-editor.js
   var STORAGE_PREFIX = "TIPJSON:";
+  var STORED_HTML_CACHE_MAX = 200;
+  var storedHtmlCache = /* @__PURE__ */ new Map();
   function getExtensions(placeholderText) {
     const ph = placeholderText && String(placeholderText).trim() ? String(placeholderText).trim() : "Start writing\u2026";
     return [
@@ -23346,12 +23348,21 @@ ${prefix}
     return STORAGE_PREFIX + JSON.stringify(doc3);
   }
   function storedToHtml(stored) {
+    const raw = String(stored ?? "");
+    const cacheKey = raw.length <= 512 ? raw : `${raw.length}:${raw.slice(0, 120)}:${raw.slice(-60)}`;
+    if (storedHtmlCache.has(cacheKey)) return storedHtmlCache.get(cacheKey);
     const doc3 = storageToDocJSON(stored);
+    let html = "";
     try {
-      return generateHTML(doc3, getExtensions("Start writing\u2026"));
+      html = generateHTML(doc3, getExtensions("Start writing\u2026"));
     } catch {
-      return `<p>${escapeHtml(String(stored ?? ""))}</p>`;
+      html = `<p>${escapeHtml(String(stored ?? ""))}</p>`;
     }
+    storedHtmlCache.set(cacheKey, html);
+    if (storedHtmlCache.size > STORED_HTML_CACHE_MAX) {
+      storedHtmlCache.delete(storedHtmlCache.keys().next().value);
+    }
+    return html;
   }
   function storedToPreviewText(stored, maxLen = 220) {
     const tmp = document.createElement("div");
@@ -23365,6 +23376,8 @@ ${prefix}
   }
   var editor = null;
   var wordCountRaf = 0;
+  var wordCountTimer = 0;
+  var dirtySyncTimer = 0;
   var rootPersistNoteId = null;
   var rootMode = "create";
   var rootOrigin = "category";
@@ -23419,6 +23432,20 @@ ${prefix}
     }
     dirty = buildPersistSnapshot() !== baselineSnapshot;
   }
+  function syncDirtySoon() {
+    if (dirtySyncTimer) clearTimeout(dirtySyncTimer);
+    dirtySyncTimer = setTimeout(() => {
+      dirtySyncTimer = 0;
+      syncDirty();
+    }, 120);
+  }
+  function syncDirtyNow() {
+    if (dirtySyncTimer) {
+      clearTimeout(dirtySyncTimer);
+      dirtySyncTimer = 0;
+    }
+    syncDirty();
+  }
   function updateWordCount(ed) {
     const el = document.getElementById("noteRichEditorWordCount");
     if (!el) return;
@@ -23432,15 +23459,19 @@ ${prefix}
   }
   function scheduleWordCountUpdate(ed) {
     if (wordCountRaf) cancelAnimationFrame(wordCountRaf);
+    if (wordCountTimer) clearTimeout(wordCountTimer);
     if (!ed) {
       wordCountRaf = 0;
       updateWordCount(null);
       return;
     }
-    wordCountRaf = requestAnimationFrame(() => {
-      wordCountRaf = 0;
-      updateWordCount(ed);
-    });
+    wordCountTimer = setTimeout(() => {
+      wordCountTimer = 0;
+      wordCountRaf = requestAnimationFrame(() => {
+        wordCountRaf = 0;
+        updateWordCount(ed);
+      });
+    }, 200);
   }
   function setTitleFieldError(message) {
     const titleEl = document.getElementById("noteRichEditorTitle");
@@ -23468,6 +23499,7 @@ ${prefix}
   function getToolbarButtons(editorInstance) {
     const chain = () => editorInstance.chain();
     const is = (name, attrs = {}) => editorInstance.isActive(name, attrs);
+    const toolbarSyncFns = [];
     const btn = (label, iconSvg, onClick, activeCheck) => {
       const b = document.createElement("button");
       b.type = "button";
@@ -23486,13 +23518,11 @@ ${prefix}
       );
       if (activeCheck) {
         const sync = () => b.classList.toggle("is-active", !!activeCheck());
+        toolbarSyncFns.push(sync);
         b.addEventListener("click", () => {
           onClick();
           sync();
         });
-        editorInstance.on("selectionUpdate", sync);
-        editorInstance.on("transaction", sync);
-        sync();
       } else {
         b.addEventListener("click", onClick);
       }
@@ -23549,11 +23579,25 @@ ${prefix}
     const wrap2 = document.createElement("div");
     wrap2.className = "note-rich-toolbar-inner note-rich-toolbar-inner--single-row";
     wrap2.appendChild(rowEl);
+    if (toolbarSyncFns.length) {
+      let toolbarSyncRaf = 0;
+      const scheduleToolbarSync = () => {
+        if (toolbarSyncRaf) return;
+        toolbarSyncRaf = requestAnimationFrame(() => {
+          toolbarSyncRaf = 0;
+          toolbarSyncFns.forEach((sync) => sync());
+        });
+      };
+      editorInstance.on("selectionUpdate", scheduleToolbarSync);
+      editorInstance.on("transaction", scheduleToolbarSync);
+      toolbarSyncFns.forEach((sync) => sync());
+    }
     return wrap2;
   }
   async function runPersist(opts = {}) {
     const force = !!opts.force;
     if (!editor) return;
+    syncDirtyNow();
     const persistFn = typeof window.noteRichEditorPersist === "function" ? window.noteRichEditorPersist : null;
     if (!persistFn) return;
     const snapshot = buildPersistSnapshot();
@@ -23610,13 +23654,21 @@ ${prefix}
   function wireEditorHooks(ed) {
     ed.on("update", () => {
       scheduleWordCountUpdate(ed);
-      syncDirty();
+      syncDirtySoon();
     });
   }
   function destroyEditor() {
     if (wordCountRaf) {
       cancelAnimationFrame(wordCountRaf);
       wordCountRaf = 0;
+    }
+    if (wordCountTimer) {
+      clearTimeout(wordCountTimer);
+      wordCountTimer = 0;
+    }
+    if (dirtySyncTimer) {
+      clearTimeout(dirtySyncTimer);
+      dirtySyncTimer = 0;
     }
     if (editor) {
       editor.destroy();
@@ -23693,7 +23745,7 @@ ${prefix}
     if (titleEl) {
       titleEl.oninput = () => {
         clearTitleFieldError();
-        syncDirty();
+        syncDirtySoon();
       };
     }
     screen.classList.remove("hidden");
@@ -23702,6 +23754,7 @@ ${prefix}
     setupEditorViewportLock(screen);
   }
   function requestClose() {
+    syncDirtyNow();
     if (dirty) {
       const ok = window.confirm(tKey("noteRichEditorUnsavedConfirm", "You have unsaved changes. Leave without saving?"));
       if (!ok) return;
@@ -23714,6 +23767,7 @@ ${prefix}
     window.addEventListener("beforeunload", (e) => {
       const screen = document.getElementById("noteRichEditorScreen");
       if (!screen || screen.classList.contains("hidden")) return;
+      syncDirtyNow();
       if (!dirty) return;
       e.preventDefault();
       e.returnValue = "";

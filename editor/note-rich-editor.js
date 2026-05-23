@@ -12,6 +12,8 @@ import Placeholder from "@tiptap/extension-placeholder";
 import { generateHTML } from "@tiptap/html";
 
 const STORAGE_PREFIX = "TIPJSON:";
+const STORED_HTML_CACHE_MAX = 200;
+const storedHtmlCache = new Map();
 
 /**
  * @param {string} [placeholderText]
@@ -76,12 +78,21 @@ function encodeDocForStorage(doc) {
 }
 
 function storedToHtml(stored) {
+  const raw = String(stored ?? "");
+  const cacheKey = raw.length <= 512 ? raw : `${raw.length}:${raw.slice(0, 120)}:${raw.slice(-60)}`;
+  if (storedHtmlCache.has(cacheKey)) return storedHtmlCache.get(cacheKey);
   const doc = storageToDocJSON(stored);
+  let html = "";
   try {
-    return generateHTML(doc, getExtensions("Start writing…"));
+    html = generateHTML(doc, getExtensions("Start writing…"));
   } catch {
-    return `<p>${escapeHtml(String(stored ?? ""))}</p>`;
+    html = `<p>${escapeHtml(String(stored ?? ""))}</p>`;
   }
+  storedHtmlCache.set(cacheKey, html);
+  if (storedHtmlCache.size > STORED_HTML_CACHE_MAX) {
+    storedHtmlCache.delete(storedHtmlCache.keys().next().value);
+  }
+  return html;
 }
 
 function storedToPreviewText(stored, maxLen = 220) {
@@ -103,6 +114,10 @@ function escapeHtml(s) {
 let editor = null;
 /** @type {number} */
 let wordCountRaf = 0;
+/** @type {number} */
+let wordCountTimer = 0;
+/** @type {number} */
+let dirtySyncTimer = 0;
 let rootPersistNoteId = null;
 let rootMode = "create";
 let rootOrigin = "category";
@@ -170,6 +185,22 @@ function syncDirty() {
   dirty = buildPersistSnapshot() !== baselineSnapshot;
 }
 
+function syncDirtySoon() {
+  if (dirtySyncTimer) clearTimeout(dirtySyncTimer);
+  dirtySyncTimer = setTimeout(() => {
+    dirtySyncTimer = 0;
+    syncDirty();
+  }, 120);
+}
+
+function syncDirtyNow() {
+  if (dirtySyncTimer) {
+    clearTimeout(dirtySyncTimer);
+    dirtySyncTimer = 0;
+  }
+  syncDirty();
+}
+
 function updateWordCount(ed) {
   const el = document.getElementById("noteRichEditorWordCount");
   if (!el) return;
@@ -184,15 +215,19 @@ function updateWordCount(ed) {
 
 function scheduleWordCountUpdate(ed) {
   if (wordCountRaf) cancelAnimationFrame(wordCountRaf);
+  if (wordCountTimer) clearTimeout(wordCountTimer);
   if (!ed) {
     wordCountRaf = 0;
     updateWordCount(null);
     return;
   }
-  wordCountRaf = requestAnimationFrame(() => {
-    wordCountRaf = 0;
-    updateWordCount(ed);
-  });
+  wordCountTimer = setTimeout(() => {
+    wordCountTimer = 0;
+    wordCountRaf = requestAnimationFrame(() => {
+      wordCountRaf = 0;
+      updateWordCount(ed);
+    });
+  }, 200);
 }
 
 function setTitleFieldError(message) {
@@ -225,6 +260,7 @@ function getToolbarButtons(editorInstance) {
   /** No `.focus()` — avoids scroll + keyboard churn on mobile when tapping the bar; selection kept via pointerdown preventDefault below. */
   const chain = () => editorInstance.chain();
   const is = (name, attrs = {}) => editorInstance.isActive(name, attrs);
+  const toolbarSyncFns = [];
 
   const btn = (label, iconSvg, onClick, activeCheck) => {
     const b = document.createElement("button");
@@ -244,13 +280,11 @@ function getToolbarButtons(editorInstance) {
     );
     if (activeCheck) {
       const sync = () => b.classList.toggle("is-active", !!activeCheck());
+      toolbarSyncFns.push(sync);
       b.addEventListener("click", () => {
         onClick();
         sync();
       });
-      editorInstance.on("selectionUpdate", sync);
-      editorInstance.on("transaction", sync);
-      sync();
     } else {
       b.addEventListener("click", onClick);
     }
@@ -311,12 +345,28 @@ function getToolbarButtons(editorInstance) {
   const wrap = document.createElement("div");
   wrap.className = "note-rich-toolbar-inner note-rich-toolbar-inner--single-row";
   wrap.appendChild(rowEl);
+
+  if (toolbarSyncFns.length) {
+    let toolbarSyncRaf = 0;
+    const scheduleToolbarSync = () => {
+      if (toolbarSyncRaf) return;
+      toolbarSyncRaf = requestAnimationFrame(() => {
+        toolbarSyncRaf = 0;
+        toolbarSyncFns.forEach((sync) => sync());
+      });
+    };
+    editorInstance.on("selectionUpdate", scheduleToolbarSync);
+    editorInstance.on("transaction", scheduleToolbarSync);
+    toolbarSyncFns.forEach((sync) => sync());
+  }
+
   return wrap;
 }
 
 async function runPersist(opts = {}) {
   const force = !!opts.force;
   if (!editor) return;
+  syncDirtyNow();
   const persistFn = typeof window.noteRichEditorPersist === "function" ? window.noteRichEditorPersist : null;
   if (!persistFn) return;
 
@@ -381,7 +431,7 @@ async function runPersist(opts = {}) {
 function wireEditorHooks(ed) {
   ed.on("update", () => {
     scheduleWordCountUpdate(ed);
-    syncDirty();
+    syncDirtySoon();
   });
 }
 
@@ -389,6 +439,14 @@ function destroyEditor() {
   if (wordCountRaf) {
     cancelAnimationFrame(wordCountRaf);
     wordCountRaf = 0;
+  }
+  if (wordCountTimer) {
+    clearTimeout(wordCountTimer);
+    wordCountTimer = 0;
+  }
+  if (dirtySyncTimer) {
+    clearTimeout(dirtySyncTimer);
+    dirtySyncTimer = 0;
   }
   if (editor) {
     editor.destroy();
@@ -479,7 +537,7 @@ function open(opts = {}) {
   if (titleEl) {
     titleEl.oninput = () => {
       clearTitleFieldError();
-      syncDirty();
+      syncDirtySoon();
     };
   }
 
@@ -492,6 +550,7 @@ function open(opts = {}) {
 }
 
 function requestClose() {
+  syncDirtyNow();
   if (dirty) {
     const ok = window.confirm(tKey("noteRichEditorUnsavedConfirm", "You have unsaved changes. Leave without saving?"));
     if (!ok) return;
@@ -507,6 +566,7 @@ function initNoteRichEditorBridge() {
   window.addEventListener("beforeunload", (e) => {
     const screen = document.getElementById("noteRichEditorScreen");
     if (!screen || screen.classList.contains("hidden")) return;
+    syncDirtyNow();
     if (!dirty) return;
     e.preventDefault();
     e.returnValue = "";

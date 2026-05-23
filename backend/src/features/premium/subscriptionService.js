@@ -1,87 +1,43 @@
 /**
-
- * Subscription / premium access (Twilio WhatsApp & SMS reminder channels).
-
- * Payment providers (e.g. Stripe) can call {@link grantPremium} from webhooks later.
-
- *
-
- * Canonical product tier is {@link getUserPlan} (single effective plan: free | standard | premium).
-
- * Legacy fields `plan`, `subscriptionPlan`, `membershipRole`, and `isPremium` are merged consistently.
-
+ * Subscription / plan access (Free + Standard).
+ * All Standard paths (trial, coins, Stripe) share one grant/revoke model and {@link hasStandardAccess}.
  */
 
+const { COIN_CAP, TRIAL_DURATION_MS, STANDARD_COIN_DURATION_MS } = require("../coins/coinConstants");
 
+const PLAN_ORDER = { free: 0, standard: 1 };
 
-/** Premium Web Chat: max OpenAI completions per monthly billing window (UTC). */
+/** Paid Standard via Stripe checkout — 30 calendar days per purchase. */
+const STRIPE_STANDARD_DURATION_MS = STANDARD_COIN_DURATION_MS;
 
-const OPENAI_WEB_CHAT_MONTHLY_LIMIT = 130;
+const STANDARD_SOURCES = ["trial", "coins", "stripe"];
 
-const { COIN_CAP } = require("../coins/coinConstants");
-
-
-
-const PLAN_ORDER = { free: 0, standard: 1, premium: 2 };
-
-
+const REVOKE_STANDARD_SET = {
+  plan: "free",
+  subscriptionPlan: "free",
+  membershipRole: "free",
+  isPremium: false,
+  standardSource: null,
+  premiumExpires: null,
+  premiumStartedAt: null,
+  trialEndsAt: null,
+  standardCoinExpiresAt: null
+};
 
 function normalizePlanToken(value) {
-
   const v = value != null ? String(value).toLowerCase() : "";
-
-  if (v === "standard" || v === "premium" || v === "free") return v;
-
+  if (v === "premium") return "standard";
+  if (v === "standard" || v === "free") return v;
   return "free";
-
 }
-
-
 
 function tierFromRank(r) {
-
-  if (r >= 2) return "premium";
-
   if (r >= 1) return "standard";
-
   return "free";
-
 }
-
-
 
 function planRank(value) {
-
   return PLAN_ORDER[normalizePlanToken(value)] ?? 0;
-
-}
-
-
-
-/**
-
- * Max tier stored on the user document (ignores active `isPremium` billing boost).
-
- * @param {{ plan?: string; subscriptionPlan?: string; membershipRole?: string } | null | undefined} user
-
- * @returns {"free"|"standard"|"premium"}
-
- */
-
-function getStoredProductTier(user) {
-
-  if (!user) return "free";
-
-  let r = 0;
-
-  for (const key of ["plan", "subscriptionPlan", "membershipRole"]) {
-
-    r = Math.max(r, planRank(user[key]));
-
-  }
-
-  return tierFromRank(r);
-
 }
 
 function clampCoinBalancePreview(n) {
@@ -89,648 +45,359 @@ function clampCoinBalancePreview(n) {
   return Math.min(COIN_CAP, Math.max(0, x));
 }
 
-function trialActive(user, nowMs = Date.now()) {
-  if (!user || !user.trialEndsAt) return false;
-  const t = new Date(user.trialEndsAt).getTime();
-  return Number.isFinite(t) && t > nowMs;
-}
-
-function coinStandardActive(user, nowMs = Date.now()) {
-  if (!user || !user.standardCoinExpiresAt) return false;
-  const t = new Date(user.standardCoinExpiresAt).getTime();
-  return Number.isFinite(t) && t > nowMs;
-}
-
-function boostStandardFromPromos(user, nowMs = Date.now()) {
-  return trialActive(user, nowMs) || coinStandardActive(user, nowMs);
-}
-
 /**
-
- * Effective product plan (admin + app + billing), merging legacy fields.
-
- * @param {{ plan?: string; subscriptionPlan?: string; membershipRole?: string; isPremium?: boolean; premiumExpires?: Date | null; trialEndsAt?: Date | null; standardCoinExpiresAt?: Date | null } | null | undefined} user
-
- * @returns {"free"|"standard"|"premium"}
-
+ * Canonical expiry for Standard access (premiumExpires is source of truth; legacy fields as fallback).
+ * @param {object | null | undefined} user
+ * @returns {Date | null}
  */
-
-function getUserPlan(user) {
-  if (!user) return "free";
-
-  const nowMs = Date.now();
-
-  /** Only real boolean true counts — avoids truthy garbage from imports (e.g. string "false"). */
-  const premiumBillingActive =
-    user.isPremium === true &&
-    (user.premiumExpires == null || new Date(user.premiumExpires).getTime() > nowMs);
-
-  const stored = getStoredProductTier(user);
-
-  /**
-   * Stored `plan` may still say "premium" after a time-limited comp expires; do not treat that as
-   * active premium unless {@link premiumBillingActive}. Stripe subscriptions use `isPremium` with
-   * `premiumExpires` null while active.
-   */
-  let r = planRank("free");
-  if (stored === "standard") {
-    r = planRank("standard");
-  } else if (stored === "free") {
-    r = planRank("free");
-  } else if (stored === "premium") {
-    r = premiumBillingActive ? planRank("premium") : planRank("free");
+function resolveStandardExpiresAt(user) {
+  if (!user) return null;
+  if (user.premiumExpires) {
+    const t = new Date(user.premiumExpires).getTime();
+    if (Number.isFinite(t)) return new Date(t);
   }
-
-  if (premiumBillingActive) {
-    r = Math.max(r, planRank("premium"));
+  if (user.trialEndsAt) {
+    const t = new Date(user.trialEndsAt).getTime();
+    if (Number.isFinite(t)) return new Date(t);
   }
-
-  if (boostStandardFromPromos(user, nowMs)) {
-    r = Math.max(r, planRank("standard"));
+  if (user.standardCoinExpiresAt) {
+    const t = new Date(user.standardCoinExpiresAt).getTime();
+    if (Number.isFinite(t)) return new Date(t);
   }
+  return null;
+}
 
-  return tierFromRank(r);
+function inferStandardSource(user) {
+  if (!user) return null;
+  const src = user.standardSource ? String(user.standardSource).toLowerCase() : "";
+  if (STANDARD_SOURCES.includes(src)) return src;
+  if (user.trialEndsAt) return "trial";
+  if (user.standardCoinExpiresAt) return "coins";
+  if (user.isPremium || user.stripeSubscriptionId) return "stripe";
+  return null;
 }
 
 /**
- * Exclusive UI/account state — not the same as {@link getUserPlan} tier (trial still maps to Standard features).
- * @returns {"trial"|"free"|"standard"|"premium"}
+ * Single access gate for Web Chat, Scan Cam, exports, chat reminders, etc.
+ * @param {object | null | undefined} user
+ * @param {number} [nowMs]
  */
-function getUserLifecycle(user) {
-
-  if (!user) return "free";
-
-  const nowMs = Date.now();
-
-  const tier = getUserPlan(user);
-
-  const stored = getStoredProductTier(user);
-
-  const trialOn = trialActive(user, nowMs);
-
-  const coinOn = coinStandardActive(user, nowMs);
-
-  if (tier === "premium") return "premium";
-
-  if (trialOn && stored === "free" && !coinOn && tier === "standard") return "trial";
-
-  if (tier === "standard") return "standard";
-
-  return "free";
-
+function hasStandardAccess(user, nowMs = Date.now()) {
+  if (!user) return false;
+  const exp = resolveStandardExpiresAt(user);
+  if (exp) return exp.getTime() > nowMs;
+  if (getStoredProductTier(user) === "standard") return true;
+  return false;
 }
 
-
-
-function utcYearMonth(d = new Date()) {
-
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-
-}
-
-function daysInUtcMonth(year, monthIndex) {
-
-  return new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
-
-}
-
-function resolveOpenAiAnchorDay(user, now = new Date()) {
-
-  const src = user && (user.premiumStartedAt || user.createdAt);
-
-  const day = src ? new Date(src).getUTCDate() : now.getUTCDate();
-
-  if (!Number.isFinite(day)) return 1;
-
-  return Math.min(31, Math.max(1, day));
-
-}
-
-function computeMonthlyCycleStartUtc(anchorDay, now = new Date()) {
-
-  const year = now.getUTCFullYear();
-
-  const month = now.getUTCMonth();
-
-  const thisMonthDay = Math.min(anchorDay, daysInUtcMonth(year, month));
-
-  const thisMonthStart = new Date(Date.UTC(year, month, thisMonthDay, 0, 0, 0, 0));
-
-  if (now.getTime() >= thisMonthStart.getTime()) return thisMonthStart;
-
-  const prevMonthDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
-
-  const prevYear = prevMonthDate.getUTCFullYear();
-
-  const prevMonth = prevMonthDate.getUTCMonth();
-
-  const prevDay = Math.min(anchorDay, daysInUtcMonth(prevYear, prevMonth));
-
-  return new Date(Date.UTC(prevYear, prevMonth, prevDay, 0, 0, 0, 0));
-
-}
-
-function computeOpenAiUsagePeriod(user, now = new Date()) {
-
-  const anchorDay = resolveOpenAiAnchorDay(user, now);
-
-  const cycleStart = computeMonthlyCycleStartUtc(anchorDay, now);
-
-  return cycleStart.toISOString().slice(0, 10);
-
-}
-
-
-
-/**
-
- * @param {{ webChatOpenAiPeriod?: string; webChatOpenAiUsed?: number } | null | undefined} user
-
- */
-
-function computeOpenAiWebChatUsage(user) {
-
-  const period = computeOpenAiUsagePeriod(user);
-
-  const storedPeriod = user && user.webChatOpenAiPeriod ? String(user.webChatOpenAiPeriod) : "";
-
-  const used = storedPeriod === period ? Number(user.webChatOpenAiUsed || 0) : 0;
-
-  return {
-
-    monthlyLimit: OPENAI_WEB_CHAT_MONTHLY_LIMIT,
-
-    used,
-
-    remaining: Math.max(0, OPENAI_WEB_CHAT_MONTHLY_LIMIT - used),
-
-    period
-
-  };
-
-}
-
-
-
-/**
-
- * OpenAI-backed Web Chat is Premium-only (Standard uses local bot only).
-
- * @param {{ plan?: string; subscriptionPlan?: string; membershipRole?: string; isPremium?: boolean; premiumExpires?: Date | null } | null | undefined} user
-
- */
-
-function hasWebChatOpenAiAccess(user) {
-
-  return hasActivePremium(user);
-
-}
-
-
-
-/**
-
- * @param {{ plan?: string; subscriptionPlan?: string; membershipRole?: string; isPremium?: boolean; premiumExpires?: Date | null; webChatOpenAiPeriod?: string; webChatOpenAiUsed?: number } | null | undefined} user
-
- */
-
-function getOpenAiWebChatUsageState(user) {
-
-  if (!hasActivePremium(user)) return null;
-
-  return computeOpenAiWebChatUsage(user);
-
-}
-
-
-
-/**
-
- * Premium channel access (WhatsApp / SMS reminders, OpenAI web chat, etc.).
-
- * @param {{ plan?: string; subscriptionPlan?: string; membershipRole?: string; isPremium?: boolean; premiumExpires?: Date | null } | null | undefined} user
-
- * @returns {boolean}
-
- */
-
-function hasActivePremium(user) {
-
-  return getUserPlan(user) === "premium";
-
-}
-
-
-
-/**
-
- * @param {{ plan?: string; subscriptionPlan?: string; membershipRole?: string; isPremium?: boolean; premiumExpires?: Date | null }} user
-
- * @returns {"free"|"standard"|"premium"}
-
- */
-
-function getSubscriptionPlan(user) {
-
-  return getUserPlan(user);
-
-}
-
-
-
-/**
-
- * Standard-tier product features (Web Chat, Scan Cam, PDF tools, chat-sourced web reminders).
-
- * @param {{ plan?: string; subscriptionPlan?: string; membershipRole?: string; isPremium?: boolean; premiumExpires?: Date | null }} user
-
- */
-
+/** @deprecated Use {@link hasStandardAccess}. */
 function hasStandardTierAccess(user) {
-
-  const p = getUserPlan(user);
-
-  return p === "standard" || p === "premium";
-
+  return hasStandardAccess(user);
 }
 
-
-
-/** Alias for {@link hasStandardTierAccess} — Scan Cam uses the Standard tier gate. */
+/** @deprecated Legacy name — same as {@link hasStandardAccess}. */
+function hasActivePremium(user) {
+  return hasStandardAccess(user);
+}
 
 function hasScanCamAccess(user) {
-
-  return hasStandardTierAccess(user);
-
+  return hasStandardAccess(user);
 }
 
+/**
+ * Effective product plan for API/UI.
+ * @returns {"free"|"standard"}
+ */
+function getUserPlan(user) {
+  return hasStandardAccess(user) ? "standard" : "free";
+}
 
+function getStoredProductTier(user) {
+  if (!user) return "free";
+  return normalizePlanToken(user.plan || user.subscriptionPlan || user.membershipRole);
+}
 
 /**
-
- * @param {{ plan?: string; subscriptionPlan?: string; membershipRole?: string; isPremium?: boolean; premiumExpires?: Date | null; webChatOpenAiPeriod?: string; webChatOpenAiUsed?: number }} user
-
- * @returns {{ tier: "free" | "standard" | "premium"; isPremium: boolean; premiumExpiresAt: string | null; capabilities: { webNotifications: boolean; whatsAppSmsReminders: boolean; scanCam: boolean; webChat: boolean; pdfExport: boolean } }}
-
+ * @returns {"trial"|"free"|"standard"}
  */
+function getUserLifecycle(user) {
+  if (!hasStandardAccess(user)) return "free";
+  const src = inferStandardSource(user);
+  if (src === "trial") return "trial";
+  return "standard";
+}
 
+function getSubscriptionPlan(user) {
+  return getUserPlan(user);
+}
+
+function buildStandardStatusFields(user) {
+  const active = hasStandardAccess(user);
+  const exp = resolveStandardExpiresAt(user);
+  const source = active ? inferStandardSource(user) : null;
+  return {
+    plan: active ? "standard" : "free",
+    standardActive: active,
+    standardExpiresAt: exp ? exp.toISOString() : null,
+    standardSource: source
+  };
+}
+
+/**
+ * @returns {{ tier: "free" | "standard"; lifecycle: string; standardActive: boolean; standardExpiresAt: string | null; standardSource: string | null; ... }}
+ */
 function getPremiumStatusPayload(user) {
-
-  const tier = getUserPlan(user);
-
-  const premium = tier === "premium";
-
-  const standardFeatures = hasStandardTierAccess(user);
-
+  const fields = buildStandardStatusFields(user);
+  const tier = fields.plan;
   const lifecycle = getUserLifecycle(user);
-
-
+  const standardFeatures = fields.standardActive;
 
   return {
-
     tier,
-
     lifecycle,
-
-    isPremium: premium,
-
-    premiumExpiresAt: user && user.premiumExpires ? new Date(user.premiumExpires).toISOString() : null,
-
+    plan: tier,
+    standardActive: fields.standardActive,
+    standardExpiresAt: fields.standardExpiresAt,
+    standardSource: fields.standardSource,
+    isPremium: false,
+    premiumExpiresAt: fields.standardExpiresAt,
     trialEndsAt: user && user.trialEndsAt ? new Date(user.trialEndsAt).toISOString() : null,
-
     standardCoinExpiresAt:
       user && user.standardCoinExpiresAt ? new Date(user.standardCoinExpiresAt).toISOString() : null,
-
     coinBalance: clampCoinBalancePreview(user && user.coins),
-
     referralCode:
       user && user.referralCode != null && String(user.referralCode).trim()
         ? String(user.referralCode).trim()
         : user && user.inviteCode != null && String(user.inviteCode).trim()
-        ? String(user.inviteCode).trim()
-        : "",
-
+          ? String(user.inviteCode).trim()
+          : "",
     capabilities: {
-
       webNotifications: true,
-
-      whatsAppSmsReminders: premium,
-
       scanCam: standardFeatures,
-
       webChat: standardFeatures,
-
-      /** Premium only: OpenAI replies in Web Chat (monthly cap). */
-
-      webChatOpenAI: hasWebChatOpenAiAccess(user),
-
-      /** Reserved for future PDF export routes — same gate as Web Chat / Scan Cam. */
-
       pdfExport: standardFeatures
-
-    },
-
-    openAiWebChat: getOpenAiWebChatUsageState(user)
-
+    }
   };
-
 }
 
+/**
+ * Grant Standard for trial, coins, or Stripe.
+ * @param {import("mongoose").Model} User
+ * @param {string|import("mongoose").Types.ObjectId} userId
+ * @param {{ source: "trial"|"coins"|"stripe"; expiresAt?: Date; durationMs?: number; startedAt?: Date; billingCycle?: "monthly"|"yearly"; billingCustomerId?: string; stripeSubscriptionId?: string }} options
+ */
+async function grantStandardAccess(User, userId, options = {}) {
+  const source = String(options.source || "").toLowerCase();
+  if (!STANDARD_SOURCES.includes(source)) {
+    throw new Error("Invalid Standard source");
+  }
 
+  const startedAt = options.startedAt instanceof Date ? options.startedAt : new Date();
+  const nowMs = startedAt.getTime();
+
+  let expiresAt = options.expiresAt instanceof Date ? options.expiresAt : null;
+  if (!expiresAt && options.durationMs) {
+    expiresAt = new Date(nowMs + Number(options.durationMs));
+  }
+  if (!expiresAt || Number.isNaN(expiresAt.getTime())) {
+    throw new Error("Standard grant requires expiresAt or durationMs");
+  }
+
+  const set = {
+    plan: "standard",
+    subscriptionPlan: "standard",
+    membershipRole: "standard",
+    isPremium: true,
+    standardSource: source,
+    premiumExpires: expiresAt,
+    premiumStartedAt: startedAt,
+    billingCycle: options.billingCycle === "yearly" ? "yearly" : "monthly"
+  };
+
+  if (source === "trial") {
+    set.trialEndsAt = expiresAt;
+    set.standardCoinExpiresAt = null;
+  } else if (source === "coins") {
+    set.standardCoinExpiresAt = expiresAt;
+    set.trialEndsAt = null;
+  } else {
+    set.trialEndsAt = null;
+    set.standardCoinExpiresAt = null;
+  }
+
+  if (options.billingCustomerId) {
+    set.billingCustomerId = String(options.billingCustomerId);
+  }
+  if (options.stripeSubscriptionId) {
+    set.stripeSubscriptionId = String(options.stripeSubscriptionId);
+  }
+
+  return User.findByIdAndUpdate(userId, { $set: set }, { new: true });
+}
 
 /**
-
- * @param {import("mongoose").Model} User
-
- * @param {string} userId
-
- * @param {{ expiresAt?: Date | null; billingCustomerId?: string | null }} [options]
-
+ * New-account trial — 14 days, same access as paid Standard.
  */
+async function grantNewUserTrial(User, userId) {
+  return grantStandardAccess(User, userId, {
+    source: "trial",
+    durationMs: TRIAL_DURATION_MS
+  });
+}
+
+async function revokeStandardAccess(User, userId) {
+  return User.findByIdAndUpdate(userId, { $set: { ...REVOKE_STANDARD_SET } }, { new: true });
+}
+
+/** @deprecated Use {@link revokeStandardAccess}. */
+async function revokePremium(User, userId) {
+  return revokeStandardAccess(User, userId);
+}
+
+/**
+ * If Standard access has expired, revert user to Free.
+ * @returns {Promise<boolean>} true if document was updated
+ */
+async function syncExpiredStandardAccess(User, userId) {
+  if (!User || !userId) return false;
+  const user = await User.findById(userId).lean();
+  if (!user) return false;
+  if (hasStandardAccess(user)) return false;
+
+  const exp = resolveStandardExpiresAt(user);
+  const stored = getStoredProductTier(user);
+  const hadStandard =
+    stored === "standard" ||
+    Boolean(exp) ||
+    Boolean(user.trialEndsAt) ||
+    Boolean(user.standardCoinExpiresAt) ||
+    user.isPremium === true;
+
+  if (!hadStandard) return false;
+
+  const r = await User.updateOne({ _id: userId }, { $set: { ...REVOKE_STANDARD_SET } }).exec();
+  return Boolean(r && r.modifiedCount);
+}
+
+/** @deprecated Alias for {@link syncExpiredStandardAccess}. */
+async function syncExpiredPremiumDocument(User, userId) {
+  return syncExpiredStandardAccess(User, userId);
+}
+
+/**
+ * Hourly-style sweep: revert all users whose Standard expiry is in the past.
+ */
+async function syncAllExpiredStandardAccess(User) {
+  const now = new Date();
+  const r = await User.updateMany(
+    {
+      $or: [
+        { premiumExpires: { $ne: null, $lte: now } },
+        {
+          plan: "standard",
+          $or: [{ premiumExpires: null }, { premiumExpires: { $lte: now } }]
+        },
+        { trialEndsAt: { $ne: null, $lte: now } },
+        { standardCoinExpiresAt: { $ne: null, $lte: now } }
+      ]
+    },
+    { $set: { ...REVOKE_STANDARD_SET } }
+  ).exec();
+  return r && r.modifiedCount ? r.modifiedCount : 0;
+}
 
 async function grantPremium(User, userId, options = {}) {
-
-  const { expiresAt = null, billingCustomerId, startedAt = new Date(), billingCycle = "monthly" } = options;
-
-  const updates = {
-
-    isPremium: true,
-
-    plan: "premium",
-
-    subscriptionPlan: "premium",
-
-    membershipRole: "premium",
-
-    premiumStartedAt: startedAt,
-
-    billingCycle: billingCycle === "yearly" ? "yearly" : "monthly"
-
-  };
-
-  if (expiresAt !== undefined) {
-
-    updates.premiumExpires = expiresAt;
-
+  const startedAt = options.startedAt instanceof Date ? options.startedAt : new Date();
+  let expiresAt = options.expiresAt instanceof Date ? options.expiresAt : null;
+  if (!expiresAt && options.durationMs) {
+    expiresAt = new Date(startedAt.getTime() + Number(options.durationMs));
   }
-
-  if (billingCustomerId !== undefined) {
-
-    updates.billingCustomerId = billingCustomerId || null;
-
+  if (!expiresAt) {
+    const err = new Error("Standard grant requires expiresAt or durationMs");
+    throw err;
   }
-
-  return User.findByIdAndUpdate(userId, { $set: updates }, { new: true });
-
+  return grantStandardAccess(User, userId, {
+    source: options.source || "stripe",
+    expiresAt,
+    startedAt,
+    billingCycle: options.billingCycle,
+    billingCustomerId: options.billingCustomerId,
+    stripeSubscriptionId: options.stripeSubscriptionId
+  });
 }
 
-
-
-/**
-
- * Clears billing premium. If stored tier fields were all premium (e.g. after {@link grantPremium}),
-
- * resets them to free so the user does not remain premium from drift. If stored tier was standard,
-
- * keeps standard and only clears `isPremium`.
-
- * @param {import("mongoose").Model} User
-
- * @param {string} userId
-
- */
-
-async function revokePremium(User, userId) {
-
-  const u = await User.findById(userId).select("plan subscriptionPlan membershipRole").lean();
-
-  const stored = getStoredProductTier(u);
-
-  const updates = { isPremium: false, premiumExpires: null };
-
-  if (stored === "premium") {
-
-    updates.plan = "free";
-
-    updates.subscriptionPlan = "free";
-
-    updates.membershipRole = "free";
-
-  }
-
-  return User.findByIdAndUpdate(userId, { $set: updates }, { new: true });
-
-}
-
-/**
- * Extend Premium from current expiry (or now) by N calendar months — admin / moderator comps.
- * @param {import("mongoose").Model} User
- * @param {string} userId
- * @param {number} months 1–120
- */
 async function adminGrantPremiumMonths(User, userId, months) {
   const m = Math.floor(Number(months) || 0);
   if (!Number.isFinite(m) || m <= 0 || m > 120) {
     throw new Error("Invalid months");
   }
-  const u = await User.findById(userId).select("premiumExpires isPremium").lean();
+  const u = await User.findById(userId).select("premiumExpires").lean();
   if (!u) throw new Error("User not found");
 
   const nowMs = Date.now();
   let baseMs = nowMs;
-  if (u.isPremium === true && u.premiumExpires) {
-    const t = new Date(u.premiumExpires).getTime();
-    if (Number.isFinite(t) && t > nowMs) baseMs = t;
+  const existing = resolveStandardExpiresAt(u);
+  if (existing && existing.getTime() > nowMs) {
+    baseMs = existing.getTime();
   }
   const d = new Date(baseMs);
   d.setUTCMonth(d.getUTCMonth() + m);
-  return grantPremium(User, userId, { expiresAt: d });
+  return grantPremium(User, userId, { expiresAt: d, source: "stripe" });
 }
 
-/**
- * Lifetime Premium (no expiry) — admin / moderator comps.
- * @param {import("mongoose").Model} User
- * @param {string} userId
- */
 async function adminGrantPremiumLifetime(User, userId) {
-  return grantPremium(User, userId, { expiresAt: null });
+  const d = new Date();
+  d.setUTCFullYear(d.getUTCFullYear() + 10);
+  return grantPremium(User, userId, { expiresAt: d, source: "stripe" });
 }
 
 /**
-
- * Admin / product: set canonical plan and keep legacy fields in sync.
-
- * @param {import("mongoose").Model} User
-
- * @param {string} userId
-
- * @param {"free"|"standard"|"premium"} plan
-
+ * Admin: set product plan. Standard requires an active grant (use grant endpoints for expiry).
  */
-
 async function applyProductPlan(User, userId, plan, options = {}) {
-
-  const allowed = ["free", "standard", "premium"];
-
-  if (!allowed.includes(plan)) {
-
+  const normalized = normalizePlanToken(plan);
+  if (!["free", "standard"].includes(normalized)) {
     throw new Error("Invalid plan");
-
   }
-
-  const updates = {
-
-    plan,
-
-    subscriptionPlan: plan,
-
-    membershipRole: plan
-
-  };
-
-  if (plan === "premium") {
-
-    const startedAt = options.startedAt instanceof Date ? options.startedAt : new Date();
-
-    updates.isPremium = true;
-
-    updates.premiumExpires = null;
-
-    updates.premiumStartedAt = startedAt;
-
-    updates.billingCycle = options.billingCycle === "yearly" ? "yearly" : "monthly";
-
-  } else {
-
-    updates.isPremium = false;
-
-    updates.premiumExpires = null;
-
-    updates.premiumStartedAt = null;
-
-    updates.billingCycle = "monthly";
-
+  if (normalized === "free") {
+    return revokeStandardAccess(User, userId);
   }
-
-  return User.findByIdAndUpdate(userId, { $set: updates }, { new: true });
-
+  return grantStandardAccess(User, userId, {
+    source: options.source || "stripe",
+    expiresAt: options.expiresAt,
+    durationMs: options.durationMs || STRIPE_STANDARD_DURATION_MS,
+    startedAt: options.startedAt,
+    billingCycle: options.billingCycle
+  });
 }
 
-
-
-/**
-
- * Time-limited Premium (`premiumExpires` set) should roll the stored product tier back to Free
-
- * once the window ends. Stripe/lifetime Premium keeps `premiumExpires` null — not touched here.
-
- *
-
- * @param {import("mongoose").Model} User
-
- * @param {string} userId
-
- * @returns {Promise<boolean>} true if a document was updated
-
- */
-
-async function syncExpiredPremiumDocument(User, userId) {
-
-  if (!User || !userId) return false;
-
-  const now = new Date();
-
-  const r = await User.updateOne(
-
-    {
-
-      _id: userId,
-
-      isPremium: true,
-
-      premiumExpires: { $ne: null, $lte: now }
-
-    },
-
-    {
-
-      $set: {
-
-        isPremium: false,
-
-        plan: "free",
-
-        subscriptionPlan: "free",
-
-        membershipRole: "free",
-
-        premiumExpires: null,
-
-        premiumStartedAt: null
-
-      }
-
-    }
-
-  ).exec();
-
-  return Boolean(r && r.modifiedCount);
-
-}
-
-
-
-/**
- * Minimal User projection for {@link getUserPlan} / {@link hasStandardTierAccess} on `.lean()` docs.
- * Must include promo fields (`trialEndsAt`, `standardCoinExpiresAt`) or trial/coin Standard is invisible.
- */
 const LEAN_USER_SUBSCRIPTION_TIER_FIELDS =
-  "isPremium premiumExpires plan subscriptionPlan membershipRole trialEndsAt standardCoinExpiresAt";
+  "isPremium premiumExpires plan subscriptionPlan membershipRole standardSource trialEndsAt standardCoinExpiresAt";
 
 module.exports = {
-
   LEAN_USER_SUBSCRIPTION_TIER_FIELDS,
-
+  TRIAL_DURATION_MS,
+  STRIPE_STANDARD_DURATION_MS,
   getUserPlan,
-
   getUserLifecycle,
-
   getStoredProductTier,
-
-  hasActivePremium,
-
-  getSubscriptionPlan,
-
+  hasStandardAccess,
   hasStandardTierAccess,
-
+  hasActivePremium,
+  getSubscriptionPlan,
   hasScanCamAccess,
-
   getPremiumStatusPayload,
-
+  resolveStandardExpiresAt,
+  inferStandardSource,
+  grantStandardAccess,
+  grantNewUserTrial,
+  revokeStandardAccess,
   grantPremium,
-
   revokePremium,
-
   applyProductPlan,
-
   adminGrantPremiumMonths,
-
   adminGrantPremiumLifetime,
-
+  syncExpiredStandardAccess,
   syncExpiredPremiumDocument,
-
-  OPENAI_WEB_CHAT_MONTHLY_LIMIT,
-
-  utcYearMonth,
-
-  computeOpenAiUsagePeriod,
-
-  computeOpenAiWebChatUsage,
-
-  hasWebChatOpenAiAccess,
-
-  getOpenAiWebChatUsageState
-
+  syncAllExpiredStandardAccess
 };
-
-

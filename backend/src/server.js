@@ -27,8 +27,8 @@ const session = require("express-session");
 const MongoStoreModule = require("connect-mongo");
 const MongoStore = MongoStoreModule && MongoStoreModule.default ? MongoStoreModule.default : MongoStoreModule;
 const { createStripeWebhookHandler } = require("./features/premium/stripeWebhook");
-const { createReminderChecker } = require("./jobs/reminderScheduler");
 const { createPurgePastReminders } = require("./jobs/purgePastReminders");
+const { syncAllExpiredStandardAccess } = require("./features/premium/subscriptionService");
 const { createWebPushReminderJob } = require("./jobs/webPushReminderJob");
 
 const User = require("./models/User");
@@ -39,8 +39,6 @@ const ContactMessage = require("./models/ContactMessage");
 const AppConfig = require("./models/AppConfig");
 const { createAdminMiddleware } = require("./middleware/admin");
 const { createTouchLastActiveMiddleware } = require("./middleware/touchLastActive");
-const sendWhatsAppMessage = require("./services/whatsappService");
-const aiMemoryService = require("./services/aiMemoryService");
 const { backfillMissingInviteCodes } = require("./features/coins/coinService");
 
 const FRONTEND_PUBLIC = path.join(__dirname, "../../frontend/public");
@@ -470,16 +468,11 @@ const apiRouter = createApiRouter(app, {
   authLimiter,
   signupLimiter,
   contactLimiter,
-  sendWhatsAppMessage,
-  aiMemoryService,
   premiumDevSecret: config.premiumDevSecret,
   stripeSecretKey: config.stripeSecretKey,
   stripeStandardMonthlyLookupKey: config.stripeStandardMonthlyLookupKey,
   stripeStandardYearlyLookupKey: config.stripeStandardYearlyLookupKey,
-  stripePremiumMonthlyLookupKey: config.stripePremiumMonthlyLookupKey,
-  stripePremiumYearlyLookupKey: config.stripePremiumYearlyLookupKey,
   stripePublishableKey: config.stripePublishableKey,
-  openAiApiKey: config.openAiApiKey,
   publicAppUrl: config.publicAppUrl,
   emailVerificationBypassUsernames: config.emailVerificationBypassUsernames,
   googleClientId: config.googleClientId,
@@ -487,12 +480,6 @@ const apiRouter = createApiRouter(app, {
 });
 
 app.use("/api", touchLastActive, apiLimiter, apiRouter);
-
-const checkReminders = createReminderChecker({
-  Reminder,
-  sendWhatsAppMessage,
-  aiMemoryService
-});
 
 const purgePastReminders = createPurgePastReminders({ Reminder, retentionDays: 7 });
 
@@ -505,10 +492,6 @@ const webPushReminderSweep = createWebPushReminderJob({
   publicAppUrl: config.publicAppUrl
 });
 
-cron.schedule("* * * * *", () => {
-  checkReminders().catch(() => {});
-});
-
 /** Web push for browser/PWA reminders when the app is closed (requires VAPID + subscribed clients). ~45s tick. */
 setInterval(() => {
   webPushReminderSweep().catch(() => {});
@@ -517,6 +500,11 @@ setInterval(() => {
 /** Past reminders only; hourly to stay within ~1h of the 7-day policy */
 cron.schedule("0 * * * *", () => {
   purgePastReminders().catch(() => {});
+});
+
+/** Revert expired Standard (trial, coins, Stripe) to Free */
+cron.schedule("5 * * * *", () => {
+  syncAllExpiredStandardAccess(User).catch(() => {});
 });
 
 mongoose

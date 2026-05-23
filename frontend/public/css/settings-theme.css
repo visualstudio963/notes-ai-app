@@ -2063,7 +2063,40 @@ body.theme-normal .main {
 
 @media (max-width: 840px) {
   body.theme-normal .main {
-    padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: var(--notes-fab-clearance, max(96px, calc(72px + env(safe-area-inset-bottom, 0px))));
+    scroll-padding-bottom: var(--notes-fab-clearance, max(96px, calc(72px + env(safe-area-inset-bottom, 0px))));
+  }
+}
+
+@media (max-width: 480px) {
+  #settings .settings-page-heading {
+    max-width: 100%;
+    padding-left: clamp(12px, 4vw, 18px);
+    padding-right: clamp(12px, 4vw, 18px);
+  }
+
+  .settings-layout,
+  .settings-layout--dashboard {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .settings-grid,
+  .settings-account-grid,
+  .theme-options,
+  .theme-options--settings {
+    grid-template-columns: 1fr !important;
+  }
+
+  .settings-section,
+  .settings-nav-card {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
   }
 }
 

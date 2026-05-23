@@ -1,0 +1,467 @@
+/**
+ * Mobile compatibility pass — APK (Capacitor) + mobile web.
+ * Layout/CSS only; breakpoints: 320, 360, 390, 414, 480px.
+ */
+
+:root {
+  --notes-app-height: 100dvh;
+  --notes-safe-top: env(safe-area-inset-top, 0px);
+  --notes-safe-right: env(safe-area-inset-right, 0px);
+  --notes-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --notes-safe-left: env(safe-area-inset-left, 0px);
+  --notes-pad-inline: clamp(12px, 4.2vw, 18px);
+  --notes-modal-pad: clamp(14px, 4vw, 28px);
+  /* Room for stacked chat + planner FABs (main scroll only — not footer) */
+  --notes-fab-clearance: max(100px, calc(72px + var(--notes-safe-bottom)));
+}
+
+html.capacitor-native {
+  /* Modest fallback when WebView reports 0 safe-area (avoid double-stacking with footer) */
+  --notes-safe-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
+}
+
+html {
+  overflow-x: clip;
+  max-width: 100%;
+}
+
+html,
+body,
+.app {
+  min-height: 100vh;
+  min-height: var(--notes-app-height);
+}
+
+body {
+  overflow-x: clip;
+}
+
+.app,
+.main,
+.page,
+.page-shell,
+.home-dashboard,
+.home-dashboard-primary,
+.home-dashboard-top {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.main {
+  overflow-x: clip;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+img,
+video,
+canvas,
+svg,
+embed,
+iframe {
+  max-width: 100%;
+}
+
+table {
+  max-width: 100%;
+}
+
+/* Modals: fit viewport, scroll inside, respect safe areas */
+.modal {
+  padding:
+    max(10px, var(--notes-safe-top))
+    max(10px, var(--notes-safe-right))
+    max(10px, var(--notes-safe-bottom))
+    max(10px, var(--notes-safe-left));
+  align-items: center;
+  overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.modal-content {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: min(560px, calc(100vw - 20px));
+  max-height: min(
+    calc(var(--notes-app-height) - 20px),
+    calc(var(--notes-app-height) - var(--notes-safe-top) - var(--notes-safe-bottom) - 20px)
+  );
+  margin: auto;
+  overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--notes-modal-pad);
+}
+
+.note-export-modal,
+.note-share-modal,
+.scan-cam-share-modal .modal-content,
+.scan-cam-upgrade-modal .modal-content,
+.auth-shell__card {
+  width: 100%;
+  max-width: min(420px, calc(100vw - 20px));
+}
+
+.modal-header {
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+
+.modal-header h2,
+.modal-header h3 {
+  min-width: 0;
+  flex: 1 1 auto;
+  font-size: clamp(1.05rem, 4.5vw, 1.35rem);
+  line-height: 1.25;
+}
+
+/* Forms: no overflow when keyboard opens; avoid WebView zoom jump */
+input,
+textarea,
+select,
+.note-rich-editor,
+.note-editor-wrap,
+.web-chat-composer textarea,
+#webChatInput {
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+input,
+textarea,
+select {
+  font-size: max(16px, 1rem);
+}
+
+.page-header {
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: clamp(10px, 3vw, 16px);
+}
+
+.page-header h2,
+.page-header h1 {
+  font-size: clamp(1.2rem, 5vw, 1.65rem);
+  line-height: 1.2;
+  min-width: 0;
+}
+
+.topbar-heading {
+  font-size: clamp(1.25rem, 5.2vw, 1.85rem);
+}
+
+.eyebrow {
+  font-size: clamp(0.72rem, 2.8vw, 0.85rem);
+}
+
+.home-hero-title {
+  font-size: clamp(1.2rem, 5.4vw, 1.75rem);
+}
+
+.home-copy,
+.card-subtitle,
+.note-card-text {
+  font-size: clamp(0.84rem, 3.6vw, 0.95rem);
+}
+
+/* Buttons: fluid width, no rigid px columns on narrow screens */
+.save-button,
+.add-button,
+.back-button,
+.primaryBtn,
+.secondary,
+.note-export-option,
+.scan-cam-chip-btn,
+.scan-cam-preview-bar__convert,
+.scan-cam-preview-bar__ghost {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Cards / panels */
+.note-card,
+.premium-plan-card,
+.premium-feature-card,
+.premium-preview-card,
+.bot-connect-panel,
+.manual-panel,
+.bot-chat-panel,
+.scan-cam-tool,
+.scan-cam-side-card,
+.scan-cam-mini-card,
+.settings-section,
+.history-toolbar {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* Grids → single column on very small phones */
+@media (max-width: 480px) {
+  .app .main {
+    padding-left: var(--notes-pad-inline);
+    padding-right: var(--notes-pad-inline);
+  }
+
+  .home-dashboard-top,
+  .home-stats-grid,
+  .hex-grid,
+  .bot-panel-grid,
+  .pricing-lite-grid,
+  .pricing-lite-why,
+  .scan-cam-info-cards,
+  .note-export-theme-seg,
+  .settings-grid,
+  .home-reminders-fields {
+    grid-template-columns: 1fr !important;
+  }
+
+  #home .home-categories-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  #home .home-categories-grid .hex-card {
+    min-height: auto !important;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .home-stats-panel {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .settings-nav-btn:nth-child(5):last-child {
+    grid-column: 1 / -1;
+    max-width: calc(50% - 3px);
+    justify-self: center;
+  }
+
+  .page-header .save-button,
+  .page-header .add-button,
+  .page-header .back-button {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .note-export-theme-seg {
+    flex-direction: column;
+  }
+
+  .note-export-theme-btn {
+    width: 100%;
+  }
+
+  .scan-cam-launch__chips,
+  .scan-cam-preview-bar {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .scan-cam-chip-btn,
+  .scan-cam-preview-bar__convert,
+  .scan-cam-preview-bar__ghost {
+    flex: 1 1 calc(50% - 8px);
+    min-width: min(100%, 140px);
+  }
+
+  .pricing-lite-compare {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+  }
+
+  .pricing-lite-compare__head,
+  .pricing-lite-compare__row {
+    min-width: min(100%, 300px);
+  }
+
+  .web-chat-page--messenger,
+  .web-chat-messenger {
+    width: 100%;
+    max-width: 100%;
+    min-height: min(calc(var(--notes-app-height) - 168px), 520px);
+    max-height: calc(var(--notes-app-height) - 148px);
+  }
+}
+
+/* Tighter 320–390px devices */
+@media (max-width: 390px) {
+  :root {
+    --notes-fab-clearance: max(124px, calc(96px + var(--notes-safe-bottom)));
+  }
+
+  .modal-content {
+    padding: clamp(12px, 3.5vw, 18px);
+    border-radius: clamp(16px, 4vw, 22px);
+  }
+
+  .close-button {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+  }
+
+  .topbar-logo {
+    width: 42px;
+    height: 42px;
+  }
+
+  .topbar-logo-svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  .mobile-menu-toggle {
+    width: 38px;
+    height: 38px;
+  }
+
+  .scan-cam-chip-btn,
+  .scan-cam-preview-bar__convert,
+  .scan-cam-preview-bar__ghost {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+}
+
+@media (max-width: 360px) {
+  .home-bottom-info-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .home-bottom-info-bar__title {
+    font-size: clamp(0.88rem, 4vw, 1rem);
+  }
+}
+
+@media (max-width: 320px) {
+  :root {
+    --notes-pad-inline: 10px;
+    --notes-modal-pad: 12px;
+  }
+
+  .modal-content {
+    max-width: calc(100vw - 12px);
+  }
+}
+
+/* Mobile: FAB runway on main only; footer uses safe-area once */
+@media (max-width: 840px) {
+  .app .main {
+    padding-bottom: var(--notes-fab-clearance);
+    scroll-padding-bottom: var(--notes-fab-clearance);
+  }
+
+  .site-footer-inner {
+    padding-bottom: max(18px, calc(10px + var(--notes-safe-bottom)));
+  }
+
+  html.capacitor-native .app .main {
+    padding-bottom: var(--notes-fab-clearance) !important;
+    scroll-padding-bottom: var(--notes-fab-clearance);
+  }
+
+  html.capacitor-native .modal {
+    padding-bottom: max(12px, var(--notes-safe-bottom));
+  }
+}
+
+/* Coarse pointer / touch: reduce overlap risk for floating controls */
+@media (max-width: 480px), (pointer: coarse) {
+  .web-chat-fab,
+  #webChatFab,
+  .daily-planner-fab,
+  .discord-fab {
+    contain: layout;
+  }
+
+  body:has(#webChat:not(.hidden)) .app .main,
+  body:has(.daily-planner-modal:not(.hidden)) .app .main {
+    scroll-padding-bottom: max(112px, calc(var(--notes-fab-clearance) + 12px));
+  }
+}
+
+/**
+ * FAB stack — mobile / touch / APK only.
+ * Chat FAB sits lower; Daily Planner sits above with a clear vertical gap.
+ * Uses CSS variables so heights + gap stay in sync (no brittle bottom chains).
+ */
+@media (max-width: 840px), (pointer: coarse) {
+  :root {
+    --notes-fab-size-chat: 50px;
+    --notes-fab-size-planner: 44px;
+    --notes-fab-stack-gap: clamp(14px, 3.2vw, 18px);
+    --notes-fab-bottom-base: max(20px, calc(var(--notes-safe-bottom) + 12px));
+    /* Extra lift for planner above the chat column */
+    --notes-fab-planner-offset: 6px;
+    --notes-fab-clearance: max(
+      118px,
+      calc(
+        82px + var(--notes-safe-bottom) + var(--notes-fab-size-chat) + var(--notes-fab-stack-gap) +
+        var(--notes-fab-size-planner) + var(--notes-fab-planner-offset)
+      )
+    );
+  }
+
+  html.capacitor-native {
+    --notes-fab-bottom-base: max(24px, calc(var(--notes-safe-bottom) + 16px));
+    --notes-fab-stack-gap: clamp(16px, 3.6vw, 20px);
+  }
+
+  @media (max-height: 640px) {
+    :root {
+      --notes-fab-bottom-base: max(18px, calc(var(--notes-safe-bottom) + 10px));
+      --notes-fab-stack-gap: max(12px, 3vw);
+      --notes-fab-planner-offset: 4px;
+    }
+  }
+
+  .web-chat-fab,
+  #webChatFab {
+    right: max(14px, calc(var(--notes-safe-right) + 10px));
+    bottom: var(--notes-fab-bottom-base) !important;
+    width: var(--notes-fab-size-chat) !important;
+    height: var(--notes-fab-size-chat) !important;
+    z-index: 1301;
+  }
+
+  .daily-planner-fab,
+  #dailyPlannerFab {
+    right: max(14px, calc(var(--notes-safe-right) + 10px));
+    bottom: calc(
+      var(--notes-fab-bottom-base) + var(--notes-fab-size-chat) + var(--notes-fab-stack-gap) +
+      var(--notes-fab-planner-offset)
+    ) !important;
+    width: var(--notes-fab-size-planner) !important;
+    height: var(--notes-fab-size-planner) !important;
+    z-index: 1300;
+  }
+
+  .discord-fab {
+    left: max(14px, calc(var(--notes-safe-left) + 10px));
+    bottom: var(--notes-fab-bottom-base);
+  }
+
+  body:has(#webChat:not(.hidden)) .web-chat-fab,
+  body:has(#webChat:not(.hidden)) #webChatFab {
+    bottom: var(--notes-fab-bottom-base) !important;
+  }
+
+  body:has(#webChat:not(.hidden)) .daily-planner-fab,
+  body:has(#webChat:not(.hidden)) #dailyPlannerFab {
+    bottom: calc(
+      var(--notes-fab-bottom-base) + var(--notes-fab-size-chat) + var(--notes-fab-stack-gap) +
+      var(--notes-fab-planner-offset)
+    ) !important;
+  }
+}

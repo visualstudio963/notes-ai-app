@@ -25,8 +25,6 @@ const stripe = new Stripe(stripeSecretKey);
 
 const stripeStandardMonthly = requireEnv("STRIPE_STANDARD_MONTHLY");
 const stripeStandardYearly = requireEnv("STRIPE_STANDARD_YEARLY");
-const stripePremiumMonthly = requireEnv("STRIPE_PREMIUM_MONTHLY");
-const stripePremiumYearly = requireEnv("STRIPE_PREMIUM_YEARLY");
 const stripeWebhookSecret = requireEnv("STRIPE_WEBHOOK_SECRET");
 const mongoUri = requireEnv("MONGO_URI");
 
@@ -34,10 +32,6 @@ const PRICE_BY_PLAN_BILLING = {
   standard: {
     monthly: stripeStandardMonthly,
     yearly: stripeStandardYearly
-  },
-  premium: {
-    monthly: stripePremiumMonthly,
-    yearly: stripePremiumYearly
   }
 };
 
@@ -46,7 +40,7 @@ const userSchema = new mongoose.Schema(
     _id: { type: String },
     email: { type: String, default: "" },
     isPremium: { type: Boolean, default: false },
-    plan: { type: String, enum: ["standard", "premium"], default: null },
+    plan: { type: String, enum: ["standard"], default: null },
     billing: { type: String, enum: ["monthly", "yearly"], default: null },
     stripeCustomerId: { type: String, default: "" },
     stripeSubscriptionId: { type: String, default: "" },
@@ -108,7 +102,7 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
       try {
         await upgradeUserToPremium(
           userId,
-          plan === "premium" || plan === "standard" ? plan : null,
+          plan === "standard" ? "standard" : "standard",
           billing === "yearly" ? "yearly" : "monthly",
           customerId,
           subscriptionId
@@ -133,9 +127,9 @@ app.post("/create-checkout-session", async (req, res) => {
     const userId = String((req.body && req.body.userId) || "").trim();
     const email = String((req.body && req.body.email) || "").trim();
 
-    if ((plan !== "standard" && plan !== "premium") || (billing !== "monthly" && billing !== "yearly")) {
+    if (plan !== "standard" || (billing !== "monthly" && billing !== "yearly")) {
       return res.status(400).json({
-        error: "Invalid request. Use plan: standard|premium and billing: monthly|yearly."
+        error: "Invalid request. Use plan: standard and billing: monthly|yearly."
       });
     }
     if (!userId) {

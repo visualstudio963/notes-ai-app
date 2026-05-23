@@ -1,5 +1,5 @@
 /**
- * Client-only note export: TXT (all tiers), PDF (Standard+), JPG (Premium).
+ * Client-only note export: TXT (all tiers), PDF/JPG (Standard+).
  * html2canvas + jsPDF load on demand (first export / scan PDF) to keep initial page light.
  */
 (function () {
@@ -173,8 +173,16 @@
 
   function getCapFsPlugin() {
     var c = typeof window !== "undefined" ? window.Capacitor : null;
-    if (!c || !c.Plugins) return null;
-    return c.Plugins.Filesystem || null;
+    if (!c) return null;
+    if (c.Plugins && c.Plugins.Filesystem) return c.Plugins.Filesystem;
+    if (typeof c.registerPlugin === "function") {
+      try {
+        return c.registerPlugin("Filesystem");
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
   }
 
   function getCapSharePlugin() {
@@ -208,6 +216,61 @@
     if (typeof showToast === "function") showToast(msg);
   }
 
+  var NATIVE_EXPORT_FOLDER = "Notes-AI";
+
+  function inferNativeExportKind(blob, filename) {
+    var name = String(filename || "").toLowerCase();
+    if (/\.pdf$/i.test(name) || (blob && blob.type && String(blob.type).indexOf("pdf") >= 0)) {
+      return "pdf";
+    }
+    if (/\.jpe?g$/i.test(name) || (blob && blob.type && String(blob.type).indexOf("image") >= 0)) {
+      return "jpg";
+    }
+    return "txt";
+  }
+
+  function nativeExportSavedToastKey(kind) {
+    if (kind === "pdf") return "noteExportPdfSaved";
+    if (kind === "jpg") return "noteExportJpgSaved";
+    return "noteExportTxtSaved";
+  }
+
+  function ensureNativeFilesystemPermissions(Fs) {
+    if (!Fs || typeof Fs.checkPermissions !== "function") return Promise.resolve(true);
+    return Fs.checkPermissions()
+      .then(function (perms) {
+        var st = perms && perms.publicStorage ? String(perms.publicStorage) : "granted";
+        if (st === "granted") return true;
+        if (typeof Fs.requestPermissions !== "function") return st !== "denied";
+        return Fs.requestPermissions().then(function (req) {
+          var next = req && req.publicStorage ? String(req.publicStorage) : "";
+          return next === "granted";
+        });
+      })
+      .catch(function () {
+        return true;
+      });
+  }
+
+  function tryNativeShareFallback(uri, safeName) {
+    var Share = getCapSharePlugin();
+    if (!Share || typeof Share.share !== "function" || !uri) return Promise.resolve(false);
+    var dlg = typeof t === "function" ? t("noteExportShareDialogTitle") : "Export";
+    var opts = { title: safeName, text: safeName, dialogTitle: dlg };
+    if (/^content:|^file:/i.test(uri)) {
+      opts.files = [uri];
+    } else {
+      opts.url = uri;
+    }
+    return Share.share(opts)
+      .then(function () {
+        return true;
+      })
+      .catch(function () {
+        return false;
+      });
+  }
+
   function toastExportNativeError(err) {
     var base =
       typeof t === "function" ? t("noteExportNativeFailed") : "Could not save the file. Try again.";
@@ -220,105 +283,90 @@
   }
 
   /**
-   * Capacitor: write to app cache via Filesystem, then open the native Share sheet (@capacitor/share).
-   * Falls back to <a download> on failure. Web / PWA keeps anchor-only behavior.
+   * Capacitor APK: save to public Documents/Notes-AI (visible in Files app). Share sheet only on failure.
+   * Web / PWA keeps anchor-only behavior via saveOrDownloadBlob.
    */
   function saveBlobNative(blob, filename) {
     var Fs = getCapFsPlugin();
     var safeName = String(filename || "download").replace(/[\\/:*?"<>|]+/g, "-");
-    var relPath = "note-export/" + Date.now() + "-" + safeName;
+    var kind = inferNativeExportKind(blob, safeName);
+    var savedKey = nativeExportSavedToastKey(kind);
+    var savedFallback = kind === "pdf" ? "PDF saved" : kind === "jpg" ? "JPG saved" : "TXT saved";
+    var relPath = NATIVE_EXPORT_FOLDER + "/" + safeName;
+    var directory = "DOCUMENTS";
 
-    if (!Fs || typeof Fs.writeFile !== "function" || typeof Fs.getUri !== "function") {
+    if (!Fs || typeof Fs.writeFile !== "function") {
       toastExportNativeError(new Error("Filesystem plugin unavailable"));
-      downloadBlobWithAnchor(blob, safeName);
-      return Promise.resolve();
+      return tryNativeShareFallback(null, safeName).then(function (shared) {
+        if (!shared) downloadBlobWithAnchor(blob, safeName);
+      });
     }
 
-    var cacheDir = "CACHE";
     var isUtf8Text =
       (blob && blob.type && String(blob.type).indexOf("text/plain") === 0) ||
       /\.txt$/i.test(safeName);
 
-    var writePromise;
-    if (isUtf8Text) {
-      writePromise = new Promise(function (resolve, reject) {
-        var fr = new FileReader();
-        fr.onload = function () {
-          resolve(String(fr.result || ""));
-        };
-        fr.onerror = function () {
-          reject(fr.error || new Error("read text"));
-        };
-        fr.readAsText(blob, "utf-8");
-      }).then(function (text) {
-        return Fs.writeFile({
-          path: relPath,
-          data: text,
-          directory: cacheDir,
-          encoding: "utf8",
-          recursive: true
-        });
-      });
-    } else {
-      writePromise = blobToBase64(blob).then(function (b64) {
-        return Fs.writeFile({
-          path: relPath,
-          data: b64,
-          directory: cacheDir,
-          recursive: true
-        });
-      });
-    }
-
-    return writePromise
-      .then(function () {
-        return Fs.getUri({ path: relPath, directory: cacheDir });
-      })
-      .then(function (uriResult) {
-        var uri = uriResult && uriResult.uri ? String(uriResult.uri) : "";
-        if (!uri) throw new Error("Could not resolve file location");
-
-        var Share = getCapSharePlugin();
-        var dlg =
-          typeof t === "function" ? t("noteExportShareDialogTitle") : "Export";
-
-        if (Share && typeof Share.share === "function") {
-          var opts = {
-            title: safeName,
-            text: safeName,
-            dialogTitle: dlg
-          };
-          if (/^content:|^file:/i.test(uri)) {
-            opts.files = [uri];
-          } else {
-            opts.url = uri;
-          }
-          return Share.share(opts)
-            .then(function () {
-              toastExportNative("noteExportNativeShareReady", "Ready to share");
-            })
-            .catch(function () {
-              var fallback = { title: safeName, text: safeName, url: uri, dialogTitle: dlg };
-              return Share.share(fallback)
-                .then(function () {
-                  toastExportNative("noteExportNativeShareReady", "Ready to share");
-                })
-                .catch(function () {
-                  toastExportNative("noteExportNativeSaved", "File saved");
-                });
-            });
+    return ensureNativeFilesystemPermissions(Fs)
+      .then(function (allowed) {
+        if (!allowed) {
+          throw new Error(
+            typeof t === "function"
+              ? t("noteExportStoragePermissionDenied")
+              : "Allow storage permission in Settings to save files."
+          );
         }
-
-        toastExportNative("noteExportNativeSaved", "File saved");
-        return null;
+        if (isUtf8Text) {
+          return new Promise(function (resolve, reject) {
+            var fr = new FileReader();
+            fr.onload = function () {
+              resolve(String(fr.result || ""));
+            };
+            fr.onerror = function () {
+              reject(fr.error || new Error("read text"));
+            };
+            fr.readAsText(blob, "utf-8");
+          }).then(function (text) {
+            return Fs.writeFile({
+              path: relPath,
+              data: text,
+              directory: directory,
+              encoding: "utf8",
+              recursive: true
+            });
+          });
+        }
+        return blobToBase64(blob).then(function (b64) {
+          return Fs.writeFile({
+            path: relPath,
+            data: b64,
+            directory: directory,
+            recursive: true
+          });
+        });
+      })
+      .then(function () {
+        toastExportNative(savedKey, savedFallback);
       })
       .catch(function (err) {
         toastExportNativeError(err);
-        try {
-          downloadBlobWithAnchor(blob, safeName);
-        } catch (e2) {
-          /* ignore */
-        }
+        var uriPromise =
+          typeof Fs.getUri === "function"
+            ? Fs.getUri({ path: relPath, directory: directory }).catch(function () {
+                return null;
+              })
+            : Promise.resolve(null);
+        return uriPromise.then(function (uriResult) {
+          var uri = uriResult && uriResult.uri ? String(uriResult.uri) : "";
+          return tryNativeShareFallback(uri, safeName).then(function (shared) {
+            if (!shared) {
+              try {
+                downloadBlobWithAnchor(blob, safeName);
+              } catch (e2) {
+                /* ignore */
+              }
+            }
+          });
+        });
       });
   }
 

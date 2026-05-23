@@ -10,7 +10,13 @@ const {
   INVITE_MONTHLY_CAP,
   STANDARD_TIER_EARN_MULTIPLIER
 } = require("./coinConstants");
-const { getUserLifecycle, getUserPlan } = require("../premium/subscriptionService");
+const {
+  getUserLifecycle,
+  getUserPlan,
+  hasStandardAccess,
+  resolveStandardExpiresAt,
+  grantStandardAccess
+} = require("../premium/subscriptionService");
 
 function utcTodayString(d = new Date()) {
   return d.toISOString().slice(0, 10);
@@ -283,37 +289,37 @@ async function redeemStandardWithCoins(User, userId) {
     throw err;
   }
 
-  const nowMs = Date.now();
-  const existingCoin = userLean.standardCoinExpiresAt ? new Date(userLean.standardCoinExpiresAt).getTime() : 0;
-  if (Number.isFinite(existingCoin) && existingCoin > nowMs) {
-    const err = new Error("Standard unlocked with coins is already active. You can redeem again after it ends.");
+  if (hasStandardAccess(userLean)) {
+    const err = new Error("Standard is already active. You can redeem again after it ends.");
     err.statusCode = 409;
     err.code = "COIN_STANDARD_ACTIVE";
     throw err;
   }
 
-  const standardCoinExpiresAt = new Date(nowMs + STANDARD_COIN_DURATION_MS);
   const newCoins = clampCoins(coins - STANDARD_COIN_COST);
 
-  const updated = await User.findOneAndUpdate(
+  const debited = await User.findOneAndUpdate(
     { _id: userId, coins: { $gte: STANDARD_COIN_COST } },
-    {
-      $set: {
-        standardCoinExpiresAt,
-        coins: newCoins
-      }
-    },
-    { new: true, runValidators: false, lean: true }
+    { $set: { coins: newCoins } },
+    { new: true, runValidators: false }
   );
 
-  if (!updated) {
+  if (!debited) {
     const err = new Error(`Need ${STANDARD_COIN_COST} coins to unlock Standard for 30 days.`);
     err.statusCode = 400;
     err.code = "INSUFFICIENT_COINS";
     throw err;
   }
 
-  return updated;
+  try {
+    return await grantStandardAccess(User, userId, {
+      source: "coins",
+      durationMs: STANDARD_COIN_DURATION_MS
+    });
+  } catch (err) {
+    await User.updateOne({ _id: userId }, { $inc: { coins: STANDARD_COIN_COST } }).exec();
+    throw err;
+  }
 }
 
 /**
@@ -385,6 +391,7 @@ function buildCoinsStatusPayload(userLean) {
     String(userLean.videoRewardUtcDate || "") === today ? Number(userLean.videoRewardCount || 0) || 0 : 0;
   const lifecycle = getUserLifecycle(userLean);
   const trialDaysLeft = lifecycle === "trial" ? trialDaysRemainingMs(userLean) : null;
+  const standardExp = resolveStandardExpiresAt(userLean);
 
   const dailyClaimedToday = String(userLean.dailyLoginUtcDate || "") === today;
 
@@ -400,7 +407,10 @@ function buildCoinsStatusPayload(userLean) {
     lifecycle,
     tier: getUserPlan(userLean),
     trialEndsAt: userLean.trialEndsAt ? new Date(userLean.trialEndsAt).toISOString() : null,
-    trialDaysTotal: 7,
+    trialDaysTotal: 14,
+    standardActive: hasStandardAccess(userLean),
+    standardExpiresAt: standardExp ? standardExp.toISOString() : null,
+    standardSource: userLean.standardSource || null,
     trialDaysRemaining: trialDaysLeft,
     standardCoinExpiresAt: userLean.standardCoinExpiresAt
       ? new Date(userLean.standardCoinExpiresAt).toISOString()
@@ -424,6 +434,72 @@ function buildCoinsStatusPayload(userLean) {
   };
 }
 
+/**
+ * Admin-only manual coin gift. Credits recipient balance (capped at COIN_CAP) and writes audit log.
+ * @param {import("mongoose").Model} User
+ * @param {import("mongoose").Model} CoinGiftLog
+ * @param {{ recipientUserId: string; adminUserId: string; amount: number; reason?: string }} opts
+ */
+async function adminGiftCoins(User, CoinGiftLog, opts) {
+  const recipientUserId = opts && opts.recipientUserId ? String(opts.recipientUserId) : "";
+  const adminUserId = opts && opts.adminUserId ? String(opts.adminUserId) : "";
+  const rawAmount = opts && opts.amount;
+  const amount = Math.floor(Number(rawAmount));
+
+  if (!recipientUserId) throw new Error("Invalid recipient");
+  if (!adminUserId) throw new Error("Invalid admin");
+  if (!Number.isFinite(amount) || amount < 1) throw new Error("Amount must be a positive integer");
+  if (amount > COIN_CAP) throw new Error(`Amount cannot exceed ${COIN_CAP}`);
+
+  const reason = opts && opts.reason != null ? String(opts.reason).trim().slice(0, 300) : "";
+
+  const recipient = await User.findById(recipientUserId).select("coins username").lean();
+  if (!recipient) throw new Error("User not found");
+
+  const balanceBefore = clampCoins(recipient.coins);
+  const balanceAfter = clampCoins(balanceBefore + amount);
+  const credited = balanceAfter - balanceBefore;
+
+  if (credited < 1) {
+    throw new Error("User is already at the coin cap");
+  }
+
+  const duplicateWindowMs = 4000;
+  const duplicate = await CoinGiftLog.findOne({
+    recipientUserId,
+    giftedByUserId: adminUserId,
+    amount: credited,
+    reason,
+    createdAt: { $gte: new Date(Date.now() - duplicateWindowMs) }
+  })
+    .select("_id")
+    .lean();
+
+  if (duplicate) {
+    throw new Error("Duplicate gift request");
+  }
+
+  await User.findByIdAndUpdate(recipientUserId, { $set: { coins: balanceAfter } }, { runValidators: false });
+
+  const log = await CoinGiftLog.create({
+    recipientUserId,
+    giftedByUserId: adminUserId,
+    amount: credited,
+    balanceBefore,
+    balanceAfter,
+    reason,
+    source: "admin_gift"
+  });
+
+  return {
+    credited,
+    balanceBefore,
+    balanceAfter,
+    capped: credited < amount,
+    logId: log._id
+  };
+}
+
 module.exports = {
   utcTodayString,
   clampCoins,
@@ -439,5 +515,6 @@ module.exports = {
   redeemStandardWithCoins,
   buildCoinsStatusPayload,
   enrichCoinsStatusWithInviteStats,
-  trialDaysRemainingMs
+  trialDaysRemainingMs,
+  adminGiftCoins
 };

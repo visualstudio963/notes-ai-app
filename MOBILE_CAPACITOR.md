@@ -35,7 +35,7 @@ Meta + inline env (see `index.html`):
 
 ## Export / downloads
 
-- `note-export.js`: on **native app**, tries **Web Share API** with `File` (Chrome/Android WebView), then falls back to `<a download>` blob URLs (unchanged for web).
+- `note-export.js`: on **native app**, saves PDF/JPG/TXT via **Capacitor Filesystem** to public `Documents/Notes-AI/` (toast: “PDF saved”, etc.). Share sheet is fallback only. Web/PWA still uses `<a download>` blob URLs.
 
 ## Realtime (Socket.IO)
 

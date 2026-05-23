@@ -34,7 +34,7 @@ const userSchema = new mongoose.Schema(
       default: "free"
     },
     premiumExpires: { type: Date, default: null },
-    /** UTC timestamp when premium access started; used to anchor monthly OpenAI usage resets. */
+    /** UTC timestamp when paid Standard access started (billing anchor). */
     premiumStartedAt: { type: Date, default: null },
     /** Billing cadence selected at checkout (monthly/yearly). */
     billingCycle: { type: String, enum: ["monthly", "yearly"], default: "monthly" },
@@ -47,7 +47,7 @@ const userSchema = new mongoose.Schema(
     /** Staff: user = normal customer; admin / moderator / support = admin panel login */
     role: { type: String, enum: ["user", "admin", "moderator", "support"], default: "user" },
     lastActive: { type: Date, default: null },
-    /** UTC year-month (YYYY-MM) for monthly OpenAI Web Chat usage counter */
+    /** Legacy counters from removed server-side LLM chat (kept for DB compatibility). */
     webChatOpenAiPeriod: { type: String, default: "" },
     webChatOpenAiUsed: { type: Number, default: 0 },
     /**
@@ -57,9 +57,11 @@ const userSchema = new mongoose.Schema(
     needsUsername: { type: Boolean, default: false },
     /** Last time username was changed (first pick from provisional also sets this); enforces cooldown in settings */
     usernameLastChangedAt: { type: Date, default: null },
-    /** Trial: new accounts get STANDARD-level features until this UTC time */
+    /** How Standard was granted: trial | coins | stripe */
+    standardSource: { type: String, enum: ["trial", "coins", "stripe"], default: null },
+    /** Trial: mirrors premiumExpires while standardSource is trial */
     trialEndsAt: { type: Date, default: null },
-    /** STANDARD unlocked with coins until this UTC time */
+    /** Coins unlock: mirrors premiumExpires while standardSource is coins */
     standardCoinExpiresAt: { type: Date, default: null },
     /** Gamification balance (hard cap enforced in app logic) */
     coins: { type: Number, default: 0 },

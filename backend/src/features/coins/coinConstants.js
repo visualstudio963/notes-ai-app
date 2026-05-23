@@ -1,6 +1,6 @@
 /** Product caps and rewards for coins + trial */
 
-const TRIAL_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
+const TRIAL_DURATION_MS = 14 * 24 * 60 * 60 * 1000;
 
 const COIN_CAP = 1200;
 

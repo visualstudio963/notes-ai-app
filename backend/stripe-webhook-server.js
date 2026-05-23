@@ -3,6 +3,7 @@ const dotenv = require("dotenv");
 const Stripe = require("stripe");
 const mongoose = require("mongoose");
 const User = require("./src/models/User");
+const { grantStandardAccess, STRIPE_STANDARD_DURATION_MS } = require("./src/features/premium/subscriptionService");
 
 dotenv.config();
 
@@ -14,45 +15,43 @@ const mongoUri = String(process.env.MONGO_URI || "").trim();
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 
 async function activateUserPlan({ userId, email, plan, billing, customerId, subscriptionId }) {
-  const safePlan = plan === "standard" || plan === "premium" ? plan : "premium";
   const safeBilling = billing === "yearly" ? "yearly" : "monthly";
   const normalizedEmail = String(email || "").trim().toLowerCase();
 
-  const query = userId
-    ? { _id: userId }
-    : normalizedEmail
-      ? { $or: [{ email: normalizedEmail }, { emailOrPhone: normalizedEmail }] }
-      : null;
-  if (!query) {
+  let targetId = userId ? String(userId).trim() : "";
+  if (!targetId && normalizedEmail) {
+    const found = await User.findOne({
+      $or: [{ email: normalizedEmail }, { emailOrPhone: normalizedEmail }]
+    })
+      .select("_id")
+      .lean();
+    if (found) targetId = String(found._id);
+  }
+  if (!targetId) {
     console.warn("[stripe webhook] No userId/email available for activation");
     return;
   }
 
-  const update = {
-    $set: {
-      isPremium: safePlan === "premium",
-      plan: safePlan,
-      subscriptionPlan: safePlan,
-      membershipRole: safePlan,
-      billingCycle: safeBilling,
-      premiumExpires: null,
-      premiumStartedAt: new Date(),
-      ...(customerId ? { billingCustomerId: customerId } : {}),
-      ...(normalizedEmail ? { email: normalizedEmail, emailOrPhone: normalizedEmail } : {})
-    }
-  };
-  if (subscriptionId) {
-    update.$set.stripeSubscriptionId = String(subscriptionId);
+  const updated = await grantStandardAccess(User, targetId, {
+    source: "stripe",
+    durationMs: STRIPE_STANDARD_DURATION_MS,
+    billingCycle: safeBilling,
+    billingCustomerId: customerId || undefined,
+    stripeSubscriptionId: subscriptionId || undefined
+  });
+
+  if (normalizedEmail && updated) {
+    await User.updateOne(
+      { _id: targetId },
+      { $set: { email: normalizedEmail, emailOrPhone: normalizedEmail } }
+    ).exec();
   }
 
-  const updated = await User.findOneAndUpdate(query, update, { new: true }).select(
-    "_id email username plan billingCycle isPremium billingCustomerId"
-  );
   if (!updated) {
-    console.warn("[stripe webhook] User not found for activation", { userId, email: normalizedEmail });
+    console.warn("[stripe webhook] User not found for activation", { userId: targetId, email: normalizedEmail });
     return;
   }
-  console.log("[stripe webhook] User activated:", String(updated._id), updated.plan, updated.billingCycle);
+  console.log("[stripe webhook] User activated:", String(updated._id), updated.plan, updated.standardSource);
 }
 
 function webhookHandler(req, res) {

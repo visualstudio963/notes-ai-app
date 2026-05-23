@@ -282,7 +282,7 @@
               <span class="admin-filter-label-text">Tier</span>
               <select id="adminUsersTierFilter" class="admin-select admin-select--compact">
                 <option value="all">All</option>
-                <option value="premium">Pro / Premium</option>
+                <option value="standard">Standard (paid)</option>
               </select>
             </label>
             <label class="admin-filter-label">
@@ -337,7 +337,7 @@
           <div class="admin-page-head-text">
             <p class="admin-eyebrow">Billing gifts</p>
             <h1>Subscriptions</h1>
-            <p class="admin-lead">Snapshot of Pro / Premium accounts. Grant 1 / 3 / 6 months or lifetime from a user row (modal) or open the full users list.</p>
+            <p class="admin-lead">Snapshot of Standard subscribers. Grant 1 / 3 / 6 months or lifetime from a user row (modal) or open the full users list.</p>
           </div>
           <div class="admin-toolbar">
             <button type="button" class="admin-btn admin-btn--ghost" data-act="reload-subs">Refresh list</button>
@@ -345,7 +345,7 @@
           </div>
         </header>
         <div class="admin-card admin-card--wide admin-card--pad">
-          <p class="admin-muted admin-card-lead">Use <strong>Grant Premium</strong> in user details for precise comps: <code>1m</code>, <code>3m</code>, <code>6m</code>, or <code>lifetime</code>.</p>
+          <p class="admin-muted admin-card-lead">Use <strong>Grant Standard</strong> in user details for precise comps: <code>1m</code>, <code>3m</code>, <code>6m</code>, or <code>lifetime</code>.</p>
         </div>
         <div id="adminSubsCards" class="admin-subs-cards" aria-label="Subscriptions cards"></div>
         <div class="admin-table-wrap admin-table-wrap--scroll-x admin-table-wrap--subs">
@@ -523,7 +523,7 @@
         <div class="admin-user-detail-row"><span>Notes</span><strong id="adminDetailNotesCount">—</strong></div>
         <div class="admin-user-detail-row"><span>Reminders</span><strong id="adminDetailRemindersCount">—</strong></div>
         <div class="admin-user-detail-row"><span>Friends invited</span><strong id="adminDetailInvitesCount">—</strong></div>
-        <div class="admin-user-detail-row"><span>Premium billing ends</span><strong id="adminDetailPremiumExpires">—</strong></div>
+        <div class="admin-user-detail-row"><span>Standard billing ends</span><strong id="adminDetailPremiumExpires">—</strong></div>
         <div class="admin-user-detail-row"><span>Created</span><strong id="adminDetailCreated">—</strong></div>
         <div class="admin-user-detail-row admin-user-detail-row--span"><span>User ID</span><strong id="adminDetailUserId">—</strong></div>
       </div>
@@ -543,7 +543,7 @@
       </div>
 
       <div class="admin-role-editor admin-role-editor--grant" id="adminDetailGrantBlock">
-        <label>Grant Premium (comps)</label>
+        <label>Grant Standard (comps)</label>
         <div class="admin-grant-row">
           <button type="button" class="admin-btn admin-btn--premium admin-btn--small" data-act="grant-premium" data-preset="1m">+1 month</button>
           <button type="button" class="admin-btn admin-btn--premium admin-btn--small" data-act="grant-premium" data-preset="3m">+3 months</button>
@@ -558,7 +558,6 @@
           <select id="adminDetailPlanSelect" class="admin-select">
             <option value="free">free</option>
             <option value="standard">standard</option>
-            <option value="premium">premium</option>
           </select>
           <button type="button" class="admin-btn" data-act="save-user-plan">Save plan</button>
         </div>

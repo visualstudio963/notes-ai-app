@@ -1,54 +1,87 @@
-/**
- * Client-side plan helpers: Free vs Standard vs Premium (WhatsApp / SMS).
- * Server is authoritative; these mirror `/api/premium/status` capabilities.
- */
-
-function userHasPremiumCapabilities(user) {
-  if (!user) return false;
-  if (user.capabilities && typeof user.capabilities.whatsAppSmsReminders === "boolean") {
-    return user.capabilities.whatsAppSmsReminders;
-  }
-  return Boolean(user.isPremium);
-}
-
-/**
- * Standard or active Premium — Web Chat, Scan Cam, PDF export, chat web reminders.
- * @param {Record<string, unknown> | null | undefined} user
- */
-function userHasStandardTierFeatures(user) {
-  if (!user) return false;
-  const cap = user.capabilities;
-  if (cap && typeof cap.webChat === "boolean") return cap.webChat;
-  if (cap && typeof cap.scanCam === "boolean") return cap.scanCam;
-  const role = user.membershipRole || "";
-  const tier = user.tier || "";
-  const plan = user.plan || user.subscriptionPlan || "";
-  return role === "standard" || role === "premium" || tier === "standard" || tier === "premium" || plan === "standard" || plan === "premium";
-}
-
-function userHasScanCamAccess(user) {
-  return userHasStandardTierFeatures(user);
-}
-
-function userHasWebChatAccess(user) {
-  return userHasStandardTierFeatures(user);
-}
-
-/** Premium only — OpenAI replies in Web Chat (monthly cap on server). */
-function userHasWebChatOpenAiAccess(user) {
-  if (!user || !user.capabilities) return false;
-  return Boolean(user.capabilities.webChatOpenAI);
-}
-
-/** Note export: TXT for any signed-in user; PDF from Standard; JPG from Premium. */
-function userCanExportNoteTxt(user) {
-  return Boolean(user);
-}
-
-function userCanExportNotePdf(user) {
-  return userHasStandardTierFeatures(user);
-}
-
-function userCanExportNoteJpg(user) {
-  return userHasStandardTierFeatures(user);
-}
+/**
+ * Client-side plan helpers: Free vs Standard.
+ * Server is authoritative; mirrors `/api/premium/status` and `publicUser`.
+ * Access gate matches backend {@link hasStandardAccess}: trial, coins, Stripe share one rule.
+ */
+
+/**
+ * Canonical Standard expiry (same field order as backend resolveStandardExpiresAt).
+ * @param {Record<string, unknown> | null | undefined} user
+ * @returns {number | null} ms since epoch, or null if none
+ */
+function resolveStandardExpiresAtMs(user) {
+  if (!user) return null;
+  const keys = [
+    "standardExpiresAt",
+    "premiumExpiresAt",
+    "premiumExpires",
+    "trialEndsAt",
+    "standardCoinExpiresAt"
+  ];
+  for (let i = 0; i < keys.length; i += 1) {
+    const raw = user[keys[i]];
+    if (!raw) continue;
+    const t = new Date(String(raw)).getTime();
+    if (Number.isFinite(t)) return t;
+  }
+  return null;
+}
+
+/**
+ * @param {Record<string, unknown> | null | undefined} user
+ * @returns {boolean}
+ */
+function hasStandardAccess(user) {
+  if (!user) return false;
+
+  const expMs = resolveStandardExpiresAtMs(user);
+  if (expMs != null) {
+    return expMs > Date.now();
+  }
+
+  if (user.standardActive === true) return true;
+
+  const cap = user.capabilities;
+  if (cap && typeof cap === "object" && cap.webChat === true) return true;
+
+  const role = String(user.membershipRole || "");
+  const tier = String(user.tier || "");
+  const plan = String(user.plan || user.subscriptionPlan || "");
+  const normalizedTier = tier === "premium" ? "standard" : tier;
+  const normalizedPlan = plan === "premium" ? "standard" : plan;
+  const normalizedRole = role === "premium" ? "standard" : role;
+  return (
+    normalizedRole === "standard" ||
+    normalizedTier === "standard" ||
+    normalizedPlan === "standard"
+  );
+}
+
+/** @deprecated Prefer {@link hasStandardAccess}. */
+function userHasStandardTierFeatures(user) {
+  return hasStandardAccess(user);
+}
+
+function userHasScanCamAccess(user) {
+  return hasStandardAccess(user);
+}
+
+function userHasWebChatAccess(user) {
+  return hasStandardAccess(user);
+}
+
+function userCanExportNoteTxt(user) {
+  return Boolean(user);
+}
+
+function userCanExportNotePdf(user) {
+  return hasStandardAccess(user);
+}
+
+function userCanExportNoteJpg(user) {
+  return hasStandardAccess(user);
+}
+
+if (typeof window !== "undefined") {
+  window.hasStandardAccess = hasStandardAccess;
+}

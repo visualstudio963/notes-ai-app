@@ -1,11 +1,9 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const {
-  hasActivePremium,
   hasStandardTierAccess,
   LEAN_USER_SUBSCRIPTION_TIER_FIELDS
 } = require("../features/premium/subscriptionService");
-const { PREMIUM_CODE } = require("../features/premium/createRequirePremium");
 
 const FUTURE_MS_SLOP = 5000;
 
@@ -14,78 +12,12 @@ function isValidFutureDate(d) {
   return d.getTime() > Date.now() - FUTURE_MS_SLOP;
 }
 
-function createRemindersRouter({ User, Reminder, authMiddleware, aiMemoryService }) {
+function createRemindersRouter({ User, Reminder, authMiddleware }) {
   const router = express.Router();
-
-  router.post("/ai-memory", authMiddleware, async (req, res) => {
-    const { message } = req.body;
-    if (!message) {
-      return res.status(400).json({ error: "Message is required" });
-    }
-
-    try {
-      const parsedReminder = aiMemoryService.extractReminderDetails(message);
-      if (!parsedReminder) {
-        return res.status(400).json({
-          error:
-            "Could not parse a date/time. Try: remind me tomorrow at 8am to email the client."
-        });
-      }
-
-      if (!aiMemoryService.isValidFutureDate(parsedReminder.time)) {
-        return res.status(400).json({ error: "Reminder time must be in the future." });
-      }
-
-      const bodyPhone = String((req.body && req.body.phone) || "").trim();
-      const user = await User.findById(req.userId).select(
-        "isPremium premiumExpires plan subscriptionPlan membershipRole"
-      );
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-      if (!hasActivePremium(user)) {
-        return res.status(403).json({
-          error: "Premium subscription required for AI WhatsApp reminders. Free accounts can use browser (web) reminders.",
-          code: PREMIUM_CODE
-        });
-      }
-      if (!bodyPhone) {
-        return res.status(400).json({
-          error: "Provide phone (E.164) in the request body for WhatsApp reminders."
-        });
-      }
-
-      const reminder = await Reminder.create({
-        userId: req.userId,
-        type: "ai_memory",
-        notificationType: "whatsapp",
-        aiMessage: message,
-        parsedDate: parsedReminder.time,
-        message: parsedReminder.message,
-        time: parsedReminder.time,
-        phone: bodyPhone,
-        action: "whatsapp",
-        status: "pending"
-      });
-
-      res.json({
-        success: true,
-        reminder: {
-          id: reminder._id,
-          message: reminder.message,
-          time: reminder.time,
-          type: "ai_memory"
-        },
-        message: `Reminder set for ${parsedReminder.time.toLocaleString()}`
-      });
-    } catch {
-      res.status(500).json({ error: "Failed to create reminder" });
-    }
-  });
 
   router.post("/reminder", authMiddleware, async (req, res) => {
     try {
-      const { message, category, time, phone, action, noteId } = req.body;
+      const { message, category, time, noteId } = req.body;
       if (!message || !time) {
         return res.status(400).json({ error: "Message and time are required" });
       }
@@ -95,41 +27,15 @@ function createRemindersRouter({ User, Reminder, authMiddleware, aiMemoryService
         return res.status(400).json({ error: "Reminder date and time must be in the future." });
       }
 
-      const user = await User.findById(req.userId).select(
-        "isPremium premiumExpires plan subscriptionPlan membershipRole"
-      );
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      const resolvedAction = action || "reminder";
-      const notificationType = resolvedAction === "whatsapp" ? "whatsapp" : "web";
-      const resolvedPhone = phone && String(phone).trim();
-
-      if (notificationType === "whatsapp" && !hasActivePremium(user)) {
-        return res.status(403).json({
-          error:
-            "Premium subscription required for WhatsApp / SMS reminders. Free accounts can use Reminders → browser notifications.",
-          code: PREMIUM_CODE
-        });
-      }
-
-      if (notificationType === "whatsapp" && (!resolvedPhone || !String(resolvedPhone).trim())) {
-        return res.status(400).json({
-          error: "A verified phone number is required for WhatsApp reminders."
-        });
-      }
-
       const reminder = await Reminder.create({
         userId: req.userId,
         noteId,
         category,
         type: "note_reminder",
-        notificationType,
+        notificationType: "web",
         message,
         time: when,
-        phone: resolvedPhone,
-        action: resolvedAction
+        action: "reminder"
       });
 
       res.json({ reminder });
@@ -180,7 +86,7 @@ function createRemindersRouter({ User, Reminder, authMiddleware, aiMemoryService
         const u = await User.findById(req.userId).select(LEAN_USER_SUBSCRIPTION_TIER_FIELDS).lean();
         if (!hasStandardTierAccess(u)) {
           return res.status(403).json({
-            error: "Web Chat reminders require Standard or Premium.",
+            error: "Web Chat reminders require Standard.",
             code: "WEB_CHAT_PLAN"
           });
         }

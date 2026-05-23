@@ -10,6 +10,11 @@ const {
   adminGrantPremiumMonths,
   adminGrantPremiumLifetime
 } = require("../features/premium/subscriptionService");
+const { adminGiftCoins, clampCoins } = require("../features/coins/coinService");
+const { COIN_CAP } = require("../features/coins/coinConstants");
+
+const ADMIN_USER_SELECT =
+  "username emailOrPhone email isPremium premiumExpires plan subscriptionPlan role membershipRole standardSource createdAt lastActive coins";
 
 const STAFF_PANEL_ROLES = new Set(["admin", "moderator", "support"]);
 const STAFF_ASSIGNABLE_ROLES = ["user", "admin", "moderator", "support"];
@@ -61,6 +66,39 @@ async function enrichUserAggregateCounts(User, Note, Reminder, userIds) {
   return { notes, reminders, invites };
 }
 
+/**
+ * Sum of admin-gifted coins per recipient user id.
+ * @returns {Promise<Map<string, number>>}
+ */
+async function enrichUserGiftTotals(CoinGiftLog, userIds) {
+  const oids = (userIds || [])
+    .map((id) => (mongoose.Types.ObjectId.isValid(id) ? new mongoose.Types.ObjectId(id) : null))
+    .filter(Boolean);
+
+  if (!oids.length) return new Map();
+
+  const rows = await CoinGiftLog.aggregate([
+    { $match: { recipientUserId: { $in: oids } } },
+    { $group: { _id: "$recipientUserId", total: { $sum: "$amount" } } }
+  ]).exec();
+
+  return new Map((rows || []).map((r) => [String(r._id), r.total]));
+}
+
+/**
+ * @param {{ notes: Map<string, number>; reminders: Map<string, number>; invites: Map<string, number> }} agg
+ * @param {Map<string, number>} giftTotals
+ * @param {string} uid
+ */
+function adminCountsForUser(agg, giftTotals, uid) {
+  return {
+    notes: agg.notes.get(uid) || 0,
+    reminders: agg.reminders.get(uid) || 0,
+    invites: agg.invites.get(uid) || 0,
+    gifted: giftTotals.get(uid) || 0
+  };
+}
+
 function activeNowFlag(user, activeWindowMs) {
   return Boolean(user.lastActive && new Date(user.lastActive).getTime() >= Date.now() - activeWindowMs);
 }
@@ -85,6 +123,8 @@ function adminUserJson(user, activeWindowMs, activeNowOverride, counts) {
     username: user.username,
     email: user.email || user.emailOrPhone,
     isPremium: hasActivePremium(user),
+    standardActive: hasActivePremium(user),
+    standardSource: user.standardSource || null,
     plan,
     staffRole: panelRole === "user" ? "user" : panelRole,
     /** @deprecated Prefer staffRole */
@@ -95,23 +135,28 @@ function adminUserJson(user, activeWindowMs, activeNowOverride, counts) {
     lastActive: user.lastActive,
     activeNow,
     premiumExpires: user.premiumExpires ? new Date(user.premiumExpires).toISOString() : null,
+    coinBalance: clampCoins(Number(user.coins) || 0),
     ...(counts
       ? {
           notesCount: counts.notes ?? 0,
           remindersCount: counts.reminders ?? 0,
-          invitedFriendsCount: counts.invites ?? 0
+          invitedFriendsCount: counts.invites ?? 0,
+          totalGiftedCoins: counts.gifted ?? 0
         }
       : {})
   };
 }
 
-function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, authMiddleware, adminMiddleware }) {
+function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, CoinGiftLog, authMiddleware, adminMiddleware }) {
   const router = express.Router();
 
   const ACTIVE_WINDOW_MS = 7 * 60 * 1000;
 
-  const PREMIUM_USER_QUERY = {
+  const PAID_SUBSCRIBER_QUERY = {
     $or: [
+      { plan: "standard" },
+      { subscriptionPlan: "standard" },
+      { membershipRole: "standard" },
       { plan: "premium" },
       { subscriptionPlan: "premium" },
       { membershipRole: "premium" },
@@ -134,56 +179,28 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
         canDeleteContactMessages: rank >= STAFF_RANK.MODERATOR,
         canDeleteUsers: rank >= STAFF_RANK.ADMIN,
         canChangeStaffRoles: rank >= STAFF_RANK.ADMIN,
+        canGiftCoins: rank >= STAFF_RANK.ADMIN,
         canEditDiscord: rank >= STAFF_RANK.SUPPORT
       },
       activeWithinMinutes: ACTIVE_WINDOW_MS / 60000
     });
   });
 
-  /** Standard-tier access: stored standard, active 7-day trial, or coins-unlocked standard — excludes premium bucket. */
+  /** Active Standard: plan standard + unexpired premiumExpires. */
   function standardEffectiveUserQuery(now = new Date()) {
     return {
-      $and: [
-        { $nor: [PREMIUM_USER_QUERY] },
-        {
-          $or: [
-            { plan: "standard" },
-            { subscriptionPlan: "standard" },
-            { membershipRole: "standard" },
-            { trialEndsAt: { $gt: now } },
-            { standardCoinExpiresAt: { $gt: now } }
-          ]
-        }
-      ]
+      plan: "standard",
+      premiumExpires: { $gt: now }
     };
   }
 
-  /** Non-overlapping Standard buckets (priority: paid stored → coin unlock → trial). Excludes premium/pro bucket. */
+  /** Non-overlapping Standard buckets by source. */
   function standardBreakdownQueries(now = new Date()) {
-    const notPremium = { $nor: [PREMIUM_USER_QUERY] };
-    const storedStandard = {
-      $or: [{ plan: "standard" }, { subscriptionPlan: "standard" }, { membershipRole: "standard" }]
-    };
-    const notStoredStandard = {
-      $and: [
-        { plan: { $ne: "standard" } },
-        { subscriptionPlan: { $ne: "standard" } },
-        { membershipRole: { $ne: "standard" } }
-      ]
-    };
+    const active = { plan: "standard", premiumExpires: { $gt: now } };
     return {
-      standardPaidUsers: { $and: [notPremium, storedStandard] },
-      standardCoinUsers: {
-        $and: [notPremium, notStoredStandard, { standardCoinExpiresAt: { $gt: now } }]
-      },
-      standardTrialUsers: {
-        $and: [
-          notPremium,
-          notStoredStandard,
-          { $nor: [{ standardCoinExpiresAt: { $gt: now } }] },
-          { trialEndsAt: { $gt: now } }
-        ]
-      }
+      standardPaidUsers: { ...active, standardSource: "stripe" },
+      standardCoinUsers: { ...active, standardSource: "coins" },
+      standardTrialUsers: { ...active, standardSource: "trial" }
     };
   }
 
@@ -206,7 +223,7 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
         User.countDocuments(),
         Note.countDocuments(),
         Reminder.countDocuments(),
-        User.countDocuments(PREMIUM_USER_QUERY),
+        User.countDocuments(PAID_SUBSCRIBER_QUERY),
         User.countDocuments(standardEffectiveUserQuery(now)),
         User.countDocuments(breakdownQ.standardPaidUsers),
         User.countDocuments(breakdownQ.standardCoinUsers),
@@ -267,7 +284,7 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
         User.countDocuments(),
         Note.countDocuments(),
         Reminder.countDocuments(),
-        User.countDocuments(PREMIUM_USER_QUERY),
+        User.countDocuments(PAID_SUBSCRIBER_QUERY),
         User.countDocuments(standardEffectiveUserQuery(now)),
         User.countDocuments(breakdownQ.standardPaidUsers),
         User.countDocuments(breakdownQ.standardCoinUsers),
@@ -452,9 +469,7 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
         return res.status(400).json({ error: "Invalid user id" });
       }
       const user = await User.findById(targetId)
-        .select(
-          "username emailOrPhone email isPremium premiumExpires plan subscriptionPlan role membershipRole createdAt lastActive"
-        )
+        .select(ADMIN_USER_SELECT)
         .lean();
 
       if (!user) return res.status(404).json({ error: "User not found" });
@@ -488,7 +503,7 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
           $or: [{ username: rx }, { emailOrPhone: rx }, { email: rx }]
         });
       }
-      if (tier === "premium") parts.push(PREMIUM_USER_QUERY);
+      if (tier === "standard") parts.push(PAID_SUBSCRIBER_QUERY);
 
       /** @type {Record<string, unknown>} */
       const match = parts.length === 0 ? {} : parts.length === 1 ? parts[0] : { $and: parts };
@@ -598,9 +613,7 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
       await User.findByIdAndUpdate(targetId, { $set: { role: nextRole } }, { new: true });
 
       const user = await User.findById(targetId)
-        .select(
-          "username emailOrPhone email isPremium premiumExpires plan subscriptionPlan role membershipRole createdAt lastActive"
-        )
+        .select(ADMIN_USER_SELECT)
         .lean();
 
       if (!user) return res.status(404).json({ error: "User not found" });
@@ -672,15 +685,13 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
         return res.status(400).json({ error: "Invalid user id" });
       }
       const { plan } = req.body || {};
-      const allowed = ["free", "standard", "premium"];
+      const allowed = ["free", "standard"];
       if (!allowed.includes(plan)) {
-        return res.status(400).json({ error: "Body must include plan: free | standard | premium" });
+        return res.status(400).json({ error: "Body must include plan: free | standard" });
       }
-      await applyProductPlan(User, targetId, plan);
+      await applyProductPlan(User, targetId, plan === "premium" ? "standard" : plan);
       const user = await User.findById(targetId)
-        .select(
-          "username emailOrPhone email isPremium premiumExpires plan subscriptionPlan role membershipRole createdAt lastActive"
-        )
+        .select(ADMIN_USER_SELECT)
         .lean();
 
       if (!user) return res.status(404).json({ error: "User not found" });
@@ -708,15 +719,13 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
         return res.status(400).json({ error: "Invalid user id" });
       }
       const { plan } = req.body || {};
-      const allowed = ["free", "standard", "premium"];
+      const allowed = ["free", "standard"];
       if (!allowed.includes(plan)) {
-        return res.status(400).json({ error: "Body must include plan: free | standard | premium" });
+        return res.status(400).json({ error: "Body must include plan: free | standard" });
       }
-      await applyProductPlan(User, targetId, plan);
+      await applyProductPlan(User, targetId, plan === "premium" ? "standard" : plan);
       const user = await User.findById(targetId)
-        .select(
-          "username emailOrPhone email isPremium premiumExpires plan subscriptionPlan role membershipRole createdAt lastActive"
-        )
+        .select(ADMIN_USER_SELECT)
         .lean();
 
       if (!user) return res.status(404).json({ error: "User not found" });
@@ -748,15 +757,13 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
       }
 
       if (isPremium) {
-        await grantPremium(User, targetId, { expiresAt: null });
+        await adminGrantPremiumLifetime(User, targetId);
       } else {
         await revokePremium(User, targetId);
       }
 
       const user = await User.findById(targetId)
-        .select(
-          "username emailOrPhone email isPremium premiumExpires plan subscriptionPlan role membershipRole createdAt lastActive"
-        )
+        .select(ADMIN_USER_SELECT)
         .lean();
 
       if (!user) return res.status(404).json({ error: "User not found" });
@@ -781,15 +788,13 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, au
       }
 
       const { membershipRole } = req.body || {};
-      if (membershipRole !== "free" && membershipRole !== "standard" && membershipRole !== "premium") {
-        return res.status(400).json({ error: "Body must include membershipRole: free | standard | premium" });
+      if (membershipRole !== "free" && membershipRole !== "standard") {
+        return res.status(400).json({ error: "Body must include membershipRole: free | standard" });
       }
 
-      await applyProductPlan(User, targetId, membershipRole);
+      await applyProductPlan(User, targetId, membershipRole === "premium" ? "standard" : membershipRole);
       const user = await User.findById(targetId)
-        .select(
-          "username emailOrPhone email isPremium premiumExpires plan subscriptionPlan role membershipRole createdAt lastActive"
-        )
+        .select(ADMIN_USER_SELECT)
         .lean();
 
       if (!user) return res.status(404).json({ error: "User not found" });

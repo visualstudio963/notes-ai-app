@@ -11,6 +11,23 @@ const { publicUser } = require("../utils/serializers");
 const { TRIAL_DURATION_MS } = require("../features/coins/coinConstants");
 const { bindReferralCode, ensureReferralCode } = require("../features/coins/coinService");
 
+/** Fields applied on every brand-new account (14-day Standard trial). */
+function newUserStandardTrialFields() {
+  const startedAt = new Date();
+  const expiresAt = new Date(startedAt.getTime() + TRIAL_DURATION_MS);
+  return {
+    plan: "standard",
+    subscriptionPlan: "standard",
+    membershipRole: "standard",
+    isPremium: true,
+    standardSource: "trial",
+    premiumExpires: expiresAt,
+    premiumStartedAt: startedAt,
+    trialEndsAt: expiresAt,
+    standardCoinExpiresAt: null
+  };
+}
+
 /** Synthetic email domain for accounts created via username/password only (RFC 2606 .invalid). */
 const LOCAL_ACCOUNT_EMAIL_DOMAIN = "users.notesai.invalid";
 
@@ -207,14 +224,9 @@ async function upsertGoogleUserFromIdTokenPayload(User, payload, cleanDeviceId) 
       emailVerificationTokenHash: null,
       emailVerificationExpiresAt: null,
       deviceId: cleanDeviceId || "",
-      plan: "free",
-      subscriptionPlan: "free",
-      membershipRole: "free",
-      isPremium: false,
-      premiumExpires: null,
       needsUsername: true,
       hasSeenTutorial: false,
-      trialEndsAt: new Date(Date.now() + TRIAL_DURATION_MS)
+      ...newUserStandardTrialFields()
     });
     user = await ensureReferralCode(User, user);
   }
@@ -379,15 +391,10 @@ function createAuthRouter({
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
         deviceId: deviceId || "",
-        plan: "free",
-        subscriptionPlan: "free",
-        membershipRole: "free",
-        isPremium: false,
-        premiumExpires: null,
         needsUsername: false,
         usernameLastChangedAt: new Date(),
         hasSeenTutorial: false,
-        trialEndsAt: new Date(Date.now() + TRIAL_DURATION_MS)
+        ...newUserStandardTrialFields()
       });
       await ensureReferralCode(User, user);
 

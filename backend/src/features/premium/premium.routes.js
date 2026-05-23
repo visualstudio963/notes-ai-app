@@ -68,8 +68,6 @@ function createPremiumRouter({
   stripeSecretKey,
   stripeStandardMonthlyLookupKey,
   stripeStandardYearlyLookupKey,
-  stripePremiumMonthlyLookupKey,
-  stripePremiumYearlyLookupKey,
   publicAppUrl
 }) {
   const router = express.Router();
@@ -77,16 +75,14 @@ function createPremiumRouter({
 
   const STRIPE_PRICE_ID_BY_PLAN_TYPE = {
     standard_monthly: stripeStandardMonthlyLookupKey || "",
-    standard_yearly: stripeStandardYearlyLookupKey || "",
-    premium_monthly: stripePremiumMonthlyLookupKey || "",
-    premium_yearly: stripePremiumYearlyLookupKey || ""
+    standard_yearly: stripeStandardYearlyLookupKey || ""
   };
 
   router.get("/premium/status", authMiddleware, async (req, res) => {
     try {
       await syncExpiredPremiumDocument(User, req.userId);
       const user = await User.findById(req.userId).select(
-        "isPremium premiumExpires premiumStartedAt createdAt billingCycle billingCustomerId stripeSubscriptionId plan subscriptionPlan membershipRole webChatOpenAiPeriod webChatOpenAiUsed coins trialEndsAt standardCoinExpiresAt referralCode"
+        "isPremium premiumExpires premiumStartedAt createdAt billingCycle billingCustomerId stripeSubscriptionId plan subscriptionPlan membershipRole standardSource coins trialEndsAt standardCoinExpiresAt referralCode"
       );
       if (!user) {
         return res.status(404).json({ error: "User not found" });
@@ -128,13 +124,13 @@ function createPremiumRouter({
     const planType = getPlanTypeFromRequestBody(req.body);
     if (!planType) {
       return res.status(400).json({
-        error: "Invalid planType. Use one of: standard_monthly, standard_yearly, premium_monthly, premium_yearly."
+        error: "Invalid planType. Use one of: standard_monthly, standard_yearly."
       });
     }
     const [plan, billing] = planType.split("_");
-    if ((plan !== "standard" && plan !== "premium") || (billing !== "monthly" && billing !== "yearly")) {
+    if (plan !== "standard" || (billing !== "monthly" && billing !== "yearly")) {
       return res.status(400).json({
-        error: "Invalid planType. Use one of: standard_monthly, standard_yearly, premium_monthly, premium_yearly."
+        error: "Invalid planType. Use one of: standard_monthly, standard_yearly."
       });
     }
     if (!stripeSecretKey) {
@@ -251,8 +247,10 @@ function createPremiumRouter({
         if (days != null && Number.isFinite(Number(days)) && Number(days) > 0) {
           expiresAt = new Date();
           expiresAt.setDate(expiresAt.getDate() + Number(days));
+        } else {
+          expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
         }
-        const user = await grantPremium(User, req.userId, { expiresAt });
+        const user = await grantPremium(User, req.userId, { expiresAt, source: "stripe" });
         if (!user) {
           return res.status(404).json({ error: "User not found" });
         }

@@ -35,8 +35,6 @@ function createWebPushReminderJob({
     } catch (e) {
       console.error("[web-push] setVapidDetails failed:", e && e.message);
     }
-  } else {
-    console.warn("[web-push] VAPID keys missing — background push for web reminders is disabled.");
   }
 
   let sweepRunning = false;

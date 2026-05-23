@@ -11,56 +11,40 @@ function requireEnv(name) {
   return v;
 }
 
+function envTrim(name) {
+  const v = process.env[name];
+  return v && String(v).trim() ? String(v).trim() : "";
+}
+
 const mongoUri = requireEnv("MONGO_URI");
 const jwtSecret = requireEnv("JWT_SECRET");
 const jwtRefreshSecret = requireEnv("JWT_REFRESH_SECRET");
 
-/** Optional: POST /api/premium/activate-dev (local testing only; remove in production) */
-const premiumDevSecret = process.env.PREMIUM_DEV_SECRET ? String(process.env.PREMIUM_DEV_SECRET).trim() : "";
+/** Optional: POST /api/premium/activate-dev (local testing only) */
+const premiumDevSecret = envTrim("PREMIUM_DEV_SECRET");
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY ? String(process.env.STRIPE_SECRET_KEY).trim() : "";
-const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET ? String(process.env.STRIPE_WEBHOOK_SECRET).trim() : "";
-const stripePublishableKey = process.env.STRIPE_PUBLISHABLE_KEY
-  ? String(process.env.STRIPE_PUBLISHABLE_KEY).trim()
-  : "";
-const stripeStandardMonthlyLookupKey = process.env.STRIPE_STANDARD_MONTHLY
-  ? String(process.env.STRIPE_STANDARD_MONTHLY).trim()
-  : "";
-const stripeStandardYearlyLookupKey = process.env.STRIPE_STANDARD_YEARLY
-  ? String(process.env.STRIPE_STANDARD_YEARLY).trim()
-  : "";
-const stripePremiumMonthlyLookupKey = process.env.STRIPE_PREMIUM_MONTHLY
-  ? String(process.env.STRIPE_PREMIUM_MONTHLY).trim()
-  : "";
-const stripePremiumYearlyLookupKey = process.env.STRIPE_PREMIUM_YEARLY
-  ? String(process.env.STRIPE_PREMIUM_YEARLY).trim()
-  : "";
-const openAiApiKey = process.env.OPENAI_API_KEY ? String(process.env.OPENAI_API_KEY).trim() : "";
-const publicAppUrlRaw = process.env.PUBLIC_APP_URL ? String(process.env.PUBLIC_APP_URL).trim() : "";
+const stripeSecretKey = envTrim("STRIPE_SECRET_KEY");
+const stripeWebhookSecret = envTrim("STRIPE_WEBHOOK_SECRET");
+const stripePublishableKey = envTrim("STRIPE_PUBLISHABLE_KEY");
+const stripeStandardMonthlyLookupKey = envTrim("STRIPE_STANDARD_MONTHLY");
+const stripeStandardYearlyLookupKey = envTrim("STRIPE_STANDARD_YEARLY");
+
+const publicAppUrlRaw = envTrim("PUBLIC_APP_URL");
 const publicAppUrl = (publicAppUrlRaw.replace(/\/$/, "") || `http://localhost:${port}`).replace(/\/$/, "");
-const mongoTlsInsecure = String(process.env.MONGO_TLS_INSECURE || "").trim().toLowerCase() === "true";
+const mongoTlsInsecure = envTrim("MONGO_TLS_INSECURE").toLowerCase() === "true";
 const emailVerificationBypassUsernames = String(process.env.EMAIL_VERIFICATION_BYPASS_USERNAMES || "")
   .split(",")
   .map((username) => username.trim().toLowerCase())
   .filter(Boolean);
 
-/** OAuth 2.0 Web client ID from Google Cloud Console (GIS / Sign in with Google). Safe to expose to the frontend. */
-const googleClientId = process.env.GOOGLE_CLIENT_ID ? String(process.env.GOOGLE_CLIENT_ID).trim() : "";
-/** Server-side OAuth secret (authorization code flow). Never expose to the frontend. */
-const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET ? String(process.env.GOOGLE_CLIENT_SECRET).trim() : "";
-/**
- * OAuth callback URL used by Passport (`passport-google-oauth20`) — must match Google Cloud “Authorized redirect URI”.
- * Prefer GOOGLE_CALLBACK_URL; GOOGLE_REDIRECT_URI is a legacy alias.
- * If unset, defaults to PUBLIC_APP_URL + /auth/google/callback (fine only when API and app share one origin).
- * When the SPA is on Vercel (PUBLIC_APP_URL=https://notes-ai-app-theta.vercel.app) but the API is elsewhere, set GOOGLE_CALLBACK_URL to the API host explicitly (e.g. https://…onrender.com/auth/google/callback).
- */
-const googleCallbackUrlEnv = process.env.GOOGLE_CALLBACK_URL ? String(process.env.GOOGLE_CALLBACK_URL).trim() : "";
-const googleRedirectUriEnv = process.env.GOOGLE_REDIRECT_URI ? String(process.env.GOOGLE_REDIRECT_URI).trim() : "";
+const googleClientId = envTrim("GOOGLE_CLIENT_ID");
+const googleClientSecret = envTrim("GOOGLE_CLIENT_SECRET");
+const googleCallbackUrlEnv = envTrim("GOOGLE_CALLBACK_URL");
+const googleRedirectUriEnv = envTrim("GOOGLE_REDIRECT_URI");
 const googleRedirectUri =
   googleCallbackUrlEnv || googleRedirectUriEnv || `${publicAppUrl.replace(/\/$/, "")}/auth/google/callback`;
 
-/** Session cookie signing secret (Passport OAuth state). Defaults to JWT_SECRET if unset. */
-const sessionSecret = process.env.SESSION_SECRET ? String(process.env.SESSION_SECRET).trim() : jwtSecret;
+const sessionSecret = envTrim("SESSION_SECRET") || jwtSecret;
 
 const mongooseOptions = {
   maxPoolSize: 10,
@@ -73,53 +57,47 @@ const mongooseOptions = {
   family: 4
 };
 
-// Optional dev-only escape hatch for environments where TLS interception or broken local trust causes
-// Atlas handshakes to fail with OpenSSL internal errors.
 if (mongoTlsInsecure && process.env.NODE_ENV !== "production") {
   mongooseOptions.tls = true;
   mongooseOptions.tlsAllowInvalidCertificates = true;
   mongooseOptions.tlsAllowInvalidHostnames = true;
 }
 
-if (!stripeSecretKey || !stripeWebhookSecret) {
-  console.warn("[config] Stripe secret/webhook keys are missing. Billing endpoints will be disabled.");
+const vapidPublicKey = envTrim("VAPID_PUBLIC_KEY");
+const vapidPrivateKey = envTrim("VAPID_PRIVATE_KEY");
+const vapidSubject = envTrim("VAPID_SUBJECT");
+
+const stripeConfigured =
+  stripeSecretKey && stripeWebhookSecret && stripePublishableKey && stripeStandardMonthlyLookupKey;
+
+if (!stripeSecretKey && !stripeWebhookSecret && !stripePublishableKey && !stripeStandardMonthlyLookupKey) {
+  // All Stripe vars empty — skip billing warnings (typical local dev without checkout).
+} else if (!stripeConfigured) {
+  const missing = [];
+  if (!stripeSecretKey) missing.push("STRIPE_SECRET_KEY");
+  if (!stripeWebhookSecret) missing.push("STRIPE_WEBHOOK_SECRET");
+  if (!stripePublishableKey) missing.push("STRIPE_PUBLISHABLE_KEY");
+  if (!stripeStandardMonthlyLookupKey) missing.push("STRIPE_STANDARD_MONTHLY");
+  console.warn(`[config] Stripe billing incomplete — set: ${missing.join(", ")}`);
 }
-if (!stripePublishableKey) {
-  console.warn("[config] STRIPE_PUBLISHABLE_KEY is missing. Frontend checkout configuration may be incomplete.");
+if (stripeConfigured && !stripeStandardYearlyLookupKey) {
+  console.warn("[config] STRIPE_STANDARD_YEARLY not set — yearly checkout stays disabled.");
 }
-if (
-  !stripeStandardMonthlyLookupKey ||
-  !stripeStandardYearlyLookupKey ||
-  !stripePremiumMonthlyLookupKey ||
-  !stripePremiumYearlyLookupKey
-) {
-  console.warn(
-    "[config] Stripe lookup keys are missing. Set STRIPE_STANDARD_MONTHLY, STRIPE_STANDARD_YEARLY, STRIPE_PREMIUM_MONTHLY, STRIPE_PREMIUM_YEARLY."
-  );
-}
-if (!openAiApiKey) {
-  console.warn("[config] OPENAI_API_KEY is missing. AI reply features will be unavailable.");
-}
+
 if (!googleClientId) {
-  console.warn("[config] GOOGLE_CLIENT_ID is missing. Google sign-in will be disabled.");
-}
-if (googleClientId && !googleClientSecret) {
-  console.warn("[config] GOOGLE_CLIENT_SECRET is missing. Passport Google OAuth (/auth/google) will not work.");
-}
-if (googleClientId && googleClientSecret && !googleCallbackUrlEnv && !googleRedirectUriEnv) {
+  console.warn("[config] GOOGLE_CLIENT_ID not set — Google sign-in disabled.");
+} else if (!googleClientSecret) {
+  console.warn("[config] GOOGLE_CLIENT_SECRET not set — Passport OAuth disabled.");
+} else if (!googleCallbackUrlEnv && !googleRedirectUriEnv) {
   console.warn(
-    "[config] GOOGLE_CALLBACK_URL not set; using PUBLIC_APP_URL + /auth/google/callback. Ensure this matches Google Cloud Console."
+    "[config] GOOGLE_CALLBACK_URL not set — using PUBLIC_APP_URL + /auth/google/callback. Match Google Cloud Console."
   );
 }
 
-const vapidPublicKey = process.env.VAPID_PUBLIC_KEY ? String(process.env.VAPID_PUBLIC_KEY).trim() : "";
-const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY ? String(process.env.VAPID_PRIVATE_KEY).trim() : "";
-const vapidSubject = process.env.VAPID_SUBJECT ? String(process.env.VAPID_SUBJECT).trim() : "";
-
-if (!vapidPublicKey || !vapidPrivateKey || !vapidSubject) {
-  console.warn(
-    "[config] VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT not fully set — web push (reminders when app is closed) is disabled."
-  );
+if (!vapidPublicKey && !vapidPrivateKey && !vapidSubject) {
+  // All VAPID empty — skip (browser reminders still work in-app).
+} else if (!vapidPublicKey || !vapidPrivateKey || !vapidSubject) {
+  console.warn("[config] VAPID keys incomplete — background web push disabled.");
 }
 
 module.exports = {
@@ -133,9 +111,6 @@ module.exports = {
   stripePublishableKey: stripePublishableKey || null,
   stripeStandardMonthlyLookupKey: stripeStandardMonthlyLookupKey || null,
   stripeStandardYearlyLookupKey: stripeStandardYearlyLookupKey || null,
-  stripePremiumMonthlyLookupKey: stripePremiumMonthlyLookupKey || null,
-  stripePremiumYearlyLookupKey: stripePremiumYearlyLookupKey || null,
-  openAiApiKey: openAiApiKey || null,
   publicAppUrl,
   emailVerificationBypassUsernames,
   mongooseOptions,
@@ -143,7 +118,6 @@ module.exports = {
   googleClientId,
   googleClientSecret,
   googleRedirectUri,
-  /** Same as googleRedirectUri — explicit name for Passport callbackURL */
   googleCallbackUrl: googleRedirectUri,
   sessionSecret,
   vapidPublicKey: vapidPublicKey || null,

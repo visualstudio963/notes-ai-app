@@ -1,5 +1,5 @@
 const stripe = require("stripe");
-const { applyProductPlan } = require("./subscriptionService");
+const { grantStandardAccess, STRIPE_STANDARD_DURATION_MS } = require("./subscriptionService");
 
 /**
  * Express handler: verify Stripe signature and apply plan from Checkout metadata.
@@ -25,12 +25,8 @@ function createStripeWebhookHandler({ stripeWebhookSecret, stripeSecretKey, User
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
       const plan = session.metadata && session.metadata.plan;
-      const billingCycle =
-        session.metadata && (session.metadata.billingCycle === "yearly" || session.metadata.billing === "yearly")
-          ? "yearly"
-          : "monthly";
       const userId = session.metadata && session.metadata.userId;
-      if (!userId || (plan !== "standard" && plan !== "premium")) {
+      if (!userId || plan !== "standard") {
         console.warn("[stripe webhook] missing or invalid metadata", session.id);
         return res.json({ received: true });
       }
@@ -39,66 +35,67 @@ function createStripeWebhookHandler({ stripeWebhookSecret, stripeSecretKey, User
           Number.isFinite(Number(session && session.created)) && Number(session.created) > 0
             ? new Date(Number(session.created) * 1000)
             : new Date();
-        await applyProductPlan(User, userId, plan, { startedAt, billingCycle });
+        const billingCycle =
+          session.metadata && (session.metadata.billingCycle === "yearly" || session.metadata.billing === "yearly")
+            ? "yearly"
+            : "monthly";
         const cust =
           typeof session.customer === "string"
             ? session.customer
-            : session.customer && session.customer.id;
+            : session.customer && session.customer.id
+              ? session.customer.id
+              : null;
         const subscriptionId =
           typeof session.subscription === "string"
             ? session.subscription
             : session.subscription && session.subscription.id
               ? session.subscription.id
               : null;
-        await User.findByIdAndUpdate(
-          userId,
-          {
-            $set: {
-              ...(cust ? { billingCustomerId: cust } : {}),
-              ...(subscriptionId ? { stripeSubscriptionId: subscriptionId } : {})
-            }
-          }
-        ).exec();
+
+        await grantStandardAccess(User, userId, {
+          source: "stripe",
+          durationMs: STRIPE_STANDARD_DURATION_MS,
+          startedAt,
+          billingCycle,
+          billingCustomerId: cust || undefined,
+          stripeSubscriptionId: subscriptionId || undefined
+        });
       } catch (e) {
-        console.error("[stripe webhook] applyProductPlan", e.message || e);
+        console.error("[stripe webhook] grantStandardAccess", e.message || e);
         return res.status(500).json({ error: "update failed" });
       }
     }
 
-    if (event.type === "customer.subscription.deleted" || event.type === "invoice.payment_failed") {
-      const payload = event.data.object || {};
-      const customerId =
-        typeof payload.customer === "string"
-          ? payload.customer
-          : payload.customer && payload.customer.id
-            ? payload.customer.id
-            : null;
+    if (event.type === "invoice.paid" || event.type === "invoice.payment_succeeded") {
+      const invoice = event.data.object || {};
       const subscriptionId =
-        typeof payload.subscription === "string"
-          ? payload.subscription
-          : payload.id && event.type === "customer.subscription.deleted"
-            ? payload.id
+        typeof invoice.subscription === "string"
+          ? invoice.subscription
+          : invoice.subscription && invoice.subscription.id
+            ? invoice.subscription.id
             : null;
-      if (customerId || subscriptionId) {
-        await User.updateOne(
-          {
-            $or: [
-              ...(customerId ? [{ billingCustomerId: customerId }] : []),
-              ...(subscriptionId ? [{ stripeSubscriptionId: subscriptionId }] : [])
-            ]
-          },
-          {
-            $set: {
-              isPremium: false,
-              plan: "free",
-              subscriptionPlan: "free",
-              membershipRole: "free",
-              premiumExpires: null
-            }
+      if (subscriptionId) {
+        try {
+          const user = await User.findOne({ stripeSubscriptionId: subscriptionId }).select("_id premiumExpires").lean();
+          if (user) {
+            const nowMs = Date.now();
+            let baseMs = nowMs;
+            const existing = user.premiumExpires ? new Date(user.premiumExpires).getTime() : 0;
+            if (Number.isFinite(existing) && existing > nowMs) baseMs = existing;
+            const expiresAt = new Date(baseMs + STRIPE_STANDARD_DURATION_MS);
+            await grantStandardAccess(User, user._id, {
+              source: "stripe",
+              expiresAt,
+              stripeSubscriptionId: subscriptionId
+            });
           }
-        ).exec();
+        } catch (e) {
+          console.error("[stripe webhook] invoice extend", e.message || e);
+        }
       }
     }
+
+    // Access ends at premiumExpires (30-day window); cron/syncExpired revert to Free — do not revoke early on cancel.
 
     res.json({ received: true });
   };

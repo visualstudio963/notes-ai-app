@@ -2658,6 +2658,13 @@ function captureInviteCodeFromLocation() {
 
 function mergePremiumStatusIntoCurrentUser(data) {
   if (!currentUser || !data) return;
+  const serverActive = data.standardActive === true;
+  const serverInactive = data.standardActive === false;
+  const pickExpiry = (key) => {
+    if (serverInactive) return null;
+    if (Object.prototype.hasOwnProperty.call(data, key)) return data[key] || null;
+    return currentUser[key] || null;
+  };
   Object.assign(currentUser, {
     isPremium: data.isPremium,
     tier: data.tier,
@@ -2668,24 +2675,32 @@ function mergePremiumStatusIntoCurrentUser(data) {
       data.subscriptionPlan != null ? data.subscriptionPlan : currentUser.subscriptionPlan || "free",
     capabilities: data.capabilities,
     standardActive: data.standardActive != null ? Boolean(data.standardActive) : currentUser.standardActive,
-    standardExpiresAt:
-      data.standardExpiresAt != null ? data.standardExpiresAt : currentUser.standardExpiresAt || null,
-    standardSource: data.standardSource != null ? data.standardSource : currentUser.standardSource || null,
-    premiumExpiresAt:
-      data.premiumExpiresAt != null ? data.premiumExpiresAt : currentUser.premiumExpiresAt || null,
+    standardExpiresAt: pickExpiry("standardExpiresAt"),
+    standardSource: serverInactive
+      ? null
+      : data.standardSource != null
+        ? data.standardSource
+        : currentUser.standardSource || null,
+    premiumExpiresAt: pickExpiry("premiumExpiresAt"),
     subscriptionStatus: data.subscriptionStatus || null,
     cancelAtPeriodEnd: Boolean(data.cancelAtPeriodEnd),
     currentPeriodEnd: data.currentPeriodEnd || null,
-    lifecycle: data.lifecycle != null ? data.lifecycle : currentUser.lifecycle || "free",
-    trialEndsAt: data.trialEndsAt != null ? data.trialEndsAt : currentUser.trialEndsAt || null,
-    standardCoinExpiresAt:
-      data.standardCoinExpiresAt != null ? data.standardCoinExpiresAt : currentUser.standardCoinExpiresAt || null,
+    lifecycle: serverInactive
+      ? "free"
+      : data.lifecycle != null
+        ? data.lifecycle
+        : currentUser.lifecycle || "free",
+    trialEndsAt: pickExpiry("trialEndsAt"),
+    standardCoinExpiresAt: pickExpiry("standardCoinExpiresAt"),
     coinBalance: data.coinBalance != null ? data.coinBalance : currentUser.coinBalance ?? 0,
     referralCode:
       data.referralCode != null && String(data.referralCode).trim()
         ? String(data.referralCode).trim()
         : currentUser.referralCode || ""
   });
+  if (serverActive && !currentUser.standardExpiresAt && data.standardExpiresAt) {
+    currentUser.standardExpiresAt = data.standardExpiresAt;
+  }
 }
 
 /** Loads coin status once after auth; triggers server-side daily streak + referral finalization. */
@@ -3871,6 +3886,8 @@ async function submitAuthLogin(ev) {
 }
 
 function initAuthLandingUi() {
+  if (document.documentElement.dataset.authLandingUiBound === "1") return;
+  document.documentElement.dataset.authLandingUiBound = "1";
   syncAuthGoogleLinkHref();
   const rememberCb = document.getElementById("authLoginRemember");
   if (rememberCb) {
@@ -8307,6 +8324,8 @@ function stopWebReminderPollingScheduler() {
 function invalidateAuthSessionSilently() {
   refreshAccessTokenPromise = null;
   registerWebPushInFlight = null;
+  webRemindersListFetchPromise = null;
+  homeDashboardStatsInFlight = null;
   authInvalidated = true;
   appPublicConfigCacheExpiresAt = 0;
   stopWebReminderPollingScheduler();
@@ -9668,6 +9687,8 @@ function getOrCreateDeviceId() {
 function logoutUser() {
   nativeOAuthDeepLinkHandled = false;
   stopWebReminderPollingScheduler();
+  webRemindersListFetchPromise = null;
+  homeDashboardStatsInFlight = null;
   webChatSessionTurns = [];
   webChatLastReminderUserRaw = null;
   authInvalidated = false;
@@ -9879,7 +9900,11 @@ function displayAccountInfo() {
   const cancelScheduled = Boolean(currentUser.cancelAtPeriodEnd);
   const periodEndText = currentUser.currentPeriodEnd
     ? new Date(currentUser.currentPeriodEnd).toLocaleString()
-    : "—";
+    : currentUser.trialEndsAt || currentUser.standardExpiresAt || currentUser.premiumExpiresAt
+      ? new Date(
+          currentUser.trialEndsAt || currentUser.standardExpiresAt || currentUser.premiumExpiresAt
+        ).toLocaleString()
+      : "—";
   if (billingPlan) billingPlan.textContent = normalizedPlan;
   if (billingStatus) billingStatus.textContent = statusText;
   if (billingCancelAtPeriodEnd) billingCancelAtPeriodEnd.textContent = cancelScheduled ? "Yes" : "No";
@@ -10800,7 +10825,8 @@ function scheduleSocketNotesResync() {
 }
 
 function registerRealtimeNoteSyncHandlers() {
-  if (window.__notesAiSocketSyncRegistered || !socket || typeof socket.on !== "function") return;
+  if (window.__notesAiSocketSyncRegistered) return;
+  if (!socket || typeof socket.on !== "function" || socket.__notesAiNoop) return;
   window.__notesAiSocketSyncRegistered = true;
   socket.on("noteCreated", () => {
     scheduleSocketNotesResync();
@@ -10815,4 +10841,6 @@ function registerRealtimeNoteSyncHandlers() {
   });
 }
 
-ensureRealtimeSocket();
+window.__notesAiOnSocketReady = function notesAiOnSocketReady() {
+  registerRealtimeNoteSyncHandlers();
+};

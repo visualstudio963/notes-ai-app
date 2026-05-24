@@ -35,29 +35,24 @@ function hasStandardAccess(user) {
   if (!user) return false;
 
   const cap = user.capabilities;
-  if (cap && typeof cap === "object" && cap.webChat === true) return true;
+  if (cap && typeof cap === "object") {
+    if (cap.webChat === true) return true;
+    if (cap.webChat === false) return false;
+  }
+
+  if (user.standardActive === true) return true;
+  if (user.standardActive === false) {
+    const expMsWhenInactive = resolveStandardExpiresAtMs(user);
+    if (expMsWhenInactive != null && expMsWhenInactive > Date.now()) return true;
+    return false;
+  }
 
   const expMs = resolveStandardExpiresAtMs(user);
   if (expMs != null) {
     return expMs > Date.now();
   }
 
-  if (user.standardActive === true) return true;
-
-  const life = user.lifecycle ? String(user.lifecycle).toLowerCase() : "";
-  if (life === "trial" || life === "standard") return true;
-
-  const role = String(user.membershipRole || "");
-  const tier = String(user.tier || "");
-  const plan = String(user.plan || user.subscriptionPlan || "");
-  const normalizedTier = tier === "premium" ? "standard" : tier;
-  const normalizedPlan = plan === "premium" ? "standard" : plan;
-  const normalizedRole = role === "premium" ? "standard" : role;
-  return (
-    normalizedRole === "standard" ||
-    normalizedTier === "standard" ||
-    normalizedPlan === "standard"
-  );
+  return false;
 }
 
 /** @deprecated Prefer {@link hasStandardAccess}. */

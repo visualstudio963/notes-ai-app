@@ -1383,6 +1383,22 @@ body {
   color: #94a3b8;
 }
 
+.admin-gift-preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.admin-role-editor--gift .admin-gift-preset-row {
+  margin-bottom: 10px;
+}
+
+.admin-gift-preset-row .admin-btn--gift.admin-btn--small {
+  min-width: 4.5rem;
+  font-weight: 600;
+}
+
 .admin-input {
   width: 100%;
   box-sizing: border-box;

@@ -5,6 +5,7 @@ var socket;
   "use strict";
 
   var noopSocket = {
+    __notesAiNoop: true,
     emit: function () {},
     on: function () {}
   };

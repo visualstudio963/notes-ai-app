@@ -10,7 +10,9 @@ const {
   getPremiumStatusPayload,
   applyProductPlan,
   adminGrantPremiumMonths,
-  adminGrantPremiumLifetime
+  adminGrantPremiumLifetime,
+  ensureEligibleNewUserTrial,
+  syncExpiredStandardAccess
 } = require("../features/premium/subscriptionService");
 const { adminGiftCoins, clampCoins } = require("../features/coins/coinService");
 const { COIN_CAP } = require("../features/coins/coinConstants");
@@ -113,6 +115,12 @@ function activeNowFlag(user, activeWindowMs) {
   return Boolean(user.lastActive && new Date(user.lastActive).getTime() >= Date.now() - activeWindowMs);
 }
 
+function readUserCoinBalance(user) {
+  if (!user) return 0;
+  const raw = user.coins != null ? user.coins : user.coinBalance;
+  return clampCoins(Number(raw) || 0);
+}
+
 /**
  * @param {object} user lean
  * @param {boolean} [activeNowOverride]
@@ -131,7 +139,7 @@ function adminUserJson(user, activeWindowMs, activeNowOverride, counts) {
   const panelRole = STAFF_PANEL_ROLES.has(staffRoleRaw.toLowerCase()) ? staffRoleRaw.toLowerCase() : "user";
 
   return {
-    id: user._id,
+    id: user._id != null ? String(user._id) : user.id,
     username: user.username,
     email: user.email || user.emailOrPhone,
     isPremium: hasActivePremium(user),
@@ -150,7 +158,8 @@ function adminUserJson(user, activeWindowMs, activeNowOverride, counts) {
     premiumExpires: premium.premiumExpiresAt || (user.premiumExpires ? new Date(user.premiumExpires).toISOString() : null),
     standardExpiresAt: premium.standardExpiresAt,
     trialEndsAt: premium.trialEndsAt,
-    coinBalance: clampCoins(Number(user.coins) || 0),
+    coins: readUserCoinBalance(user),
+    coinBalance: readUserCoinBalance(user),
     ...(counts
       ? {
           notesCount: counts.notes ?? 0,
@@ -194,7 +203,7 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
         canDeleteContactMessages: rank >= STAFF_RANK.MODERATOR,
         canDeleteUsers: rank >= STAFF_RANK.ADMIN,
         canChangeStaffRoles: rank >= STAFF_RANK.ADMIN,
-        canGiftCoins: rank >= STAFF_RANK.ADMIN,
+        canGiftCoins: rank >= STAFF_RANK.MODERATOR,
         canEditDiscord: rank >= STAFF_RANK.SUPPORT
       },
       activeWithinMinutes: ACTIVE_WINDOW_MS / 60000
@@ -403,6 +412,8 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
       if (!mongoose.Types.ObjectId.isValid(targetId)) {
         return res.status(400).json({ error: "Invalid user id" });
       }
+      await ensureEligibleNewUserTrial(User, targetId);
+      await syncExpiredStandardAccess(User, targetId);
       const user = await User.findById(targetId)
         .select(ADMIN_USER_SELECT)
         .lean();
@@ -593,7 +604,7 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
   });
 
   /** Admin-only: manually gift coins to a user (audit log + balance credit). */
-  router.post("/users/:id/gift-coins", requireStaffMin(STAFF_RANK.ADMIN), async (req, res) => {
+  router.post("/users/:id/gift-coins", requireStaffMin(STAFF_RANK.MODERATOR), async (req, res) => {
     try {
       if (!CoinGiftLog) {
         return res.status(503).json({ error: "Coin gift logging is not configured" });

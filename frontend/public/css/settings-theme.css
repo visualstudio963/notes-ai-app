@@ -2063,8 +2063,8 @@ body.theme-normal .main {
 
 @media (max-width: 840px) {
   body.theme-normal .main {
-    padding-bottom: var(--notes-main-bottom-pad, max(20px, calc(88px + env(safe-area-inset-bottom, 0px))));
-    scroll-padding-bottom: var(--notes-main-bottom-pad, max(20px, calc(88px + env(safe-area-inset-bottom, 0px))));
+    padding-bottom: var(--notes-main-bottom-pad, 10px);
+    scroll-padding-bottom: var(--notes-scroll-bottom-pad, max(72px, calc(88px + env(safe-area-inset-bottom, 0px))));
   }
 }
 

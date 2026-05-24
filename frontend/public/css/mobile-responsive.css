@@ -12,30 +12,48 @@
   --notes-pad-inline: clamp(12px, 4.2vw, 18px);
   --notes-modal-pad: clamp(14px, 4vw, 28px);
   /* Bottom layout tokens — single source for main, footer, FAB stack */
-  --notes-footer-zone: 54px;
-  --notes-footer-pad-top: 6px;
-  --notes-footer-pad-bottom: max(6px, calc(4px + var(--notes-safe-bottom)));
-  --notes-footer-fab-gutter: 58px;
+  --notes-footer-link-size: 0.6875rem;
+  --notes-footer-link-lh: 1.35;
+  --notes-footer-row-gap: 8px;
+  --notes-footer-col-gap: 10px;
+  --notes-footer-block-gap: 6px;
+  --notes-footer-pad-top: 8px;
+  --notes-footer-pad-bottom: max(8px, var(--notes-safe-bottom));
+  --notes-footer-link-rows: 2;
+  --notes-footer-content-h: calc(
+    var(--notes-footer-pad-top)
+    + var(--notes-footer-link-rows) * (var(--notes-footer-link-size) * var(--notes-footer-link-lh))
+    + (var(--notes-footer-link-rows) - 1) * var(--notes-footer-row-gap)
+    + var(--notes-footer-block-gap)
+    + var(--notes-footer-link-size) * var(--notes-footer-link-lh)
+  );
+  --notes-footer-zone: calc(var(--notes-footer-content-h) + var(--notes-footer-pad-bottom));
+  --notes-footer-fab-gutter: 0px;
   --notes-fab-size: 46px;
   --notes-fab-size-chat: var(--notes-fab-size);
   --notes-fab-size-planner: var(--notes-fab-size);
   --notes-fab-stack-gap: clamp(6px, 1.8vw, 8px);
   --notes-fab-planner-offset: 0px;
-  --notes-fab-nav-gap: 14px;
+  --notes-fab-nav-gap: 12px;
   --notes-fab-stack-total: calc(
     var(--notes-fab-size) + var(--notes-fab-stack-gap) + var(--notes-fab-size)
   );
-  /* FABs: small gap above system nav (not full footer zone) */
-  --notes-fab-bottom-base: calc(var(--notes-fab-nav-gap) + var(--notes-safe-bottom));
-  --notes-main-bottom-pad: max(20px, calc(var(--notes-fab-stack-total) + 16px));
-  --notes-fab-clearance: var(--notes-main-bottom-pad);
+  /* FABs sit above footer content + small gap; safe-area lives in footer padding */
+  --notes-fab-bottom-base: calc(
+    var(--notes-footer-content-h) + var(--notes-fab-nav-gap) + var(--notes-safe-bottom)
+  );
+  --notes-main-bottom-pad: var(--notes-footer-block-gap);
+  --notes-scroll-bottom-pad: max(
+    var(--notes-main-bottom-pad),
+    calc(var(--notes-fab-bottom-base) + var(--notes-fab-size) + 8px)
+  );
+  --notes-fab-clearance: var(--notes-scroll-bottom-pad);
 }
 
 html.capacitor-native {
   /* Modest fallback when WebView reports 0 safe-area */
   --notes-safe-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
-  --notes-footer-zone: 58px;
-  --notes-fab-nav-gap: 12px;
+  --notes-footer-pad-bottom: max(8px, var(--notes-safe-bottom));
 }
 
 html {
@@ -81,6 +99,15 @@ iframe {
 
 table {
   max-width: 100%;
+}
+
+pre,
+code,
+.note-card pre,
+.note-view-body pre {
+  max-width: 100%;
+  overflow-x: auto;
+  word-break: break-word;
 }
 
 /* Modals: fit viewport, scroll inside, respect safe areas */
@@ -304,11 +331,6 @@ select {
 
 /* Tighter 320–390px devices */
 @media (max-width: 390px) {
-  :root {
-    --notes-footer-fab-gutter: 68px;
-    --notes-main-bottom-pad: max(18px, calc(var(--notes-fab-stack-total) + 12px));
-  }
-
   .modal-content {
     padding: clamp(12px, 3.5vw, 18px);
     border-radius: clamp(16px, 4vw, 22px);
@@ -382,7 +404,7 @@ select {
   .main {
     min-height: auto !important;
     padding-bottom: var(--notes-main-bottom-pad) !important;
-    scroll-padding-bottom: var(--notes-main-bottom-pad);
+    scroll-padding-bottom: var(--notes-scroll-bottom-pad) !important;
   }
 
   .site-footer {
@@ -404,36 +426,75 @@ select {
   }
 
   .site-footer-inner {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    margin-inline: auto;
     padding-top: var(--notes-footer-pad-top);
     padding-bottom: var(--notes-footer-pad-bottom);
     padding-left: max(12px, var(--notes-safe-left));
-    padding-right: max(calc(12px + var(--notes-footer-fab-gutter)), calc(var(--notes-safe-right) + 12px));
-    gap: 3px;
+    padding-right: max(12px, var(--notes-safe-right));
+    gap: var(--notes-footer-block-gap);
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .site-footer-links {
+    width: 100%;
+    display: flex;
+    justify-content: center;
   }
 
   .site-footer-links-grid {
-    width: min(100%, calc(100vw - 24px - var(--notes-footer-fab-gutter)));
-    max-width: 300px;
-    gap: 1px 6px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--notes-footer-row-gap) var(--notes-footer-col-gap);
+    width: min(100%, 288px);
+    max-width: calc(100vw - 24px - var(--notes-safe-left) - var(--notes-safe-right));
+    margin-inline: auto;
+    justify-items: center;
+    align-items: center;
   }
 
   .site-footer-links-grid a {
-    font-size: 0.65rem;
-    padding: 2px 1px;
+    font-size: var(--notes-footer-link-size);
+    line-height: var(--notes-footer-link-lh);
+    padding: 2px 4px;
+    text-align: center;
+    width: 100%;
+    white-space: nowrap;
   }
 
   .site-footer-copy {
-    font-size: 0.62rem;
+    font-size: var(--notes-footer-link-size);
+    line-height: var(--notes-footer-link-lh);
+    margin: 0;
+    width: 100%;
+    text-align: center;
     opacity: 0.88;
   }
 
   html.capacitor-native .main {
     padding-bottom: var(--notes-main-bottom-pad) !important;
-    scroll-padding-bottom: var(--notes-main-bottom-pad);
+    scroll-padding-bottom: var(--notes-scroll-bottom-pad) !important;
   }
 
   html.capacitor-native .modal {
     padding-bottom: max(12px, var(--notes-safe-bottom));
+  }
+
+  /* Very narrow phones: 2 balanced columns (3 rows × 2 cols) */
+  @media (max-width: 360px) {
+    :root {
+      --notes-footer-link-rows: 3;
+      --notes-footer-col-gap: 8px;
+    }
+
+    .site-footer-links-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      width: min(100%, 236px);
+    }
   }
 }
 
@@ -448,7 +509,7 @@ select {
 
   body:has(#webChat:not(.hidden)) .app .main,
   body:has(.daily-planner-modal:not(.hidden)) .app .main {
-    scroll-padding-bottom: max(96px, calc(var(--notes-main-bottom-pad) + 8px));
+    scroll-padding-bottom: max(96px, var(--notes-scroll-bottom-pad));
   }
 }
 
@@ -458,13 +519,15 @@ select {
  */
 @media (max-width: 840px), (pointer: coarse) {
   html.capacitor-native {
-    --notes-fab-bottom-base: calc(var(--notes-fab-nav-gap) + var(--notes-safe-bottom));
     --notes-fab-stack-gap: clamp(6px, 1.8vw, 8px);
   }
 
   @media (max-height: 640px) {
     :root {
-      --notes-footer-zone: 50px;
+      --notes-footer-pad-top: 6px;
+      --notes-footer-row-gap: 6px;
+      --notes-footer-block-gap: 4px;
+      --notes-fab-nav-gap: 10px;
       --notes-fab-stack-gap: 6px;
       --notes-fab-planner-offset: 0px;
     }

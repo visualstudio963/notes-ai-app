@@ -255,19 +255,21 @@ async function ensureEligibleNewUserTrial(User, userId, nowMs = Date.now()) {
   if (!user) return { granted: false, user: null };
   if (hasStandardAccess(user, nowMs)) return { granted: false, user };
 
-  const hadAnyStandardMark =
-    user.standardSource ||
-    user.trialEndsAt ||
-    user.standardCoinExpiresAt ||
-    user.premiumExpires ||
-    user.stripeSubscriptionId ||
-    user.isPremium === true;
-  if (hadAnyStandardMark) return { granted: false, user };
-
   const createdMs = user.createdAt ? new Date(user.createdAt).getTime() : NaN;
   if (!Number.isFinite(createdMs)) return { granted: false, user };
   const ageMs = nowMs - createdMs;
   if (ageMs < 0 || ageMs > TRIAL_DURATION_MS) {
+    return { granted: false, user };
+  }
+
+  const src = user.standardSource ? String(user.standardSource).toLowerCase() : "";
+  if (src === "stripe" || src === "coins" || user.stripeSubscriptionId) {
+    return { granted: false, user };
+  }
+
+  const pastTrialEnd =
+    user.trialEndsAt && new Date(user.trialEndsAt).getTime() <= nowMs;
+  if (pastTrialEnd && src === "trial") {
     return { granted: false, user };
   }
 

@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const {
   hasStandardAccess,
   syncExpiredStandardAccess,
+  ensureEligibleNewUserTrial,
   LEAN_USER_SUBSCRIPTION_TIER_FIELDS
 } = require("../features/premium/subscriptionService");
 
@@ -84,6 +85,7 @@ function createRemindersRouter({ User, Reminder, authMiddleware }) {
       }
 
       if (source === "web_chat") {
+        await ensureEligibleNewUserTrial(User, req.userId);
         await syncExpiredStandardAccess(User, req.userId);
         const u = await User.findById(req.userId).select(LEAN_USER_SUBSCRIPTION_TIER_FIELDS).lean();
         if (!hasStandardAccess(u)) {

@@ -546,8 +546,6 @@
   function effectivePlanFromUser(u) {
     if (!u) return "free";
     if (u.standardActive === true) return "standard";
-    const life = u.lifecycle ? String(u.lifecycle).toLowerCase() : "";
-    if (life === "trial" || life === "standard") return "standard";
     return normalizePlan(u.plan || u.membershipRole || u.subscriptionPlan);
   }
 
@@ -589,10 +587,32 @@
     if (!u || !u.id) return;
     usersByIdCache.set(String(u.id), {
       ...u,
+      coinBalance: resolveUserCoinBalance(u),
       plan: effectivePlanFromUser(u),
       membershipRole: effectivePlanFromUser(u),
       staffRole: effectiveStaffRole(u)
     });
+  }
+
+  function resolveUserCoinBalance(u) {
+    if (!u) return 0;
+    const raw = u.coinBalance != null ? u.coinBalance : u.coins;
+    const n = Number(raw);
+    return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
+  }
+
+  async function fetchAdminUserFresh(id) {
+    if (!id) return null;
+    try {
+      const data = await apiJson("/api/admin/users/" + encodeURIComponent(id), { method: "GET" });
+      if (data && data.user) {
+        stashUser(data.user);
+        return data.user;
+      }
+    } catch {
+      /* fall back to cache */
+    }
+    return userFromCache(id);
   }
 
   function mergeCapabilityUi() {
@@ -914,7 +934,7 @@
             ? '<span class="admin-badge admin-badge--yes">' + ACTIVE_LABEL + "</span>"
             : '<span class="admin-badge admin-badge--offline">Offline</span>';
         const fc = Number(u.invitedFriendsCount) || 0;
-        const coins = Number(u.coinBalance) || 0;
+        const coins = resolveUserCoinBalance(u);
         const uid = escapeHtml(String(u.id || ""));
         const giftBtn = canGift
           ? '<button type="button" class="admin-gift-icon-btn" data-act="gift-coins-quick" data-id="' +
@@ -1236,6 +1256,69 @@
     if (modal) modal.classList.add("hidden");
   }
 
+  async function submitGiftCoins(amount, reason, options) {
+    const opts = options || {};
+    if (!(caps && caps.capabilities && caps.capabilities.canGiftCoins)) return false;
+    if (!selectedUserId || giftCoinsInFlight) return false;
+    const parsed = Math.floor(Number(amount));
+    const note = reason != null ? String(reason).trim() : "";
+    if (!Number.isFinite(parsed) || parsed < 1) {
+      setAlert("Enter a valid coin amount (1 or more).", "error");
+      focusAdminAlert();
+      return false;
+    }
+
+    const confirmBtn = document.getElementById("adminGiftConfirmBtn");
+    giftCoinsInFlight = true;
+    if (confirmBtn) {
+      confirmBtn.disabled = true;
+      confirmBtn.classList.add("is-busy");
+    }
+
+    try {
+      const out = await apiJson("/api/admin/users/" + encodeURIComponent(selectedUserId) + "/gift-coins", {
+        method: "POST",
+        body: JSON.stringify({ amount: parsed, reason: note })
+      });
+      if (out && out.user) stashUser(out.user);
+      const credited = out && out.gift && out.gift.amount != null ? out.gift.amount : parsed;
+      const after =
+        out && out.gift && out.gift.balanceAfter != null
+          ? out.gift.balanceAfter
+          : resolveUserCoinBalance(out && out.user);
+      setAlert(
+        "🎁 Gifted <strong>" +
+          escapeHtml(String(credited)) +
+          "</strong> coins. New balance: <strong>" +
+          escapeHtml(String(after)) +
+          "</strong>.",
+        "success"
+      );
+      focusAdminAlert();
+      if (opts.closeModal !== false) closeGiftCoinsModal();
+      await Promise.all([loadUsersPage(), loadDashboard()]);
+      if (selectedUserId) await openUserDetailsModal(selectedUserId);
+      return true;
+    } catch (err) {
+      setAlert(err.message || "Failed to gift coins.", "error");
+      focusAdminAlert();
+      return false;
+    } finally {
+      giftCoinsInFlight = false;
+      if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.classList.remove("is-busy");
+      }
+    }
+  }
+
+  function setGiftAmountPreset(amount) {
+    const amountInput = document.getElementById("adminGiftAmount");
+    if (!amountInput) return;
+    amountInput.value = String(Math.floor(Number(amount)));
+    amountInput.focus();
+  }
+
   function closeGiftCoinsModal() {
     giftCoinsInFlight = false;
     const modal = document.getElementById("adminGiftCoinsModal");
@@ -1266,7 +1349,7 @@
     const reasonInput = document.getElementById("adminGiftReason");
 
     if (nameEl) nameEl.textContent = user.username || "—";
-    if (balanceEl) balanceEl.textContent = String(Number(user.coinBalance) || 0);
+    if (balanceEl) balanceEl.textContent = String(resolveUserCoinBalance(user));
     if (amountInput) {
       amountInput.value = "";
       amountInput.max = "1200";
@@ -1278,18 +1361,11 @@
   }
 
   async function ensureUserResolved(id) {
-    let user = userFromCache(id);
-    if (user) return user;
-    const data = await apiJson("/api/admin/users/" + encodeURIComponent(id), { method: "GET" });
-    if (data && data.user) {
-      stashUser(data.user);
-      return data.user;
-    }
-    return null;
+    return fetchAdminUserFresh(id);
   }
 
   async function openUserDetailsModal(id) {
-    const user = await ensureUserResolved(id);
+    const user = await fetchAdminUserFresh(id);
     if (!user) return;
     selectedUserId = String(user.id);
 
@@ -1314,7 +1390,7 @@
     if (activeEl) activeEl.innerHTML = activeHtml;
 
     document.getElementById("adminDetailInvitesCount").textContent = String(Number(user.invitedFriendsCount) || 0);
-    document.getElementById("adminDetailCoinBalance").textContent = String(Number(user.coinBalance) || 0);
+    document.getElementById("adminDetailCoinBalance").textContent = String(resolveUserCoinBalance(user));
     document.getElementById("adminDetailGiftedCoins").textContent = String(Number(user.totalGiftedCoins) || 0);
     const billingEnds =
       user.standardExpiresAt || user.trialEndsAt || user.premiumExpires || null;
@@ -1674,6 +1750,21 @@
       closeGiftCoinsModal();
       return;
     }
+    if (act === "gift-coins-preset") {
+      if (!(caps && caps.capabilities && caps.capabilities.canGiftCoins)) return;
+      const amount = Math.floor(Number(actHost.getAttribute("data-amount") || "0"));
+      if (!Number.isFinite(amount) || amount < 1) return;
+      if (actHost.getAttribute("data-direct") === "1") {
+        if (!selectedUserId) return;
+        const user = userFromCache(selectedUserId);
+        const name = user && user.username ? user.username : "this user";
+        if (!window.confirm("Gift " + amount + " coins to " + name + "?")) return;
+        void submitGiftCoins(amount, "", { closeModal: true });
+        return;
+      }
+      setGiftAmountPreset(amount);
+      return;
+    }
     if (act === "confirm-gift-coins") {
       if (!(caps && caps.capabilities && caps.capabilities.canGiftCoins)) return;
       if (!selectedUserId || giftCoinsInFlight) return;
@@ -1681,49 +1772,7 @@
       const reasonInput = document.getElementById("adminGiftReason");
       const amount = amountInput ? Math.floor(Number(amountInput.value)) : 0;
       const reason = reasonInput ? String(reasonInput.value || "").trim() : "";
-      if (!Number.isFinite(amount) || amount < 1) {
-        setAlert("Enter a valid coin amount (1 or more).", "error");
-        focusAdminAlert();
-        return;
-      }
-      const confirmBtn = document.getElementById("adminGiftConfirmBtn");
-      giftCoinsInFlight = true;
-      if (confirmBtn) {
-        confirmBtn.disabled = true;
-        confirmBtn.classList.add("is-busy");
-      }
-      void (async () => {
-        try {
-          const out = await apiJson("/api/admin/users/" + encodeURIComponent(selectedUserId) + "/gift-coins", {
-            method: "POST",
-            body: JSON.stringify({ amount, reason })
-          });
-          if (out && out.user) stashUser(out.user);
-          const credited = out && out.gift && out.gift.amount != null ? out.gift.amount : amount;
-          const after = out && out.gift && out.gift.balanceAfter != null ? out.gift.balanceAfter : "—";
-          setAlert(
-            "🎁 Gifted <strong>" +
-              escapeHtml(String(credited)) +
-              "</strong> coins. New balance: <strong>" +
-              escapeHtml(String(after)) +
-              "</strong>.",
-            "success"
-          );
-          focusAdminAlert();
-          closeGiftCoinsModal();
-          await Promise.all([loadUsersPage(), loadDashboard()]);
-          await openUserDetailsModal(selectedUserId);
-        } catch (err) {
-          setAlert(err.message || "Failed to gift coins.", "error");
-          focusAdminAlert();
-        } finally {
-          giftCoinsInFlight = false;
-          if (confirmBtn) {
-            confirmBtn.disabled = false;
-            confirmBtn.classList.remove("is-busy");
-          }
-        }
-      })();
+      void submitGiftCoins(amount, reason);
       return;
     }
     if (act === "grant-premium") {

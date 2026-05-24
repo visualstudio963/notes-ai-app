@@ -3694,14 +3694,19 @@ function premiumSelectPaymentMethod(kind) {
   });
 }
 
-async function premiumPlanCoinsActivate(tier) {
+async function premiumPlanCoinsActivate(tier, billingOverride) {
   if (tier !== "standard") return;
   if (!currentUser || !accessToken) {
     showToast(t("premiumCheckoutLoginRequired"));
     openAccountModal();
     return;
   }
-  const billing = premiumLiteBillingMode === "yearly" ? "yearly" : "monthly";
+  const billing =
+    billingOverride === "yearly" || billingOverride === "monthly"
+      ? billingOverride
+      : premiumLiteBillingMode === "yearly"
+        ? "yearly"
+        : "monthly";
   let coinsStatus = null;
   try {
     coinsStatus = await apiFetch("/api/coins/status");
@@ -5037,14 +5042,10 @@ async function refreshCoinsHubUi() {
   const capDisplay = document.getElementById("coinsHubCapDisplay");
   const capFill = document.getElementById("coinsHubCapFill");
   const walletLabel = document.getElementById("coinsHubWalletLabel");
-  const progFill = document.getElementById("coinsHubProgressFill");
-  const progLabel = document.getElementById("coinsHubProgressLabel");
   const trialBan = document.getElementById("coinsHubTrialBanner");
   const trialText = document.getElementById("coinsHubTrialText");
   const btnVideo = document.getElementById("coinsHubVideoBtn");
-  const btnRedeem = document.getElementById("coinsHubRedeemBtn");
   const videoLbl = document.getElementById("coinsHubVideoBtnLabel");
-  const redeemLbl = document.getElementById("coinsHubRedeemBtnLabel");
   const linkInput = document.getElementById("coinsHubInviteLinkInput");
   const inviteStatsLine = document.getElementById("coinsHubInviteStatsLine");
   const multEl = document.getElementById("coinsHubEarnMult");
@@ -5061,8 +5062,6 @@ async function refreshCoinsHubUi() {
   }
 
   const balance = Number(coins.balance) || 0;
-  const monthlyCost = Number(coins.standardMonthlyCoinCost) || Number(coins.standardCoinCost) || 1500;
-  const cost = monthlyCost;
   const cap = Number(coins.cap) || 15000;
   const vReward = coins.videoRewards && coins.videoRewards.rewardEach != null ? Number(coins.videoRewards.rewardEach) : 10;
   const codeStr =
@@ -5081,12 +5080,6 @@ async function refreshCoinsHubUi() {
   if (capFill) capFill.style.width = `${capPct}%`;
   if (walletLabel && typeof t === "function") {
     walletLabel.textContent = t("coinsDashWalletProgress").replace("{b}", String(balance)).replace("{cap}", String(cap));
-  }
-
-  const goalPct = cost ? Math.min(100, (balance / cost) * 100) : 0;
-  if (progFill) progFill.style.width = `${goalPct}%`;
-  if (progLabel && typeof t === "function") {
-    progLabel.textContent = t("coinsProgressToStandardShort").replace("{b}", String(balance)).replace("{cost}", String(cost));
   }
 
   const claimedToday = Boolean(coins.dailyLogin && coins.dailyLogin.claimedToday);
@@ -5109,9 +5102,6 @@ async function refreshCoinsHubUi() {
     }
   } else if (videoRowMeta) {
     videoRowMeta.textContent = "";
-  }
-  if (redeemLbl && typeof t === "function") {
-    redeemLbl.textContent = t("coinsRedeemBtnActive").replace("{cost}", String(cost));
   }
 
   if (trialBan && trialText) {
@@ -5142,10 +5132,6 @@ async function refreshCoinsHubUi() {
       const capHit = Boolean(coins.videoRewards && coins.videoRewards.countToday >= coins.videoRewards.maxToday);
       videoMeta.textContent = capHit ? t("coinsHubVideoCappedFoot") : "";
     }
-  }
-  if (btnRedeem) {
-    btnRedeem.disabled = balance < monthlyCost;
-    btnRedeem.dataset.redeemPlan = "monthly";
   }
 
   if (linkInput) {
@@ -5234,42 +5220,6 @@ async function coinsHubWatchVideoAd() {
     }
     showToast(e && e.message ? e.message : typeof t === "function" ? t("coinsActionFailed") : "Failed.");
   }
-}
-
-async function coinsHubRedeemStandard() {
-  if (!requireAuth("redeem rewards")) return;
-  const btn = document.getElementById("coinsHubRedeemBtn");
-  const plan = btn && btn.dataset.redeemPlan === "yearly" ? "yearly" : "monthly";
-  let coinsStatus = null;
-  try {
-    coinsStatus = await apiFetch("/api/coins/status");
-  } catch {
-    coinsStatus = null;
-  }
-  const monthlyCost = Number(coinsStatus && coinsStatus.standardMonthlyCoinCost) || 1500;
-  const yearlyCost = Number(coinsStatus && coinsStatus.standardYearlyCoinCost) || 14400;
-  const cost = plan === "yearly" ? yearlyCost : monthlyCost;
-  const days = plan === "yearly" ? 365 : 30;
-  const msg =
-    typeof t === "function"
-      ? t("coinsRedeemConfirmPlan").replace("{cost}", String(cost)).replace("{days}", String(days))
-      : `Spend ${cost} coins for ${days} days of Standard?`;
-  if (typeof window !== "undefined" && window.confirm && !window.confirm(msg)) return;
-  try {
-    await apiFetch("/api/coins/redeem-standard", {
-      method: "POST",
-      body: JSON.stringify({ plan })
-    });
-    showToast(typeof t === "function" ? t("coinsRedeemSuccess") : "Standard unlocked with coins.");
-  } catch (e) {
-    showToast(e && e.message ? e.message : typeof t === "function" ? t("coinsActionFailed") : "Action failed.");
-    return;
-  }
-  await mergePremiumFromServer();
-  await refreshCoinsHubUi();
-  coinsHubPulseHero();
-  updatePremiumUi();
-  syncPremiumGatedNav();
 }
 
 function coinsHubCopyInvite() {
@@ -5366,38 +5316,60 @@ function premiumLiteBillingToggle(mode) {
   const stdMain = document.getElementById("premiumLiteStandardPriceMain");
   const stdPeriod = document.getElementById("premiumLiteStandardPricePeriod");
   const stdSub = document.getElementById("premiumLiteStandardSub");
-  const stdCta = document.getElementById("premiumLiteStandardCta");
-  const sticky = document.getElementById("premiumLiteStickyCta");
+  const stdEquiv = document.getElementById("premiumLiteStandardEquiv");
+  const stdBadge = document.getElementById("premiumLiteStandardBadge");
+  const saveBadge = document.getElementById("premiumLiteStandardSaveBadge");
+  const ctaMonthly = document.getElementById("premiumLiteStandardCta");
+  const ctaYearly = document.getElementById("premiumLiteStandardCtaAlt");
+  const stickyMonthly = document.getElementById("premiumLiteStickyCtaMonthly");
+  const stickyYearly = document.getElementById("premiumLiteStickyCtaYearly");
   const root = document.getElementById("premiumPlansSection");
+  const card = document.querySelector('.pricing-lite-card[data-lite-plan="standard"]');
   if (root) root.classList.toggle("pricing-lite-plans--yearly", m === "yearly");
+  if (card) card.classList.toggle("pricing-lite-card--yearly-offer", m === "yearly");
   const coinIcon = '<span class="pricing-lite-coin" aria-hidden="true">🪙</span> ';
   if (m === "yearly") {
-    if (stdMain) stdMain.innerHTML = `${coinIcon}14,400`;
-    if (stdPeriod) stdPeriod.textContent = typeof t === "function" ? t("premiumLiteCoinsPeriodYear") : "coins / year";
+    if (stdMain) stdMain.innerHTML = `${coinIcon}<span class="pricing-lite-price-num">14,400</span>`;
+    if (stdPeriod) {
+      stdPeriod.textContent = typeof t === "function" ? t("premiumLiteCoinsPeriodYear") : "coins / 365 days";
+      stdPeriod.classList.add("pricing-lite-price-period--yearly");
+    }
     if (stdSub) {
       stdSub.classList.remove("hidden");
-      stdSub.textContent = t("premiumLiteYearlyStandardSub");
+      stdSub.textContent = typeof t === "function" ? t("premiumLiteYearlyStandardSub") : "";
     }
-    if (stdCta) {
-      stdCta.setAttribute("data-t", "premiumLiteCtaStandardYearly");
-      stdCta.textContent = t("premiumLiteCtaStandardYearly");
+    if (stdEquiv) {
+      stdEquiv.classList.remove("hidden");
+      stdEquiv.setAttribute("aria-hidden", "false");
+      stdEquiv.textContent =
+        typeof t === "function"
+          ? t("premiumLiteYearlyEquiv").replace("{amount}", "1,200")
+          : "~1,200 coins / month vs 1,500 monthly";
     }
-    if (sticky) {
-      sticky.setAttribute("data-t", "premiumLiteCtaStandardYearly");
-      sticky.textContent = t("premiumLiteCtaStandardYearly");
-    }
+    if (stdBadge) stdBadge.classList.add("hidden");
+    if (saveBadge) saveBadge.classList.remove("hidden");
+    if (ctaMonthly) ctaMonthly.classList.add("hidden");
+    if (ctaYearly) ctaYearly.classList.remove("hidden");
+    if (stickyMonthly) stickyMonthly.classList.add("hidden");
+    if (stickyYearly) stickyYearly.classList.remove("hidden");
   } else {
-    if (stdMain) stdMain.innerHTML = `${coinIcon}1,500`;
-    if (stdPeriod) stdPeriod.textContent = typeof t === "function" ? t("premiumLiteCoinsPeriodMonth") : "coins / 30 days";
+    if (stdMain) stdMain.innerHTML = `${coinIcon}<span class="pricing-lite-price-num">1,500</span>`;
+    if (stdPeriod) {
+      stdPeriod.textContent = typeof t === "function" ? t("premiumLiteCoinsPeriodMonth") : "coins / 30 days";
+      stdPeriod.classList.remove("pricing-lite-price-period--yearly");
+    }
     if (stdSub) stdSub.classList.add("hidden");
-    if (stdCta) {
-      stdCta.setAttribute("data-t", "premiumLiteCtaStandard");
-      stdCta.textContent = t("premiumLiteCtaStandard");
+    if (stdEquiv) {
+      stdEquiv.classList.add("hidden");
+      stdEquiv.setAttribute("aria-hidden", "true");
+      stdEquiv.textContent = "";
     }
-    if (sticky) {
-      sticky.setAttribute("data-t", "premiumLiteCtaStandard");
-      sticky.textContent = t("premiumLiteCtaStandard");
-    }
+    if (stdBadge) stdBadge.classList.remove("hidden");
+    if (saveBadge) saveBadge.classList.add("hidden");
+    if (ctaMonthly) ctaMonthly.classList.remove("hidden");
+    if (ctaYearly) ctaYearly.classList.add("hidden");
+    if (stickyMonthly) stickyMonthly.classList.remove("hidden");
+    if (stickyYearly) stickyYearly.classList.add("hidden");
   }
 }
 
@@ -10625,6 +10597,7 @@ function displayAccountInfo() {
   const em = document.getElementById("settingsEmail");
   const badge = document.getElementById("settingsPlanBadge");
   const upgradeBtn = document.getElementById("settingsPremiumUpgradeBtn");
+  const subscriptionRedeem = document.getElementById("settingsSubscriptionRedeem");
   const premiumNote = document.getElementById("settingsPremiumActiveNote");
   const premiumLead = document.getElementById("settingsPremiumLead");
   const premiumActiveBadge = document.getElementById("settingsPremiumActiveBadge");
@@ -10648,7 +10621,7 @@ function displayAccountInfo() {
       badge.classList.remove("settings-plan-badge--premium", "settings-plan-badge--standard");
     }
     if (upgradeBtn) upgradeBtn.classList.remove("hidden");
-    if (premiumNote) premiumNote.classList.add("hidden");
+    if (subscriptionRedeem) subscriptionRedeem.classList.remove("hidden");
     if (premiumLead) {
       premiumLead.setAttribute("data-t", "settingsPlanPitch");
       premiumLead.textContent = t("settingsPlanPitch");

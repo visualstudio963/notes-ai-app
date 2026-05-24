@@ -18,7 +18,7 @@ const { adminGiftCoins, clampCoins } = require("../features/coins/coinService");
 const { COIN_CAP } = require("../features/coins/coinConstants");
 
 const ADMIN_USER_SELECT =
-  "username emailOrPhone email isPremium premiumExpires plan subscriptionPlan role membershipRole standardSource trialEndsAt standardCoinExpiresAt createdAt lastActive coins";
+  "username emailOrPhone email isPremium premiumExpires plan subscriptionPlan role membershipRole standardSource billingCycle trialEndsAt standardCoinExpiresAt createdAt lastActive coins";
 
 const STAFF_PANEL_ROLES = new Set(["admin", "moderator", "support"]);
 const STAFF_ASSIGNABLE_ROLES = ["user", "admin", "moderator", "support"];
@@ -145,6 +145,7 @@ function adminUserJson(user, activeWindowMs, activeNowOverride, counts) {
     isPremium: hasActivePremium(user),
     standardActive: premium.standardActive,
     standardSource: premium.standardSource || user.standardSource || null,
+    billingCycle: user.billingCycle === "yearly" ? "yearly" : "monthly",
     lifecycle,
     plan,
     staffRole: panelRole === "user" ? "user" : panelRole,
@@ -218,13 +219,18 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
     };
   }
 
-  /** Non-overlapping Standard buckets by source. */
+  /** Non-overlapping Standard buckets: trial · coins monthly · coins yearly · legacy Stripe (if any). */
   function standardBreakdownQueries(now = new Date()) {
     const active = { plan: "standard", premiumExpires: { $gt: now } };
     return {
-      standardPaidUsers: { ...active, standardSource: "stripe" },
-      standardCoinUsers: { ...active, standardSource: "coins" },
-      standardTrialUsers: { ...active, standardSource: "trial" }
+      standardTrialUsers: { ...active, standardSource: "trial" },
+      standardCoinMonthlyUsers: {
+        ...active,
+        standardSource: "coins",
+        $or: [{ billingCycle: "monthly" }, { billingCycle: { $exists: false } }, { billingCycle: null }]
+      },
+      standardCoinYearlyUsers: { ...active, standardSource: "coins", billingCycle: "yearly" },
+      standardLegacyStripeUsers: { ...active, standardSource: "stripe" }
     };
   }
 
@@ -239,9 +245,10 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
         totalReminders,
         premiumUsers,
         standardUsers,
-        standardPaidUsers,
-        standardCoinUsers,
         standardTrialUsers,
+        standardCoinMonthlyUsers,
+        standardCoinYearlyUsers,
+        standardLegacyStripeUsers,
         activeUsers
       ] = await Promise.all([
         User.countDocuments(),
@@ -249,9 +256,10 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
         Reminder.countDocuments(),
         User.countDocuments(PAID_SUBSCRIBER_QUERY),
         User.countDocuments(standardEffectiveUserQuery(now)),
-        User.countDocuments(breakdownQ.standardPaidUsers),
-        User.countDocuments(breakdownQ.standardCoinUsers),
         User.countDocuments(breakdownQ.standardTrialUsers),
+        User.countDocuments(breakdownQ.standardCoinMonthlyUsers),
+        User.countDocuments(breakdownQ.standardCoinYearlyUsers),
+        User.countDocuments(breakdownQ.standardLegacyStripeUsers),
         User.countDocuments({ lastActive: { $gte: since } })
       ]);
       const freeUsers = Math.max(0, totalUsers - premiumUsers - standardUsers);
@@ -267,9 +275,10 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
         activeUsers,
         activeWithinMinutes: ACTIVE_WINDOW_MS / 60000,
         standardBreakdown: {
-          paid: standardPaidUsers,
-          coin: standardCoinUsers,
-          trial: standardTrialUsers
+          trial: standardTrialUsers,
+          monthly: standardCoinMonthlyUsers,
+          yearly: standardCoinYearlyUsers,
+          legacy: standardLegacyStripeUsers
         }
       });
     } catch {
@@ -295,9 +304,10 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
         totalReminders,
         premiumUsers,
         standardUsers,
-        standardPaidUsers,
-        standardCoinUsers,
         standardTrialUsers,
+        standardCoinMonthlyUsers,
+        standardCoinYearlyUsers,
+        standardLegacyStripeUsers,
         activeUsers,
         signupsLast7Days,
         remindersByStatus,
@@ -310,9 +320,10 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
         Reminder.countDocuments(),
         User.countDocuments(PAID_SUBSCRIBER_QUERY),
         User.countDocuments(standardEffectiveUserQuery(now)),
-        User.countDocuments(breakdownQ.standardPaidUsers),
-        User.countDocuments(breakdownQ.standardCoinUsers),
         User.countDocuments(breakdownQ.standardTrialUsers),
+        User.countDocuments(breakdownQ.standardCoinMonthlyUsers),
+        User.countDocuments(breakdownQ.standardCoinYearlyUsers),
+        User.countDocuments(breakdownQ.standardLegacyStripeUsers),
         User.countDocuments({ lastActive: { $gte: since } }),
         User.countDocuments({ createdAt: { $gte: sevenDaysAgo } }),
         Reminder.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }, { $sort: { count: -1 } }]).exec(),
@@ -344,9 +355,10 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
         activeWithinMinutes: ACTIVE_WINDOW_MS / 60000,
         remindersSent: remindersSentAggregate,
         standardBreakdown: {
-          paid: standardPaidUsers,
-          coin: standardCoinUsers,
-          trial: standardTrialUsers
+          trial: standardTrialUsers,
+          monthly: standardCoinMonthlyUsers,
+          yearly: standardCoinYearlyUsers,
+          legacy: standardLegacyStripeUsers
         }
       };
 

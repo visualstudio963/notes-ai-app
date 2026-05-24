@@ -400,33 +400,44 @@
         ? stats.standardBreakdown
         : null;
     const splitTrial = bd && bd.trial != null ? Number(bd.trial) : null;
-    const splitCoin = bd && bd.coin != null ? Number(bd.coin) : null;
-    const splitPaid = bd && bd.paid != null ? Number(bd.paid) : null;
+    const splitMonthly = bd && bd.monthly != null ? Number(bd.monthly) : null;
+    const splitYearly = bd && bd.yearly != null ? Number(bd.yearly) : null;
+    const splitLegacy = bd && bd.legacy != null ? Number(bd.legacy) : 0;
     const hasSplit =
       bd &&
       splitTrial !== null &&
-      splitCoin !== null &&
-      splitPaid !== null &&
+      splitMonthly !== null &&
+      splitYearly !== null &&
       Number.isFinite(splitTrial) &&
-      Number.isFinite(splitCoin) &&
-      Number.isFinite(splitPaid);
-    const splitHtml = hasSplit
-      ? '<div class="admin-standard-split">' +
-        '<div class="admin-standard-split-title">Standard — ndarje</div>' +
-        '<ul class="admin-standard-split-list">' +
+      Number.isFinite(splitMonthly) &&
+      Number.isFinite(splitYearly);
+    let splitHtml = "";
+    if (hasSplit) {
+      let listItems =
         "<li><span>Trial 14 ditë</span><strong>" +
         escapeHtml(String(splitTrial)) +
         "</strong></li>" +
-        "<li><span>Me coins</span><strong>" +
-        escapeHtml(String(splitCoin)) +
+        "<li><span>Standard mujor (coins)</span><strong>" +
+        escapeHtml(String(splitMonthly)) +
         "</strong></li>" +
-        "<li><span>Standard i paguar</span><strong>" +
-        escapeHtml(String(splitPaid)) +
-        "</strong></li>" +
+        "<li><span>Standard vjetor (coins)</span><strong>" +
+        escapeHtml(String(splitYearly)) +
+        "</strong></li>";
+      if (Number.isFinite(splitLegacy) && splitLegacy > 0) {
+        listItems +=
+          "<li><span>Legacy Stripe</span><strong>" +
+          escapeHtml(String(splitLegacy)) +
+          "</strong></li>";
+      }
+      splitHtml =
+        '<div class="admin-standard-split">' +
+        '<div class="admin-standard-split-title">Standard — ndarje</div>' +
+        '<ul class="admin-standard-split-list">' +
+        listItems +
         "</ul>" +
-        '<p class="admin-standard-split-hint">Një përdorues numërohet vetëm një herë: së pari si paguar, pastaj coins, pastaj trial.</p>' +
-        "</div>"
-      : "";
+        '<p class="admin-standard-split-hint">Një përdorues numërohet vetëm një herë sipas burimit aktiv: trial, coins (mujor/vjetor), ose legacy Stripe nëse ekziston.</p>' +
+        "</div>";
+    }
     host.innerHTML =
       '<div class="admin-donut-wrap">' +
       '<div class="admin-donut admin-donut--dual" role="img" aria-label="Plan mix: Standard and Free"></div>' +
@@ -558,10 +569,13 @@
       return '<span class="admin-badge admin-badge--standard">Standard · Trial</span>';
     }
     if (src === "coins") {
-      return '<span class="admin-badge admin-badge--standard">Standard · Coins</span>';
+      const cycle = u && u.billingCycle === "yearly" ? "Vjetor" : "Mujor";
+      return (
+        '<span class="admin-badge admin-badge--standard">Standard · Coins ' + escapeHtml(cycle) + "</span>"
+      );
     }
     if (src === "stripe") {
-      return '<span class="admin-badge admin-badge--standard">Standard · Paid</span>';
+      return '<span class="admin-badge admin-badge--standard">Standard · Legacy</span>';
     }
     return planBadge("standard");
   }

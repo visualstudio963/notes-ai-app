@@ -24,7 +24,7 @@
   </script>
   <link rel="manifest" href="/manifest.json?v=apk-emb-260508-v1" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="stylesheet" href="/css/style.css?v=coins-hub-pro-v1" />
+  <link rel="stylesheet" href="/css/style.css?v=pricing-lite-vivid-v1" />
   <link rel="stylesheet" href="/css/settings-theme.css?v=perf-audit-v1" />
   <link rel="stylesheet" href="/css/mobile-responsive.css?v=chat-drawer-fix-v1" />
   <script defer src="/js/sw-register.js?v=apk-emb-260508-v1"></script>
@@ -876,7 +876,10 @@
               <p class="premium-hero-lead" data-t="premiumLiteHeroLead">Smarter reminders. Faster AI. More control.</p>
               <div class="pricing-lite-billing-switch" role="group" aria-label="Billing period">
                 <button type="button" class="pricing-lite-billing-btn is-active" data-billing="monthly" onclick="premiumLiteBillingToggle('monthly')" data-t="premiumLiteMonthly">Monthly</button>
-                <button type="button" class="pricing-lite-billing-btn" data-billing="yearly" onclick="premiumLiteBillingToggle('yearly')" data-t="premiumLiteYearlySoon">Yearly</button>
+                <button type="button" class="pricing-lite-billing-btn" data-billing="yearly" onclick="premiumLiteBillingToggle('yearly')">
+                  <span data-t="premiumLiteYearlySoon">Yearly</span>
+                  <span class="pricing-lite-billing-save" data-t="premiumLiteBillingSaveTag">−20%</span>
+                </button>
               </div>
             </header>
 
@@ -901,18 +904,30 @@
                 <article class="pricing-lite-card pricing-lite-card--featured" data-lite-plan="standard" onclick="premiumLiteSelectPlan('standard')">
                   <div class="pricing-lite-card__head">
                     <h3 data-t="premiumPlanStandardName">Standard</h3>
-                    <span class="pricing-lite-badge" data-t="premiumLiteBadgeValue">⚖️ Best value</span>
+                    <div class="pricing-lite-badges">
+                      <span id="premiumLiteStandardBadge" class="pricing-lite-badge pricing-lite-badge--value" data-t="premiumLiteBadgeValue">⚖️ Best value</span>
+                      <span id="premiumLiteStandardSaveBadge" class="pricing-lite-badge pricing-lite-badge--save hidden" data-t="premiumLiteBadgeSave20">🔥 Save 20%</span>
+                    </div>
                   </div>
-                  <p class="pricing-lite-price"><span id="premiumLiteStandardPriceMain"><span class="pricing-lite-coin" aria-hidden="true">🪙</span> 1,500</span> <span id="premiumLiteStandardPricePeriod">coins / 30 days</span></p>
-                  <p id="premiumLiteStandardSub" class="pricing-lite-subline hidden"></p>
-                  <ul class="pricing-lite-benefits">
-                    <li data-t="premiumLiteStd1">Full Web Chat + reminders saved from chat</li>
-                    <li data-t="premiumLiteStd2">Scan Cam — docs → editable text → notes</li>
-                    <li data-t="premiumLiteStd3">Export notes — PDF, JPG &amp; TXT</li>
-                    <li data-t="premiumLiteStd4">Daily planner &amp; richer workspace flows</li>
-                    <li data-t="premiumLiteStd5">Rewards &amp; coins (e.g. 30‑day unlock)</li>
+                  <div class="pricing-lite-price-block">
+                    <p class="pricing-lite-price pricing-lite-price--vivid">
+                      <span id="premiumLiteStandardPriceMain" class="pricing-lite-price-amount"><span class="pricing-lite-coin" aria-hidden="true">🪙</span> 1,500</span>
+                      <span id="premiumLiteStandardPricePeriod" class="pricing-lite-price-period">coins / 30 days</span>
+                    </p>
+                    <p id="premiumLiteStandardEquiv" class="pricing-lite-equiv hidden" aria-hidden="true"></p>
+                    <p id="premiumLiteStandardSub" class="pricing-lite-subline pricing-lite-subline--bright hidden"></p>
+                  </div>
+                  <ul class="pricing-lite-benefits pricing-lite-benefits--icons" aria-label="Standard features">
+                    <li><span class="pricing-lite-feat-ico pricing-lite-feat-ico--chat" aria-hidden="true">💬</span><span data-t="premiumLiteStd1">Full Web Chat + reminders saved from chat</span></li>
+                    <li><span class="pricing-lite-feat-ico pricing-lite-feat-ico--scan" aria-hidden="true">📸</span><span data-t="premiumLiteStd2">Scan Cam — photo/PDF → text → notes</span></li>
+                    <li><span class="pricing-lite-feat-ico pricing-lite-feat-ico--export" aria-hidden="true">📄</span><span data-t="premiumLiteStd3">Export notes — PDF, JPG &amp; TXT</span></li>
+                    <li><span class="pricing-lite-feat-ico pricing-lite-feat-ico--plan" aria-hidden="true">📅</span><span data-t="premiumLiteStd4">Daily planner &amp; richer workspace</span></li>
+                    <li><span class="pricing-lite-feat-ico pricing-lite-feat-ico--bell" aria-hidden="true">🔔</span><span data-t="premiumLiteStd5">Reminders on Home + from Web Chat</span></li>
                   </ul>
-                  <button type="button" id="premiumLiteStandardCta" class="save-button pricing-lite-cta" onclick="event.stopPropagation(); premiumPlanCoinsActivate('standard')" data-t="premiumLiteCtaStandard">Unlock with coins</button>
+                  <div class="pricing-lite-cta-stack">
+                    <button type="button" id="premiumLiteStandardCta" class="save-button pricing-lite-cta pricing-lite-cta--primary" onclick="event.stopPropagation(); premiumPlanCoinsActivate('standard', 'monthly')" data-t="premiumLiteRedeemMonthly">🪙 1,500 — Standard 30 days</button>
+                    <button type="button" id="premiumLiteStandardCtaAlt" class="save-button pricing-lite-cta pricing-lite-cta--primary pricing-lite-cta--yearly hidden" onclick="event.stopPropagation(); premiumPlanCoinsActivate('standard', 'yearly')" data-t="premiumLiteCtaStandardYearly">🪙 14,400 — Fillo planin vjetor</button>
+                  </div>
                 </article>
               </div>
 
@@ -945,7 +960,10 @@
               <p data-t="premiumLiteTrust2">🎁 New accounts get 14 days of Standard free</p>
               <p data-t="premiumLiteTrust3">🔄 Earn coins daily, from videos, and invites</p>
             </footer>
-            <button type="button" id="premiumLiteStickyCta" class="save-button pricing-lite-sticky-cta" onclick="premiumPlanCoinsActivate('standard')" data-t="premiumLiteCtaStandard">Unlock with coins</button>
+            <div id="premiumLiteStickyCtaWrap" class="pricing-lite-sticky-cta-wrap">
+              <button type="button" id="premiumLiteStickyCtaMonthly" class="save-button pricing-lite-sticky-cta" onclick="premiumPlanCoinsActivate('standard', 'monthly')" data-t="premiumLiteRedeemMonthly">🪙 1,500 — 30 days</button>
+              <button type="button" id="premiumLiteStickyCtaYearly" class="save-button pricing-lite-sticky-cta pricing-lite-sticky-cta--yearly hidden" onclick="premiumPlanCoinsActivate('standard', 'yearly')" data-t="premiumLiteCtaStandardYearly">🪙 14,400 — Fillo planin vjetor</button>
+            </div>
           </div>
         </div>
       </section>
@@ -1067,23 +1085,9 @@
               </div>
               <p id="coinsHubWalletLabel" class="coins-dash-bar-label"></p>
             </div>
-            <div class="coins-dash-divider"></div>
-            <p class="coins-dash-goal-eyebrow" data-t="coinsDashGoalEyebrow">Progress to 30‑day Standard</p>
-            <div class="coins-dash-bar-wrap coins-dash-bar-wrap--goal">
-              <div class="coins-dash-bar-track">
-                <div id="coinsHubProgressFill" class="coins-dash-bar-fill coins-dash-bar-fill--goal"></div>
-              </div>
-              <p id="coinsHubProgressLabel" class="coins-dash-bar-label"></p>
-            </div>
-            <div class="coins-dash-wallet-redeem">
-              <button type="button" id="coinsHubRedeemBtn" class="coins-hub-redeem-btn" onclick="coinsHubRedeemStandard()">
-                <span class="coins-hub-redeem-icon" aria-hidden="true">🔄</span>
-                <span id="coinsHubRedeemBtnLabel" class="coins-hub-redeem-label">Unlock Standard</span>
-              </button>
-            </div>
           </article>
 
-          <h3 class="coins-dash-section-label" data-t="coinsDashActionsTitle">Earn &amp; spend</h3>
+          <h3 class="coins-dash-section-label" data-t="coinsDashActionsTitle">Earn</h3>
 
           <article
             class="coins-dash-card coins-hub-streak-card coins-hub-streak-card--simple coins-daily-checkin-card"
@@ -1406,6 +1410,10 @@
                     <p id="settingsBillingCurrentPeriodEnd">—</p>
                   </div>
                 </div>
+              </div>
+              <div id="settingsSubscriptionRedeem" class="settings-subscription-redeem">
+                <button type="button" id="settingsRedeemMonthlyBtn" class="save-button settings-redeem-btn" onclick="premiumPlanCoinsActivate('standard', 'monthly')" data-t="settingsRedeemMonthly">🪙 1,500 — Standard 30 days</button>
+                <button type="button" id="settingsRedeemYearlyBtn" class="save-button secondary settings-redeem-btn" onclick="premiumPlanCoinsActivate('standard', 'yearly')" data-t="settingsRedeemYearly">🪙 14,400 — Standard 365 days</button>
               </div>
               <button type="button" id="settingsPremiumUpgradeBtn" class="save-button settings-upgrade-btn" onclick="openBot()">
                 <span data-t="settingsManageSubscriptionBtn">Manage subscription</span>
@@ -1915,6 +1923,6 @@
   <script defer src="/js/features/premium.js?v=trial-sync-v1"></script>
   <script defer src="/translations.js?v=share-whatsapp-v1"></script>
   <script defer src="/js/components/toast.js?v=toast-balance-v1"></script>
-  <script defer src="/js/app.js?v=coins-standard-v1"></script>
+  <script defer src="/js/app.js?v=pricing-lite-vivid-v1"></script>
 </body>
 </html>

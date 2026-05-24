@@ -6,14 +6,16 @@ The web app stays in `frontend/public`. Capacitor bundles the same static files 
 
 - **Never** rely on `window.location.origin` for REST/Web Chat API calls in the native shell. The WebView origin is `https://localhost` (or similar), not Render.
 - Central config: `frontend/public/js/config/api-base.js` exposes `API_BASE_URL` and `buildApiUrl()`.
-- **Injected at deploy:** `scripts/inject-build-hash.mjs` replaces `__API_BASE_URL__` in HTML with `process.env.VITE_API_URL` or defaults to `https://notes-ai-app.onrender.com`.
-- **Vercel:** set environment variable `VITE_API_URL=https://notes-ai-app.onrender.com` (or your API) so `vercel-build` injects it into every patched HTML file.
+- **Injected at deploy:** `scripts/inject-build-hash.mjs` replaces `__API_BASE_URL__` and `__PUBLIC_APP_URL__` in HTML with `VITE_API_URL` / `PUBLIC_APP_URL` (defaults: Render API + `https://notesai.space`).
+- **Vercel:** set `VITE_API_URL=https://notes-ai-app.onrender.com` and `PUBLIC_APP_URL=https://notesai.space` so `vercel-build` injects both into every patched HTML file.
 - **Capacitor APK:** run `npm run vercel-build` (or your CI inject step) **before** `npx cap copy` / `npx cap sync` so shipped HTML contains the real API base meta + `window.__APP_ENV__.VITE_API_URL`.
 
 Meta + inline env (see `index.html`):
 
 - `<meta name="notes-ai-api-base" content="__API_BASE_URL__" />`
+- `<meta name="notes-ai-public-url" content="__PUBLIC_APP_URL__" />`
 - `window.__APP_ENV__.VITE_API_URL = "__API_BASE_URL__"`
+- `window.__APP_ENV__.PUBLIC_APP_URL = "__PUBLIC_APP_URL__"`
 
 ## Platform helpers
 

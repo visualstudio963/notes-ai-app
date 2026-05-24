@@ -19,7 +19,7 @@ This is a modern Notes web application built with:
    http://localhost:3000
    ```
 
-**Production (official app):** [https://notes-ai-app-theta.vercel.app](https://notes-ai-app-theta.vercel.app) — set `PUBLIC_APP_URL` on the API server to this URL for OAuth/Stripe return URLs (see `.env.example`).
+**Production (official app):** [https://notesai.space](https://notesai.space) — set `PUBLIC_APP_URL` on the API server (Render) to this URL for OAuth/Stripe return URLs (see `.env.example`). Legacy Vercel URL remains CORS-allowed for transition.
 
 ## Features
 - Home page with 3 categories: Shtepia, Puna, Shkolla

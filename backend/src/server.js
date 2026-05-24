@@ -113,6 +113,7 @@ const signupLimiter = rateLimit({
 });
 
 const allowedCorsOrigins = new Set([
+  "https://notesai.space",
   "https://notes-ai-app-theta.vercel.app",
   "https://notes-ai-app.onrender.com",
   String(config.publicAppUrl || "").replace(/\/$/, ""),
@@ -134,6 +135,7 @@ function isAllowedCorsOrigin(origin) {
     /** Same-machine dev servers + Capacitor bundled origin (any port) */
     if (host === "localhost" || host === "127.0.0.1") return true;
     if (host.endsWith(".vercel.app")) return true;
+    if (host === "notesai.space" || host.endsWith(".notesai.space")) return true;
     return false;
   } catch {
     return false;
@@ -246,8 +248,8 @@ app.post("/auth/set-password", authLimiter, authMiddleware, async (req, res) => 
   }
 });
 
-/** Base URL of the deployed SPA (Vercel). Uses PUBLIC_APP_URL or the default production origin below. */
-const DEFAULT_FRONTEND_ORIGIN = "https://notes-ai-app-theta.vercel.app";
+/** Base URL of the deployed SPA. Uses PUBLIC_APP_URL or the default production origin below. */
+const DEFAULT_FRONTEND_ORIGIN = "https://notesai.space";
 
 function getFrontendBaseUrl() {
   const raw = String(process.env.PUBLIC_APP_URL || "").trim().replace(/\/$/, "");

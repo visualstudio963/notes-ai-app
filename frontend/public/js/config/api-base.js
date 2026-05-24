@@ -1,7 +1,7 @@
 /* global window */
 (function initApiBaseUrl(globalScope) {
   const FALLBACK_API_URL = "https://notes-ai-app.onrender.com";
-  const FALLBACK_PUBLIC_APP_URL = "https://notes-ai-app-theta.vercel.app";
+  const FALLBACK_PUBLIC_APP_URL = "https://notesai.space";
 
   function readMetaApiBase() {
     try {

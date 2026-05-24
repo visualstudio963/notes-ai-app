@@ -20,6 +20,8 @@
     "cap:copy:dev": "node scripts/capacitor-dev.mjs copy",
     "cap:run:android:dev": "node scripts/capacitor-dev.mjs run android",
     "vercel-build": "node scripts/inject-build-hash.mjs",
+    "migrate:public-domain": "node scripts/migrate-public-app-domain.mjs",
+    "migrate:public-domain:dry": "node scripts/migrate-public-app-domain.mjs --dry-run",
     "icons:android": "node scripts/generate-notes-ai-icon-master.mjs && node scripts/generate-android-icons.mjs",
     "splash:android": "node scripts/generate-android-splash.mjs"
   },

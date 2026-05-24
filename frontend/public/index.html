@@ -15,18 +15,18 @@
   <!-- User-facing app version (bump when you ship a new APK / embedded web build). Single source for Settings footer. -->
   <meta name="notes-ai-app-version" content="1.0" />
   <meta name="notes-ai-api-base" content="https://notes-ai-app.onrender.com" />
-  <meta name="notes-ai-public-url" content="https://notes-ai-app-theta.vercel.app" />
+  <meta name="notes-ai-public-url" content="__PUBLIC_APP_URL__" />
   <script>
     window.__NOTES_AI_BUILD__ = "apk-emb-260523-v7";
     window.__APP_ENV__ = window.__APP_ENV__ || {};
     window.__APP_ENV__.VITE_API_URL = "https://notes-ai-app.onrender.com";
-    window.__APP_ENV__.PUBLIC_APP_URL = "https://notes-ai-app-theta.vercel.app";
+    window.__APP_ENV__.PUBLIC_APP_URL = "__PUBLIC_APP_URL__";
   </script>
   <link rel="manifest" href="/manifest.json?v=apk-emb-260508-v1" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="stylesheet" href="/css/style.css?v=mobile-render-v1" />
+  <link rel="stylesheet" href="/css/style.css?v=coins-hub-pro-v1" />
   <link rel="stylesheet" href="/css/settings-theme.css?v=perf-audit-v1" />
-  <link rel="stylesheet" href="/css/mobile-responsive.css?v=mobile-render-v1" />
+  <link rel="stylesheet" href="/css/mobile-responsive.css?v=chat-drawer-fix-v1" />
   <script defer src="/js/sw-register.js?v=apk-emb-260508-v1"></script>
 </head>
 <body>
@@ -1012,8 +1012,8 @@
       </section>
 
       <section id="coins-hub" class="page hidden coins-dash-page" aria-labelledby="coinsHubTitleHeading">
-        <div class="page-shell coins-dash-shell">
-          <header class="coins-dash-topbar coins-dash-topbar--balanced">
+        <div class="page-shell coins-dash-shell coins-dash-shell--pro">
+          <header class="coins-dash-topbar coins-dash-topbar--balanced coins-dash-topbar--pro">
             <button
               type="button"
               class="coins-dash-back-btn"
@@ -1026,8 +1026,8 @@
             <div class="coins-dash-topbar-text">
               <p class="eyebrow" data-t="coinsHubEyebrow">Rewards</p>
               <h2 id="coinsHubTitleHeading" class="coins-dash-page-title" data-t="coinsHubTitle">Rewards</h2>
-              <p class="coins-dash-subtitle">
-                Complete daily tasks and earn coins. Stay consistent to unlock bigger rewards!
+              <p class="coins-dash-subtitle coins-dash-subtitle--pro" data-t="coinsDashEarnSub">
+                Earn coins daily and unlock features
               </p>
             </div>
             <button type="button" class="coins-dash-top-action" onclick="openSettings()" aria-label="Rewards settings">
@@ -1043,42 +1043,7 @@
           <div id="coinsHubEarnMult" class="coins-dash-chip coins-dash-chip--muted hidden"></div>
 
           <article
-            class="coins-dash-card coins-hub-streak-card coins-hub-streak-card--simple coins-daily-checkin-card coins-dash-card--coins-first"
-            aria-labelledby="coinsHubStreakTitleHeading"
-          >
-            <div class="coins-daily-checkin-head coins-daily-checkin-head--compact">
-              <h3 id="coinsHubStreakTitleHeading" class="coins-dash-card-title coins-dash-card-title--tight coins-daily-checkin-head__title" data-t="coinsHubStreakTitle">
-                Daily check-in (7 days)
-              </h3>
-              <p id="coinsHubStreakProgressText" class="coins-daily-checkin-head__streak" aria-live="polite"></p>
-            </div>
-            <div class="coins-hub-streak-track coins-hub-streak-track--slim" aria-hidden="true">
-              <div id="coinsHubStreakBarFill" class="coins-hub-streak-fill"></div>
-            </div>
-            <div id="coinsHubStreakGrid" class="daily-checkin-coins-row" role="list" aria-label="Daily rewards"></div>
-          </article>
-
-          <article class="coins-dash-card coins-hub-task coins-hub-task--video" aria-labelledby="coinsHubVideoTitle">
-            <div class="coins-hub-task__row">
-              <div class="coins-hub-task__icon-slot" aria-hidden="true">
-                <span class="coins-hub-task__icon-glyphs">▶</span>
-              </div>
-              <div class="coins-hub-task__main">
-                <h3 id="coinsHubVideoTitle" class="coins-hub-task__title" data-t="coinsHubVideoRowTitle">Watch video</h3>
-                <p id="coinsHubVideoRowMeta" class="coins-hub-task__meta"></p>
-              </div>
-              <button type="button" id="coinsHubVideoBtn" class="coins-hub-task__go" onclick="coinsHubWatchVideoAd()">
-                <span id="coinsHubVideoBtnLabel">Watch</span>
-              </button>
-            </div>
-            <p id="coinsHubVideoCooldown" class="coins-hub-task__foot coins-dash-muted"></p>
-            <p class="coins-hub-task__hint coins-dash-muted" data-t="coinsHubVideoPlaceholderNote">
-              Rewarded ads coming soon — still earns coins today.
-            </p>
-          </article>
-
-          <article
-            class="coins-dash-card coins-dash-card--hero coins-dash-card--hero-tight coins-dash-card--balance-compact"
+            class="coins-dash-card coins-dash-card--hero coins-dash-card--hero-tight coins-dash-card--balance-compact coins-dash-wallet-card"
             aria-labelledby="coinsDashBalanceHeading"
           >
             <div class="coins-dash-hero-aura" aria-hidden="true"></div>
@@ -1104,20 +1069,58 @@
             </div>
             <div class="coins-dash-divider"></div>
             <p class="coins-dash-goal-eyebrow" data-t="coinsDashGoalEyebrow">Progress to 30‑day Standard</p>
-            <div class="coins-dash-bar-wrap">
+            <div class="coins-dash-bar-wrap coins-dash-bar-wrap--goal">
               <div class="coins-dash-bar-track">
                 <div id="coinsHubProgressFill" class="coins-dash-bar-fill coins-dash-bar-fill--goal"></div>
               </div>
               <p id="coinsHubProgressLabel" class="coins-dash-bar-label"></p>
             </div>
+            <div class="coins-dash-wallet-redeem">
+              <button type="button" id="coinsHubRedeemBtn" class="coins-hub-redeem-btn" onclick="coinsHubRedeemStandard()">
+                <span class="coins-hub-redeem-icon" aria-hidden="true">🔄</span>
+                <span id="coinsHubRedeemBtnLabel" class="coins-hub-redeem-label">Unlock Standard</span>
+              </button>
+            </div>
           </article>
 
-          <article class="coins-dash-card coins-hub-redeem-card">
-            <button type="button" id="coinsHubRedeemBtn" class="coins-hub-redeem-btn" onclick="coinsHubRedeemStandard()">
-              <span class="coins-hub-redeem-icon" aria-hidden="true">🔄</span>
-              <span id="coinsHubRedeemBtnLabel" class="coins-hub-redeem-label">Unlock Standard</span>
-            </button>
+          <h3 class="coins-dash-section-label" data-t="coinsDashActionsTitle">Earn &amp; spend</h3>
+
+          <article
+            class="coins-dash-card coins-hub-streak-card coins-hub-streak-card--simple coins-daily-checkin-card"
+            aria-labelledby="coinsHubStreakTitleHeading"
+          >
+            <div class="coins-daily-checkin-head coins-daily-checkin-head--compact">
+              <h3 id="coinsHubStreakTitleHeading" class="coins-dash-card-title coins-dash-card-title--tight coins-daily-checkin-head__title" data-t="coinsHubStreakTitle">
+                Daily check-in (7 days)
+              </h3>
+              <p id="coinsHubStreakProgressText" class="coins-daily-checkin-head__streak" aria-live="polite"></p>
+            </div>
+            <div class="coins-hub-streak-track coins-hub-streak-track--slim" aria-hidden="true">
+              <div id="coinsHubStreakBarFill" class="coins-hub-streak-fill"></div>
+            </div>
+            <div id="coinsHubStreakGrid" class="daily-checkin-coins-row daily-checkin-coins-row--week" role="list" aria-label="Daily rewards"></div>
           </article>
+
+          <article class="coins-dash-card coins-hub-task coins-hub-task--video" aria-labelledby="coinsHubVideoTitle">
+            <div class="coins-hub-task__row">
+              <div class="coins-hub-task__icon-slot" aria-hidden="true">
+                <span class="coins-hub-task__icon-glyphs">▶</span>
+              </div>
+              <div class="coins-hub-task__main">
+                <h3 id="coinsHubVideoTitle" class="coins-hub-task__title" data-t="coinsHubVideoRowTitle">Watch video</h3>
+                <p id="coinsHubVideoRowMeta" class="coins-hub-task__meta"></p>
+              </div>
+              <button type="button" id="coinsHubVideoBtn" class="coins-hub-task__go" onclick="coinsHubWatchVideoAd()">
+                <span id="coinsHubVideoBtnLabel">Watch</span>
+              </button>
+            </div>
+            <p id="coinsHubVideoCooldown" class="coins-hub-task__foot coins-dash-muted"></p>
+            <p class="coins-hub-task__hint coins-dash-muted" data-t="coinsHubVideoPlaceholderNote">
+              Rewarded ads coming soon — still earns coins today.
+            </p>
+          </article>
+
+          <h3 class="coins-dash-section-label" data-t="coinsDashInviteTitle">Invite &amp; earn</h3>
 
           <article class="coins-dash-card coins-dash-card--invite coins-invite-panel">
             <h3 class="coins-dash-card-title coins-dash-card-title--flush" data-t="coinsDashInviteFriendsTitle">Invite friends &amp; earn coins</h3>
@@ -1912,6 +1915,6 @@
   <script defer src="/js/features/premium.js?v=trial-sync-v1"></script>
   <script defer src="/translations.js?v=share-whatsapp-v1"></script>
   <script defer src="/js/components/toast.js?v=toast-balance-v1"></script>
-  <script defer src="/js/app.js?v=perf-lazy-v1"></script>
+  <script defer src="/js/app.js?v=scan-cam-list-v1"></script>
 </body>
 </html>

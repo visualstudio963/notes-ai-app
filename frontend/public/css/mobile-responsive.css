@@ -731,7 +731,7 @@ html.capacitor-native body.topbar-auto-hidden .notes-toolbar {
 /* Web Chat drawer — floating overlay on current page (mobile/APK) */
 @media (max-width: 840px) {
   #webChat.web-chat-drawer {
-    z-index: 9999 !important;
+    z-index: 10050 !important;
     align-items: flex-end !important;
     justify-content: center !important;
     padding:
@@ -785,11 +785,6 @@ html.capacitor-native body.topbar-auto-hidden .notes-toolbar {
     right: 10px !important;
     bottom: 10px !important;
     border-radius: 14px !important;
-  }
-
-  body.web-chat-drawer-open .app {
-    position: relative;
-    z-index: 1500;
   }
 
   body.web-chat-drawer-open .site-footer {
@@ -1062,6 +1057,11 @@ html.capacitor-native body.topbar-auto-hidden .notes-toolbar {
   .hex-card:hover,
   .home-stats-panel:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16) !important;
+  }
+
+  body.web-chat-drawer-open #webChat,
+  body.web-chat-drawer-open #webChatMessages {
+    content-visibility: visible !important;
   }
 
   .main,

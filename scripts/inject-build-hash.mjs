@@ -11,6 +11,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(__dirname, "..", "frontend", "public");
 const TOKEN = "__BUILD_HASH__";
 const API_TOKEN = "__API_BASE_URL__";
+const PUBLIC_APP_TOKEN = "__PUBLIC_APP_URL__";
 
 const raw =
   process.env.VERCEL_GIT_COMMIT_SHA ||
@@ -23,8 +24,13 @@ const BUILD = raw ? raw.slice(0, 12) : `local-${Date.now().toString(36)}`;
 
 /** Production API origin for static builds (Capacitor APK must never use the WebView origin for API). */
 const API_BASE =
-  (process.env.VITE_API_URL && String(process.env.VITE_API_URL).trim()) ||
+  (process.env.VITE_API_URL && String(process.env.VITE_API_URL).trim().replace(/\/+$/, "")) ||
   "https://notes-ai-app.onrender.com";
+
+/** Production SPA origin (invite links, OAuth handoff target when env is set on Render). */
+const PUBLIC_APP_BASE =
+  (process.env.PUBLIC_APP_URL && String(process.env.PUBLIC_APP_URL).trim().replace(/\/+$/, "")) ||
+  "https://notesai.space";
 
 function patch(relPath) {
   const fp = path.join(publicDir, relPath);
@@ -42,12 +48,18 @@ function patch(relPath) {
     body = body.split(API_TOKEN).join(API_BASE);
     changed = true;
   }
+  if (body.includes(PUBLIC_APP_TOKEN)) {
+    body = body.split(PUBLIC_APP_TOKEN).join(PUBLIC_APP_BASE);
+    changed = true;
+  }
   if (!changed) {
-    console.warn(`inject-build-hash: no ${TOKEN} or ${API_TOKEN} in ${relPath} (skip)`);
+    console.warn(`inject-build-hash: no ${TOKEN}, ${API_TOKEN}, or ${PUBLIC_APP_TOKEN} in ${relPath} (skip)`);
     return;
   }
   fs.writeFileSync(fp, body, "utf8");
-  console.log(`inject-build-hash: patched ${relPath} (BUILD=${BUILD}, API_BASE=${API_BASE})`);
+  console.log(
+    `inject-build-hash: patched ${relPath} (BUILD=${BUILD}, API_BASE=${API_BASE}, PUBLIC_APP=${PUBLIC_APP_BASE})`
+  );
 }
 
 const htmlFiles = fs.readdirSync(publicDir).filter((f) => f.endsWith(".html"));

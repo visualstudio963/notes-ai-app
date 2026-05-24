@@ -15,6 +15,8 @@ let lastAllNotesRenderKey = "";
 const HISTORY_COLUMN_LIMIT = 5;
 const LIST_RENDER_BATCH = 20;
 const LIST_VIRTUALIZE_THRESHOLD = 32;
+const LIST_VIRTUALIZE_THRESHOLD_SCAN_CAM = 8;
+const SCAN_CAM_LIST_PREVIEW_MAX = 220;
 const WEB_CHAT_DOM_MAX_ROWS = 44;
 let historyPruneInFlight = false;
 let allNotesSortMode = "newest";
@@ -1872,7 +1874,12 @@ function resumeOfflineFlushForHidden() {
 
 function syncAppBackgroundActivity() {
   const hidden = isDocumentHidden();
-  const pauseFx = hidden || hasBlockingOverlay();
+  const overlayBlocksFx =
+    document.body.classList.contains("modal-open") ||
+    document.body.classList.contains("mobile-nav-open") ||
+    (document.getElementById("authLanding") &&
+      !document.getElementById("authLanding").classList.contains("hidden"));
+  const pauseFx = hidden || overlayBlocksFx;
   document.documentElement.classList.toggle("app-effects-paused", pauseFx);
 
   if (hidden) {
@@ -1933,6 +1940,14 @@ function refreshDepthRevealObservers() {
 
 function refreshDepthRevealObserversNow() {
   if (isDocumentHidden() || depthRevealObserverPaused) return;
+  if (isScanCamCategoryActive()) {
+    document.querySelectorAll("#notes .note-card").forEach((el) => {
+      if (depthRevealObserver) depthRevealObserver.unobserve(el);
+      el.classList.remove("depth-reveal");
+      el.classList.add("depth-reveal--in");
+    });
+    return;
+  }
   const targets =
     ".note-card, .home-stats-panel, .hex-card, .home-reminders-shell, .settings-section, .home-intro, .web-chat-messenger";
   if (!depthRevealObserver) {
@@ -1944,6 +1959,8 @@ function refreshDepthRevealObserversNow() {
     return;
   }
   document.querySelectorAll(targets).forEach((el) => {
+    if (!(el instanceof HTMLElement)) return;
+    if (isScanCamCategoryActive() && el.closest("#notes")) return;
     if (!isElementInVisiblePage(el)) {
       if (depthRevealObserver) depthRevealObserver.unobserve(el);
       return;
@@ -1968,7 +1985,7 @@ function initPremiumTiltSystem() {
 }
 
 function refreshPremiumTiltTargets() {
-  if (isDocumentHidden() || !premiumTiltEnabled) return;
+  if (isDocumentHidden() || !premiumTiltEnabled || isScanCamCategoryActive()) return;
   const targets =
     ".home-categories-grid .hex-card, .note-card, .home-stats-panel, .home-reminders-shell, .home-stats-cta, .save-button, .primaryBtn, .web-chat-send, .add-button, .back-button";
   const maxDeg = 6;
@@ -2339,7 +2356,7 @@ function renderIncrementalList(container, items, appendItem, opts = {}) {
     opts.onComplete?.();
     return;
   }
-  if (list.length <= LIST_VIRTUALIZE_THRESHOLD) {
+  if (list.length <= listVirtualizeThresholdForCategory()) {
     const fragment = document.createDocumentFragment();
     list.forEach((item) => appendItem(fragment, item));
     container.appendChild(fragment);
@@ -2361,7 +2378,9 @@ function renderIncrementalList(container, items, appendItem, opts = {}) {
       appendItem(fragment, list[cursor]);
     }
     container.insertBefore(fragment, sentinel);
-    if (typeof refreshDepthRevealObservers === "function") refreshDepthRevealObservers();
+    if (typeof refreshDepthRevealObservers === "function" && !isScanCamCategoryActive()) {
+      refreshDepthRevealObservers();
+    }
     if (cursor >= list.length) {
       disconnectListIncremental(container);
       opts.onComplete?.();
@@ -2380,6 +2399,35 @@ function renderIncrementalList(container, items, appendItem, opts = {}) {
   loadBatch();
 }
 
+function isScanCamCategoryActive() {
+  return currentCategory === "scan_cam";
+}
+
+function isScanCamListNote(note) {
+  if (!note) return isScanCamCategoryActive();
+  if (note.category === "scan_cam") return true;
+  if (note.scanCamImageDataUrl) return true;
+  const raw = note.text != null ? String(note.text) : "";
+  if (raw.length > 12000 && /scan|ocr|data:image/i.test(raw.slice(0, 400))) return true;
+  return isScanCamCategoryActive();
+}
+
+function noteStoredPlainPreviewForList(note, maxLen) {
+  const limit = Math.max(1, Number(maxLen) || SCAN_CAM_LIST_PREVIEW_MAX);
+  const raw = note && note.text != null ? String(note.text) : "";
+  let plain = noteStoredPlainPreview(raw, limit);
+  plain = plain.replace(/data:[^\s]+;base64,[A-Za-z0-9+/=\s]+/gi, " ").replace(/\s+/g, " ").trim();
+  if (note && note.scanCamImageDataUrl) {
+    const tag = "📷";
+    plain = plain ? `${tag} ${plain}` : tag;
+  }
+  return plain.slice(0, limit);
+}
+
+function listVirtualizeThresholdForCategory() {
+  return isScanCamCategoryActive() ? LIST_VIRTUALIZE_THRESHOLD_SCAN_CAM : LIST_VIRTUALIZE_THRESHOLD;
+}
+
 function trimWebChatMessageDom() {
   const box = document.getElementById("webChatMessages");
   if (!box) return;
@@ -2392,6 +2440,20 @@ function trimWebChatMessageDom() {
 }
 
 function notesListRenderKey(notes, extra) {
+  if (isScanCamCategoryActive()) {
+    const body = (notes || [])
+      .map((n) => {
+        const textLen = n && n.text != null ? String(n.text).length : 0;
+        return [
+          n && n._id != null ? String(n._id) : "",
+          noteTitleTrim(n),
+          String(textLen),
+          n && n.createdAt ? String(n.createdAt) : ""
+        ].join("\u001f");
+      })
+      .join("\u001e");
+    return `${extra}\u0000${body}`;
+  }
   const body = (notes || [])
     .map((n) => {
       const text = n && n.text != null ? String(n.text) : "";
@@ -2425,10 +2487,16 @@ function noteSearchHaystack(note) {
 function buildNoteCardPreviewHtml(note) {
   const raw = note && note.text != null ? String(note.text) : "";
   if (!raw) return "";
-  const cacheKey = `${note && note._id != null ? String(note._id) : ""}\0${noteTitleTrim(note)}\0${noteContentFingerprint(raw)}`;
+  const lite = isScanCamListNote(note);
+  const cacheKey = lite
+    ? `${note && note._id != null ? String(note._id) : ""}\0lite\0${noteTitleTrim(note)}\0${raw.length}`
+    : `${note && note._id != null ? String(note._id) : ""}\0${noteTitleTrim(note)}\0${noteContentFingerprint(raw)}`;
   if (notePreviewHtmlCache.has(cacheKey)) return notePreviewHtmlCache.get(cacheKey);
   let html = "";
-  if (window.NoteRichEditor && typeof window.NoteRichEditor.storedToHtml === "function") {
+  if (lite) {
+    const plain = noteStoredPlainPreviewForList(note, SCAN_CAM_LIST_PREVIEW_MAX);
+    html = escapeHtml(plain).replace(/\n/g, "<br>");
+  } else if (window.NoteRichEditor && typeof window.NoteRichEditor.storedToHtml === "function") {
     html = window.NoteRichEditor.storedToHtml(raw);
   } else {
     const plain = noteStoredPlainPreview(raw, 8000);
@@ -2458,8 +2526,14 @@ function appendNoteCardHeadingAndBody(content, note) {
 
   const previewWrap = document.createElement("div");
   previewWrap.className = "note-card-preview";
-  const previewHtml = buildNoteCardPreviewHtml(note);
-  previewWrap.innerHTML = previewHtml || `<p>—</p>`;
+  if (isScanCamListNote(note)) {
+    previewWrap.classList.add("note-card-preview--plain");
+    const plain = noteStoredPlainPreviewForList(note, SCAN_CAM_LIST_PREVIEW_MAX);
+    previewWrap.textContent = plain || "—";
+  } else {
+    const previewHtml = buildNoteCardPreviewHtml(note);
+    previewWrap.innerHTML = previewHtml || `<p>—</p>`;
+  }
   content.appendChild(previewWrap);
 
   const dateP = document.createElement("p");
@@ -2498,6 +2572,23 @@ function closeMobileNavIfNeeded() {
 let mobileNavScrollLockY = 0;
 let webChatScrollLockY = 0;
 let webChatScrollLocked = false;
+/** @type {{ parent: Element; next: Element | null } | null} */
+let webChatDrawerPortalHome = null;
+
+function attachWebChatDrawerToBody() {
+  const el = document.getElementById("webChat");
+  if (!el || el.parentElement === document.body) return;
+  webChatDrawerPortalHome = { parent: el.parentElement, next: el.nextElementSibling };
+  document.body.appendChild(el);
+}
+
+function restoreWebChatDrawerPortal() {
+  const el = document.getElementById("webChat");
+  const home = webChatDrawerPortalHome;
+  if (!el || !home?.parent) return;
+  home.parent.insertBefore(el, home.next);
+  webChatDrawerPortalHome = null;
+}
 
 function lockWebChatScroll() {
   if (webChatScrollLocked || document.body.classList.contains("mobile-nav-open")) return;
@@ -4610,8 +4701,10 @@ function openCategory(cat) {
   currentCategory = cat;
   lastCategoryNotesRenderKey = "";
   activateMenu("");
+  const categoryPage = document.getElementById("category");
+  if (categoryPage) categoryPage.dataset.activeCategory = cat;
   document.getElementById("home").classList.add("hidden");
-  document.getElementById("category").classList.remove("hidden");
+  if (categoryPage) categoryPage.classList.remove("hidden");
   document.getElementById("notes-all").classList.add("hidden");
   document.getElementById("bot").classList.add("hidden");
   closeWebChatDrawer();
@@ -4632,7 +4725,12 @@ function openCategory(cat) {
   }
 
   if (currentUser) {
-    requestAnimationFrame(() => void loadNotes());
+    const runLoad = () => void loadNotes();
+    if (cat === "scan_cam") {
+      requestAnimationFrame(() => requestAnimationFrame(runLoad));
+    } else {
+      requestAnimationFrame(runLoad);
+    }
   } else {
     requestAnimationFrame(() => renderNotes(getPublicNotes()));
   }
@@ -5846,6 +5944,7 @@ function closeWebChatDrawer() {
   window.setTimeout(() => {
     if (!el.classList.contains("web-chat-drawer--active")) el.classList.add("hidden");
     document.body.classList.remove("web-chat-drawer-open");
+    restoreWebChatDrawerPortal();
     unlockWebChatScroll();
     scheduleWebChatFabPromptCycle();
     syncAppBackgroundActivity();
@@ -5868,6 +5967,7 @@ async function openWebChat() {
   }
   const drawer = document.getElementById("webChat");
   if (!drawer) return;
+  attachWebChatDrawerToBody();
   drawer.classList.remove("hidden");
   document.body.classList.add("web-chat-drawer-open");
   lockWebChatScroll();
@@ -9095,7 +9195,9 @@ function renderNotes(notes) {
   }
 
   renderIncrementalList(container, notes, appendCategoryNoteCard, {
-    onComplete: () => refreshDepthRevealObservers()
+    onComplete: () => {
+      if (!isScanCamCategoryActive()) refreshDepthRevealObservers();
+    }
   });
 }
 
@@ -9844,7 +9946,7 @@ function orderedCategoryKeysFromNotes(notes) {
 
 function appendCategoryNoteCard(parent, note) {
   const noteCard = document.createElement("div");
-  noteCard.className = "note-card";
+  noteCard.className = isScanCamListNote(note) ? "note-card note-card--scan-list" : "note-card";
   const content = document.createElement("div");
   content.className = "note-content";
   appendNoteCardHeadingAndBody(content, note);

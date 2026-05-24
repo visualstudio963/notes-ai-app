@@ -99,6 +99,14 @@ function adminCountsForUser(agg, giftTotals, uid) {
   };
 }
 
+async function adminEnrichCountsForUsers(User, Note, Reminder, CoinGiftLog, userIds) {
+  const [agg, giftTotals] = await Promise.all([
+    enrichUserAggregateCounts(User, Note, Reminder, userIds),
+    CoinGiftLog ? enrichUserGiftTotals(CoinGiftLog, userIds) : Promise.resolve(new Map())
+  ]);
+  return { agg, giftTotals };
+}
+
 function activeNowFlag(user, activeWindowMs) {
   return Boolean(user.lastActive && new Date(user.lastActive).getTime() >= Date.now() - activeWindowMs);
 }
@@ -386,9 +394,7 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
         recentUserDocs = await User.find()
           .sort({ createdAt: -1 })
           .limit(10)
-          .select(
-            "username email emailOrPhone role isPremium premiumExpires plan subscriptionPlan membershipRole createdAt lastActive"
-          )
+          .select(ADMIN_USER_SELECT)
           .lean()
           .exec();
       } catch (err) {
@@ -430,20 +436,17 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
         };
       });
 
-      const agg = await enrichUserAggregateCounts(
+      const aggBundle = await adminEnrichCountsForUsers(
         User,
         Note,
         Reminder,
+        CoinGiftLog,
         (recentUserDocs || []).map((u) => u._id)
       );
 
       const recentUsers = (recentUserDocs || []).map((u) => {
         const uid = String(u._id);
-        const counts = {
-          notes: agg.notes.get(uid) || 0,
-          reminders: agg.reminders.get(uid) || 0,
-          invites: agg.invites.get(uid) || 0
-        };
+        const counts = adminCountsForUser(aggBundle.agg, aggBundle.giftTotals, uid);
         const activeNow = activeNowFlag(u, ACTIVE_WINDOW_MS);
         return adminUserJson(u, ACTIVE_WINDOW_MS, activeNow, counts);
       });
@@ -474,13 +477,9 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
 
       if (!user) return res.status(404).json({ error: "User not found" });
 
-      const agg = await enrichUserAggregateCounts(User, Note, Reminder, [user._id]);
+      const aggBundle = await adminEnrichCountsForUsers(User, Note, Reminder, CoinGiftLog, [user._id]);
       const uid = String(user._id);
-      const counts = {
-        notes: agg.notes.get(uid) || 0,
-        reminders: agg.reminders.get(uid) || 0,
-        invites: agg.invites.get(uid) || 0
-      };
+      const counts = adminCountsForUser(aggBundle.agg, aggBundle.giftTotals, uid);
       const activeNow = activeNowFlag(user, ACTIVE_WINDOW_MS);
       res.json({ user: adminUserJson(user, ACTIVE_WINDOW_MS, activeNow, counts) });
     } catch {
@@ -511,9 +510,7 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
       const [total, userSlice] = await Promise.all([
         User.countDocuments(match),
         User.find(match)
-          .select(
-            "username emailOrPhone email isPremium premiumExpires plan subscriptionPlan role membershipRole createdAt lastActive"
-          )
+          .select(ADMIN_USER_SELECT)
           .sort({ createdAt: -1 })
           .skip((page - 1) * limit)
           .limit(limit)
@@ -522,15 +519,11 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
       ]);
 
       const ids = (userSlice || []).map((u) => u._id);
-      const agg = await enrichUserAggregateCounts(User, Note, Reminder, ids);
+      const aggBundle = await adminEnrichCountsForUsers(User, Note, Reminder, CoinGiftLog, ids);
 
       const users = (userSlice || []).map((u) => {
         const uid = String(u._id);
-        const counts = {
-          notes: agg.notes.get(uid) || 0,
-          reminders: agg.reminders.get(uid) || 0,
-          invites: agg.invites.get(uid) || 0
-        };
+        const counts = adminCountsForUser(aggBundle.agg, aggBundle.giftTotals, uid);
         const activeNow = activeNowFlag(u, ACTIVE_WINDOW_MS);
         return adminUserJson(u, ACTIVE_WINDOW_MS, activeNow, counts);
       });
@@ -618,13 +611,9 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
 
       if (!user) return res.status(404).json({ error: "User not found" });
 
-      const agg = await enrichUserAggregateCounts(User, Note, Reminder, [user._id]);
+      const aggBundle = await adminEnrichCountsForUsers(User, Note, Reminder, CoinGiftLog, [user._id]);
       const uid = String(user._id);
-      const counts = {
-        notes: agg.notes.get(uid) || 0,
-        reminders: agg.reminders.get(uid) || 0,
-        invites: agg.invites.get(uid) || 0
-      };
+      const counts = adminCountsForUser(aggBundle.agg, aggBundle.giftTotals, uid);
       res.json({ user: adminUserJson(user, ACTIVE_WINDOW_MS, undefined, counts) });
     } catch {
       res.status(500).json({ error: "Failed to update staff role" });
@@ -654,26 +643,118 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
       }
 
       const user = await User.findById(targetId)
-        .select(
-          "username emailOrPhone email isPremium premiumExpires plan subscriptionPlan membershipRole role createdAt lastActive"
-        )
+        .select(ADMIN_USER_SELECT)
         .lean();
 
       if (!user) return res.status(404).json({ error: "User not found" });
 
-      const agg = await enrichUserAggregateCounts(User, Note, Reminder, [user._id]);
+      const aggBundle = await adminEnrichCountsForUsers(User, Note, Reminder, CoinGiftLog, [user._id]);
       const uid = String(user._id);
-      const counts = {
-        notes: agg.notes.get(uid) || 0,
-        reminders: agg.reminders.get(uid) || 0,
-        invites: agg.invites.get(uid) || 0
-      };
+      const counts = adminCountsForUser(aggBundle.agg, aggBundle.giftTotals, uid);
       res.json({ user: adminUserJson(user, ACTIVE_WINDOW_MS, undefined, counts) });
     } catch (err) {
       if (err && (err.message === "Invalid months" || err.message === "User not found")) {
         return res.status(400).json({ error: err.message });
       }
       res.status(500).json({ error: "Failed to grant premium" });
+    }
+  });
+
+  /** Admin-only: manually gift coins to a user (audit log + balance credit). */
+  router.post("/users/:id/gift-coins", requireStaffMin(STAFF_RANK.ADMIN), async (req, res) => {
+    try {
+      if (!CoinGiftLog) {
+        return res.status(503).json({ error: "Coin gift logging is not configured" });
+      }
+
+      const targetId = req.params.id;
+      if (!mongoose.Types.ObjectId.isValid(targetId)) {
+        return res.status(400).json({ error: "Invalid user id" });
+      }
+
+      const body = req.body || {};
+      const amount = body.amount;
+      const reason = body.reason != null ? String(body.reason).trim().slice(0, 300) : "";
+
+      const gift = await adminGiftCoins(User, CoinGiftLog, {
+        recipientUserId: targetId,
+        adminUserId: String(req.userId),
+        amount,
+        reason
+      });
+
+      const user = await User.findById(targetId).select(ADMIN_USER_SELECT).lean();
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      const aggBundle = await adminEnrichCountsForUsers(User, Note, Reminder, CoinGiftLog, [user._id]);
+      const uid = String(user._id);
+      const counts = adminCountsForUser(aggBundle.agg, aggBundle.giftTotals, uid);
+
+      res.json({
+        user: adminUserJson(user, ACTIVE_WINDOW_MS, undefined, counts),
+        gift: {
+          amount: gift.credited,
+          balanceBefore: gift.balanceBefore,
+          balanceAfter: gift.balanceAfter,
+          capped: gift.capped,
+          cap: COIN_CAP,
+          reason
+        }
+      });
+    } catch (err) {
+      const msg = err && err.message ? String(err.message) : "Failed to gift coins";
+      if (
+        msg === "User not found" ||
+        msg === "Amount must be a positive integer" ||
+        msg.startsWith("Amount cannot exceed") ||
+        msg === "User is already at the coin cap" ||
+        msg === "Duplicate gift request"
+      ) {
+        return res.status(400).json({ error: msg });
+      }
+      console.error("[admin/gift-coins]", err);
+      res.status(500).json({ error: "Failed to gift coins" });
+    }
+  });
+
+  /** Admin-only: coin gift history for a user. */
+  router.get("/users/:id/coin-gifts", requireStaffMin(STAFF_RANK.ADMIN), async (req, res) => {
+    try {
+      if (!CoinGiftLog) {
+        return res.json({ gifts: [] });
+      }
+
+      const targetId = req.params.id;
+      if (!mongoose.Types.ObjectId.isValid(targetId)) {
+        return res.status(400).json({ error: "Invalid user id" });
+      }
+
+      const limitRaw = parseInt(String(req.query.limit || "20"), 10) || 20;
+      const limit = Math.min(50, Math.max(1, limitRaw));
+
+      const gifts = await CoinGiftLog.find({ recipientUserId: targetId })
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .populate("giftedByUserId", "username")
+        .lean();
+
+      res.json({
+        gifts: (gifts || []).map((g) => ({
+          id: g._id,
+          amount: g.amount,
+          balanceBefore: g.balanceBefore,
+          balanceAfter: g.balanceAfter,
+          reason: g.reason || "",
+          createdAt: g.createdAt,
+          giftedBy:
+            g.giftedByUserId && typeof g.giftedByUserId === "object"
+              ? { id: g.giftedByUserId._id, username: g.giftedByUserId.username }
+              : { id: g.giftedByUserId, username: "—" }
+        }))
+      });
+    } catch (err) {
+      console.error("[admin/coin-gifts]", err);
+      res.status(500).json({ error: "Failed to load coin gifts" });
     }
   });
 
@@ -695,13 +776,9 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
         .lean();
 
       if (!user) return res.status(404).json({ error: "User not found" });
-      const agg = await enrichUserAggregateCounts(User, Note, Reminder, [user._id]);
+      const aggBundle = await adminEnrichCountsForUsers(User, Note, Reminder, CoinGiftLog, [user._id]);
       const uid = String(user._id);
-      const counts = {
-        notes: agg.notes.get(uid) || 0,
-        reminders: agg.reminders.get(uid) || 0,
-        invites: agg.invites.get(uid) || 0
-      };
+      const counts = adminCountsForUser(aggBundle.agg, aggBundle.giftTotals, uid);
       res.json({ user: adminUserJson(user, ACTIVE_WINDOW_MS, undefined, counts) });
     } catch (err) {
       if (err && err.message === "Invalid plan") {
@@ -729,13 +806,9 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
         .lean();
 
       if (!user) return res.status(404).json({ error: "User not found" });
-      const agg = await enrichUserAggregateCounts(User, Note, Reminder, [user._id]);
+      const aggBundle = await adminEnrichCountsForUsers(User, Note, Reminder, CoinGiftLog, [user._id]);
       const uid = String(user._id);
-      const counts = {
-        notes: agg.notes.get(uid) || 0,
-        reminders: agg.reminders.get(uid) || 0,
-        invites: agg.invites.get(uid) || 0
-      };
+      const counts = adminCountsForUser(aggBundle.agg, aggBundle.giftTotals, uid);
       res.json({ user: adminUserJson(user, ACTIVE_WINDOW_MS, undefined, counts) });
     } catch (err) {
       if (err && err.message === "Invalid plan") {
@@ -767,13 +840,9 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
         .lean();
 
       if (!user) return res.status(404).json({ error: "User not found" });
-      const agg = await enrichUserAggregateCounts(User, Note, Reminder, [user._id]);
+      const aggBundle = await adminEnrichCountsForUsers(User, Note, Reminder, CoinGiftLog, [user._id]);
       const uid = String(user._id);
-      const counts = {
-        notes: agg.notes.get(uid) || 0,
-        reminders: agg.reminders.get(uid) || 0,
-        invites: agg.invites.get(uid) || 0
-      };
+      const counts = adminCountsForUser(aggBundle.agg, aggBundle.giftTotals, uid);
       res.json({ user: adminUserJson(user, ACTIVE_WINDOW_MS, undefined, counts) });
     } catch {
       res.status(500).json({ error: "Failed to update premium" });
@@ -798,13 +867,9 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
         .lean();
 
       if (!user) return res.status(404).json({ error: "User not found" });
-      const agg = await enrichUserAggregateCounts(User, Note, Reminder, [user._id]);
+      const aggBundle = await adminEnrichCountsForUsers(User, Note, Reminder, CoinGiftLog, [user._id]);
       const uid = String(user._id);
-      const counts = {
-        notes: agg.notes.get(uid) || 0,
-        reminders: agg.reminders.get(uid) || 0,
-        invites: agg.invites.get(uid) || 0
-      };
+      const counts = adminCountsForUser(aggBundle.agg, aggBundle.giftTotals, uid);
       res.json({ user: adminUserJson(user, ACTIVE_WINDOW_MS, undefined, counts) });
     } catch (err) {
       if (err && err.message === "Invalid plan") {

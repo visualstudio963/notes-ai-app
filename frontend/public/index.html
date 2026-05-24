@@ -18,9 +18,9 @@
   </script>
   <link rel="manifest" href="/manifest.json?v=apk-emb-260508-v1" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="stylesheet" href="/css/style.css?v=apk-emb-260523-v10" />
+  <link rel="stylesheet" href="/css/style.css?v=apk-emb-260523-v14" />
   <link rel="stylesheet" href="/css/settings-theme.css?v=apk-emb-260523-v2" />
-  <link rel="stylesheet" href="/css/mobile-responsive.css?v=apk-emb-260523-v9" />
+  <link rel="stylesheet" href="/css/mobile-responsive.css?v=perf-render-v1" />
   <script defer src="/js/sw-register.js?v=apk-emb-260508-v1"></script>
 </head>
 <body>
@@ -932,9 +932,6 @@
       </section>
 
       <section id="webChat" class="page hidden web-chat-page web-chat-page--messenger web-chat-drawer" aria-label="Web chat" onclick="closeWebChatDrawer()">
-        <select id="webChatModelMode" class="visually-hidden" tabindex="-1" aria-hidden="true">
-          <option value="chatbot" selected>chatbot</option>
-        </select>
         <div class="web-chat-messenger chat-container chat-bot-mode" onclick="event.stopPropagation()">
           <div class="web-chat-sheet-handle" aria-hidden="true">
             <span class="web-chat-sheet-handle__bar"></span>
@@ -974,6 +971,9 @@
           </div>
 
           <footer class="web-chat-messenger__footer">
+            <select id="webChatModelMode" class="visually-hidden" tabindex="-1" aria-hidden="true">
+              <option value="chatbot" selected>chatbot</option>
+            </select>
             <div class="web-chat-composer-bar">
               <div class="web-chat-composer">
                 <label class="sr-only" for="webChatInput" data-t="webChatInputLabel">Message</label>
@@ -988,23 +988,6 @@
               </div>
             </div>
 
-            <div
-              id="webChatQuickActions"
-              class="web-chat-chip-strip web-chat-quick-actions"
-              role="toolbar"
-              aria-label="Examples"
-              data-t-title="webChatQuickExamplesToolbar"
-            >
-              <button type="button" class="web-chat-chip-strip__chip" onclick="webChatFillReminderExample(1)" data-t="webChatReminderExample1">
-                Remind me tomorrow at 12:00 to buy groceries
-              </button>
-              <button type="button" class="web-chat-chip-strip__chip" onclick="webChatFillReminderExample(2)" data-t="webChatReminderExample2">
-                Remind me on 15 August 2026 for a work meeting
-              </button>
-              <button type="button" class="web-chat-chip-strip__chip" onclick="webChatFillReminderExample(3)" data-t="webChatReminderExample3">
-                Remind me today at 20:00 to call Ben on the phone
-              </button>
-            </div>
           </footer>
         </div>
       </section>
@@ -1898,19 +1881,14 @@
 
   <div class="toast hidden" id="toast"></div>
   <div class="reminder-foreground-toast hidden" id="reminderForegroundToast" role="status" aria-live="polite" aria-hidden="true"></div>
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-  <!-- Scan Cam OCR: loaded on-demand from app.js to keep startup / APK first paint lighter -->
-  <script src="/js/config/platform-native.js?v=apk-emb-260508-v1"></script>
-  <script src="/js/config/constants.js?v=apk-emb-260508-v1"></script>
-  <script src="/js/config/api-base.js?v=apk-emb-260508-v1"></script>
-  <script src="/js/features/premium.js?v=apk-emb-260523-v8"></script>
-  <script src="/js/features/note-export.js?v=apk-emb-260523-v1"></script>
-  <script src="/js/features/web-chat-intents.js?v=apk-emb-260508-v1"></script>
-  <script src="/js/features/web-chat-reminder-parse.js?v=apk-emb-260508-v1"></script>
-  <script src="/js/services/socket-client.js?v=apk-emb-260523-v9"></script>
-  <script src="/translations.js?v=apk-emb-260523-v7"></script>
-  <script src="/js/components/toast.js?v=apk-emb-260508-v1"></script>
-  <script src="/js/app.js?v=apk-emb-260523-v10"></script>
-  <script src="/js/onboarding-tutorial.js?v=apk-emb-260508-v1"></script>
+  <!-- Heavy modules lazy-loaded from app.js (export, web chat, onboarding, socket.io) -->
+  <script defer src="/js/config/platform-native.js?v=apk-emb-260508-v1"></script>
+  <script defer src="/js/config/constants.js?v=apk-emb-260508-v1"></script>
+  <script defer src="/js/config/api-base.js?v=apk-emb-260508-v1"></script>
+  <script defer src="/js/features/premium.js?v=apk-emb-260523-v8"></script>
+  <script defer src="/js/services/socket-client.js?v=perf-260523-v1"></script>
+  <script defer src="/translations.js?v=apk-emb-260523-v8"></script>
+  <script defer src="/js/components/toast.js?v=apk-emb-260508-v1"></script>
+  <script defer src="/js/app.js?v=perf-render-v1"></script>
 </body>
 </html>

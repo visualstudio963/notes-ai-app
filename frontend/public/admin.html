@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Admin — Notes AI</title>
   <meta name="notes-ai-build" content="local-mow4b27z" />
   <meta name="notes-ai-api-base" content="https://notes-ai-app.onrender.com" />
@@ -12,7 +12,7 @@
     window.__APP_ENV__.VITE_API_URL = "https://notes-ai-app.onrender.com";
   </script>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="stylesheet" href="css/admin.css?v=local-mow4b27z" />
+  <link rel="stylesheet" href="css/admin.css?v=admin-modal-mobile-v1" />
   <script defer src="js/sw-register.js?v=local-mow4b27z"></script>
 </head>
 <body>
@@ -67,18 +67,6 @@
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/><circle cx="12" cy="12" r="3"/></svg>
             </span>
             <span class="admin-nav-text">Subscriptions</span>
-          </button>
-          <button type="button" class="admin-nav-item" data-panel="dashboard" data-scroll-target="admin-recent-notes-heading">
-            <span class="admin-nav-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-            </span>
-            <span class="admin-nav-text">Notes</span>
-          </button>
-          <button type="button" class="admin-nav-item" data-panel="dashboard" data-scroll-target="admin-recent-rem-heading">
-            <span class="admin-nav-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 2h4l3 5H7l3-5z"/><path d="M7 7h10v10a3 3 0 0 1-3 3h-4a3 3 0 0 1-3-3V7z"/><path d="M10 22v-3"/></svg>
-            </span>
-            <span class="admin-nav-text">Reminders</span>
           </button>
         </div>
         <div class="admin-nav-group">
@@ -185,10 +173,6 @@
               <h3 class="admin-chart-card-title">Pulse</h3>
               <div id="adminCircularGauges" class="admin-mini-gauges"></div>
             </div>
-            <div class="admin-card admin-chart-card admin-chart-card--wide">
-              <h3 class="admin-chart-card-title">Notes by category</h3>
-              <div id="adminNotesByCategory" class="admin-bar-chart"></div>
-            </div>
             <div class="admin-card admin-chart-card">
               <h3 class="admin-chart-card-title">Sign-ups · last 7 days</h3>
               <div id="adminSignupSparkline" class="admin-sparkline-wrap"></div>
@@ -210,52 +194,8 @@
                     <th>User</th>
                     <th>Plan</th>
                     <th>Online</th>
-                    <th>Notes</th>
                     <th>Invited</th>
                     <th>Joined</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-          </section>
-
-          <section class="admin-card admin-card--wide" aria-labelledby="admin-recent-notes-heading">
-            <div class="admin-card-head">
-              <h2 id="admin-recent-notes-heading" class="admin-card-title">Recent notes</h2>
-              <span class="admin-card-hint">Newest across accounts</span>
-            </div>
-            <div id="adminDashNotesCards" class="admin-dash-cards" data-admin-cards="notes"></div>
-            <div class="admin-table-scroll admin-dash-table-desktop">
-              <table class="admin-mini-table" id="adminDashNotesTable">
-                <thead>
-                  <tr>
-                    <th>When</th>
-                    <th>User</th>
-                    <th>Category</th>
-                    <th>Preview</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-          </section>
-
-          <section class="admin-card admin-card--wide" aria-labelledby="admin-recent-rem-heading">
-            <div class="admin-card-head">
-              <h2 id="admin-recent-rem-heading" class="admin-card-title">Recent reminders</h2>
-              <span class="admin-card-hint">Newest scheduled</span>
-            </div>
-            <div id="adminDashRemCards" class="admin-dash-cards" data-admin-cards="reminders"></div>
-            <div class="admin-table-scroll admin-dash-table-desktop">
-              <table class="admin-mini-table" id="adminDashRemindersTable">
-                <thead>
-                  <tr>
-                    <th>When</th>
-                    <th>User</th>
-                    <th>Channel</th>
-                    <th>Status</th>
-                    <th>Message</th>
                   </tr>
                 </thead>
                 <tbody></tbody>
@@ -270,7 +210,7 @@
           <div class="admin-page-head-text">
             <p class="admin-eyebrow">Directory</p>
             <h1>Users</h1>
-            <p class="admin-lead">Paginated directory with notes, reminders, invites, and online status. Search is debounced server-side.</p>
+            <p class="admin-lead">Paginated directory with invites, coins, and online status. Search is debounced server-side.</p>
           </div>
           <div class="admin-toolbar admin-toolbar--wrap">
             <label class="admin-search-wrap">
@@ -308,7 +248,6 @@
               <col class="admin-col-badge" span="1" />
               <col class="admin-col-num" span="1" />
               <col class="admin-col-num" span="1" />
-              <col class="admin-col-num" span="1" />
               <col class="admin-col-date" span="1" />
               <col class="admin-col-action" span="1" />
             </colgroup>
@@ -319,9 +258,8 @@
                 <th>Staff</th>
                 <th>Plan</th>
                 <th>Online</th>
-                <th>Notes</th>
-                <th>Reminders</th>
                 <th>Friends invited</th>
+                <th>Coins</th>
                 <th>Joined</th>
                 <th></th>
               </tr>
@@ -371,6 +309,7 @@
             <tbody></tbody>
           </table>
         </div>
+        <div id="adminSubsPagination" class="admin-pagination" aria-label="Subscription list pages"></div>
       </section>
 
       <section id="panel-analytics" class="admin-panel hidden">
@@ -391,12 +330,6 @@
               <h2 id="admin-an-signups" class="admin-card-title">Acquisition</h2>
             </div>
             <div id="adminAnalyticsSignups" class="admin-analytics-body"></div>
-          </section>
-          <section class="admin-card" aria-labelledby="admin-an-rem">
-            <div class="admin-card-head">
-              <h2 id="admin-an-rem" class="admin-card-title">Reminders by status</h2>
-            </div>
-            <div id="adminAnalyticsReminders" class="admin-analytics-body"></div>
           </section>
         </div>
       </section>
@@ -494,13 +427,9 @@
           <span class="admin-bnav-lbl">More</span>
         </button>
       </nav>
+      
+      
       <div id="adminBnavMorePanel" class="admin-bnav-more hidden" role="menu" aria-label="More sections">
-        <button type="button" class="admin-bnav-more-item" data-panel="dashboard" data-scroll-target="admin-recent-notes-heading" role="menuitem">
-          Notes
-        </button>
-        <button type="button" class="admin-bnav-more-item" data-panel="dashboard" data-scroll-target="admin-recent-rem-heading" role="menuitem">
-          Reminders
-        </button>
         <button type="button" class="admin-bnav-more-item" data-panel="settings" role="menuitem">Settings</button>
         <a class="admin-bnav-more-item" href="index.html" role="menuitem">Main app</a>
       </div>
@@ -508,7 +437,7 @@
   </div>
 
   <div id="adminUserDetailsModal" class="admin-modal hidden" role="dialog" aria-modal="true" aria-labelledby="adminUserDetailsTitle">
-    <div class="admin-modal-card">
+    <div class="admin-modal-card admin-modal-card--user">
       <div class="admin-modal-head">
         <h2 id="adminUserDetailsTitle">User details</h2>
         <button type="button" class="admin-modal-close" data-act="close-user-details" aria-label="Close">✕</button>
@@ -520,9 +449,9 @@
         <div class="admin-user-detail-row"><span>Plan</span><strong id="adminDetailPlanBadge">—</strong></div>
         <div class="admin-user-detail-row"><span>Staff role</span><strong id="adminDetailStaffBadge">—</strong></div>
         <div class="admin-user-detail-row"><span>Online</span><strong id="adminDetailActive">—</strong></div>
-        <div class="admin-user-detail-row"><span>Notes</span><strong id="adminDetailNotesCount">—</strong></div>
-        <div class="admin-user-detail-row"><span>Reminders</span><strong id="adminDetailRemindersCount">—</strong></div>
         <div class="admin-user-detail-row"><span>Friends invited</span><strong id="adminDetailInvitesCount">—</strong></div>
+        <div class="admin-user-detail-row"><span>Coin balance</span><strong id="adminDetailCoinBalance">—</strong></div>
+        <div class="admin-user-detail-row"><span>Total gifted</span><strong id="adminDetailGiftedCoins">—</strong></div>
         <div class="admin-user-detail-row"><span>Standard billing ends</span><strong id="adminDetailPremiumExpires">—</strong></div>
         <div class="admin-user-detail-row"><span>Created</span><strong id="adminDetailCreated">—</strong></div>
         <div class="admin-user-detail-row admin-user-detail-row--span"><span>User ID</span><strong id="adminDetailUserId">—</strong></div>
@@ -552,6 +481,12 @@
         </div>
       </div>
 
+      <div class="admin-role-editor admin-role-editor--gift" id="adminDetailGiftCoinsBlock">
+        <label>Gift coins</label>
+        <p class="admin-hint-muted">Manually credit coins for rewards, invites, or goodwill. Admin only.</p>
+        <button type="button" class="admin-btn admin-btn--gift" data-act="open-gift-coins">🎁 Gift coins</button>
+      </div>
+
       <div class="admin-role-editor" id="adminDetailPlanEditor">
         <label for="adminDetailPlanSelect">Product plan</label>
         <div class="admin-role-editor-controls">
@@ -570,8 +505,31 @@
     </div>
   </div>
 
+  <div id="adminGiftCoinsModal" class="admin-modal admin-modal--gift hidden" role="dialog" aria-modal="true" aria-labelledby="adminGiftCoinsTitle">
+    <div class="admin-modal-card admin-gift-modal-card">
+      <div class="admin-modal-head">
+        <h2 id="adminGiftCoinsTitle">🎁 Gift coins</h2>
+        <button type="button" class="admin-modal-close" data-act="close-gift-coins" aria-label="Close">✕</button>
+      </div>
+      <p class="admin-gift-recipient">To: <strong id="adminGiftRecipientName">—</strong></p>
+      <p class="admin-gift-balance-hint">Current balance: <strong id="adminGiftCurrentBalance">0</strong> / 1200</p>
+      <div class="admin-gift-field">
+        <label for="adminGiftAmount">Amount</label>
+        <input type="number" id="adminGiftAmount" class="admin-input" min="1" max="1200" step="1" inputmode="numeric" placeholder="e.g. 100" />
+      </div>
+      <div class="admin-gift-field">
+        <label for="adminGiftReason">Reason (optional)</label>
+        <input type="text" id="adminGiftReason" class="admin-input" maxlength="300" placeholder="e.g. Beta reward, support goodwill" />
+      </div>
+      <div class="admin-modal-actions admin-modal-actions--gift">
+        <button type="button" class="admin-btn admin-btn--ghost" data-act="close-gift-coins">Cancel</button>
+        <button type="button" class="admin-btn admin-btn--gift" id="adminGiftConfirmBtn" data-act="confirm-gift-coins">Confirm gift</button>
+      </div>
+    </div>
+  </div>
+
   <script src="js/config/platform-native.js?v=local-mow4b27z"></script>
   <script src="js/config/api-base.js?v=local-mow4b27z"></script>
-  <script src="js/admin-dashboard.js?v=local-mow4b27z"></script>
+  <script defer src="js/admin-dashboard.js?v=admin-no-notes-v1"></script>
 </body>
 </html>

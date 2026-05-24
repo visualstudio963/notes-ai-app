@@ -6,6 +6,7 @@
   let messagesCache = [];
   let messagesFilterTimer = null;
   let selectedUserId = "";
+  let giftCoinsInFlight = false;
   let discordConfigCache = {
     discordInviteUrl: "",
     discordUpdatesCount: 0,
@@ -62,7 +63,7 @@
   let usersFetchGen = 0;
   const usersState = {
     page: 1,
-    limit: 25,
+    limit: 20,
     total: 0,
     totalPages: 1,
     search: "",
@@ -70,6 +71,81 @@
   };
 
   let usersSearchTimer = null;
+  let subsFetchGen = 0;
+  let subsRefreshTimer = null;
+  let subsListFingerprint = "";
+  const subsState = {
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 1
+  };
+  let lastDashboardFingerprint = "";
+  let lastAnalyticsRenderFingerprint = "";
+  const PANEL_STALE_MS = 90000;
+  const panelLoadedAt = {
+    dashboard: 0,
+    users: 0,
+    subscriptions: 0,
+    analytics: 0,
+    settings: 0
+  };
+  let adminStaticUiBound = false;
+
+  const ADMIN_MOBILE_LIST_LIMIT = 8;
+
+  function adminListLimit() {
+    return isMobileShell() ? ADMIN_MOBILE_LIST_LIMIT : Number.POSITIVE_INFINITY;
+  }
+
+  function clearDashTableBody(selector) {
+    const tbody = document.querySelector(selector);
+    if (tbody) tbody.replaceChildren();
+  }
+
+  function replaceChildrenFromHtml(el, html) {
+    if (!el) return;
+    const trimmed = String(html || "").trim();
+    if (!trimmed) {
+      el.replaceChildren();
+      return;
+    }
+    const tpl = document.createElement("template");
+    tpl.innerHTML = trimmed;
+    el.replaceChildren(tpl.content);
+  }
+
+  function dashboardFingerprint(data) {
+    if (!data) return "";
+    const st = data.stats || {};
+    const idList = (arr) =>
+      (arr || [])
+        .map((x) => String(x.id != null ? x.id : x._id != null ? x._id : ""))
+        .join(",");
+    const analytics = data.analytics || {};
+    const signups = Array.isArray(analytics.signupsByDay) ? analytics.signupsByDay : [];
+    return JSON.stringify({
+      tu: st.totalUsers,
+      pro: st.proUsers != null ? st.proUsers : st.premiumUsers,
+      std: st.standardUsers,
+      free: st.freeUsers,
+      au: st.activeUsers,
+      at: st.activeUsersToday,
+      ru: idList(data.recentUsers),
+      s7: analytics.signupsLast7Days,
+      sbd: signups.map((d) => String(d.day || d.date) + ":" + d.count).join("|")
+    });
+  }
+
+  function subsPanelFingerprint(users, meta) {
+    return JSON.stringify({
+      page: meta.page,
+      total: meta.total,
+      users: (users || []).map(
+        (u) => String(u.id) + ":" + (u.activeNow ? 1 : 0) + ":" + String(u.premiumExpires || "")
+      )
+    });
+  }
 
   /** Last successful dashboard response (for Analytics without refetch). */
   let dashboardBundleCache = null;
@@ -175,7 +251,7 @@
       el.innerHTML = "";
       return;
     }
-    el.innerHTML = '<div class="admin-banner admin-banner--' + (kind || "info") + '">' + html + "</div>";
+    el.innerHTML = '<div class="admin-banner admin-banner--' + (kind || "info") + (kind === "success" ? " admin-banner--pulse" : "") + '">' + html + "</div>";
   }
 
   /** Scroll the alert strip into view (mobile users scroll past the top). */
@@ -214,49 +290,29 @@
       .replace(/"/g, "&quot;");
   }
 
-  function pmPlainFromJsonNode(node) {
-    if (!node || typeof node !== "object") return "";
-    if (node.type === "text" && typeof node.text === "string") return node.text;
-    const c = node.content;
-    if (!Array.isArray(c)) return "";
-    return c.map(pmPlainFromJsonNode).join("");
-  }
-
-  /** Strip ProseMirror/JSON, sanitize-ish HTML to plain text for admin previews. */
-  function cleanNotePreview(raw) {
-    const s = String(raw || "").trim();
-    if (!s) return "";
-    const looksJson = (s.startsWith("{") || s.startsWith("[")) && s.includes('"type"');
-    if (looksJson) {
-      try {
-        const j = JSON.parse(s);
-        const plain = pmPlainFromJsonNode(j);
-        if (plain && String(plain).trim()) return String(plain).replace(/\s+/g, " ").trim();
-      } catch {
-        /* ignore */
-      }
-    }
-    if (s.includes("<") && />/.test(s)) {
-      try {
-        const tmp = document.createElement("div");
-        tmp.innerHTML = s;
-        const t = (tmp.textContent || "").replace(/\s+/g, " ").trim();
-        if (t) return t;
-      } catch {
-        /* ignore */
-      }
-    }
-    return s.replace(/\s+/g, " ").trim();
-  }
-
   let dashboardRefreshTimer = null;
   function debouncedRefreshDashboard() {
     clearTimeout(dashboardRefreshTimer);
     dashboardRefreshTimer = setTimeout(async () => {
       dashboardRefreshTimer = null;
       try {
-        await loadDashboard();
+        await loadDashboard(true);
+        panelLoadedAt.dashboard = Date.now();
         setAlert("Dashboard refreshed.", "info");
+      } catch (err) {
+        setAlert(err.message, "error");
+      }
+    }, 400);
+  }
+
+  function debouncedReloadSubs(force) {
+    clearTimeout(subsRefreshTimer);
+    subsRefreshTimer = setTimeout(async () => {
+      subsRefreshTimer = null;
+      try {
+        await loadSubscriptionsPanel(Boolean(force));
+        panelLoadedAt.subscriptions = Date.now();
+        if (force) setAlert("Subscription list refreshed.", "info");
       } catch (err) {
         setAlert(err.message, "error");
       }
@@ -317,22 +373,6 @@
     const open = panel.classList.contains("hidden");
     panel.classList.toggle("hidden", !open);
     more.setAttribute("aria-expanded", open ? "true" : "false");
-  }
-
-  function sortNotesByCategoryRows(rows) {
-    const pref = ["home", "work", "school"];
-    const list = Array.isArray(rows) ? [...rows] : [];
-    list.sort((a, b) => {
-      const ca = String((a && a.category) || "").toLowerCase();
-      const cb = String((b && b.category) || "").toLowerCase();
-      const ia = pref.indexOf(ca);
-      const ib = pref.indexOf(cb);
-      const sa = ia === -1 ? 999 : ia;
-      const sb = ib === -1 ? 999 : ib;
-      if (sa !== sb) return sa - sb;
-      return (Number(b.count) || 0) - (Number(a.count) || 0);
-    });
-    return list;
   }
 
   function renderPlanMixDonut(stats) {
@@ -457,11 +497,10 @@
     const total = Number(stats.totalUsers) || 0;
     const online = Number(stats.activeUsers) || 0;
     const today = Number(stats.activeUsersToday) || 0;
-    const sent = Number(stats.remindersSent) || 0;
-    const tr = Number(stats.totalReminders) || 0;
+    const pro = Number(stats.proUsers != null ? stats.proUsers : stats.premiumUsers) || 0;
     host.innerHTML =
       ringSvg("Online", String(online), pctRatio(online, total), "#38bdf8") +
-      ringSvg("Sent", String(sent), pctRatio(sent, tr || 1), "#34d399") +
+      ringSvg("Pro", String(pro), pctRatio(pro, total), "#34d399") +
       ringSvg("Active today", String(today), pctRatio(today, total), "#a78bfa");
   }
 
@@ -550,6 +589,7 @@
     const canDeleteUsers = Boolean(c.canDeleteUsers);
     const canWritePlans = Boolean(c.canWritePlans);
     const canGrantPremium = Boolean(c.canGrantPremium);
+    const canGiftCoins = Boolean(c.canGiftCoins);
     const canChangeStaff = Boolean(c.canChangeStaffRoles);
 
     const discordUrl = document.getElementById("adminDiscordInviteUrl");
@@ -570,6 +610,9 @@
 
     const grantBlock = document.getElementById("adminDetailGrantBlock");
     if (grantBlock) grantBlock.hidden = !canGrantPremium;
+
+    const giftBlock = document.getElementById("adminDetailGiftCoinsBlock");
+    if (giftBlock) giftBlock.hidden = !canGiftCoins;
 
     const planEditor = document.getElementById("adminDetailPlanEditor");
     if (planEditor) planEditor.hidden = !canWritePlans;
@@ -597,8 +640,6 @@
     const pro = data.proUsers != null ? data.proUsers : data.premiumUsers;
     const cards = [
       { tone: "users", icon: "👥", label: "Total users", value: data.totalUsers },
-      { tone: "notes", icon: "📝", label: "Total notes", value: data.totalNotes },
-      { tone: "rem", icon: "⏰", label: "Total reminders", value: data.totalReminders },
       { tone: "prem", icon: "✦", label: "Pro users", value: pro },
       { tone: "live", icon: "●", label: "Online (~" + mins + " min)", value: data.activeUsers },
       { tone: "today", icon: "◎", label: "Active today", value: data.activeUsersToday ?? "—" }
@@ -620,36 +661,6 @@
           escapeHtml(String(card.value ?? "—")) +
           "</div></div>"
       )
-      .join("");
-  }
-
-  function renderNotesByCategory(rows) {
-    const el = document.getElementById("adminNotesByCategory");
-    if (!el) return;
-    const sorted = sortNotesByCategoryRows(rows || []);
-    if (!sorted.length) {
-      el.innerHTML = '<p class="admin-muted">No notes in the database yet.</p>';
-      return;
-    }
-    const max = Math.max(1, ...sorted.map((r) => r.count));
-    el.innerHTML = sorted
-      .map((r) => {
-        const pct = Math.round((r.count / max) * 100);
-        const name = escapeHtml(String(r.category || "—"));
-        return (
-          '<div class="admin-bar-row">' +
-          '<span class="admin-bar-name">' +
-          name +
-          "</span>" +
-          '<div class="admin-bar-track"><div class="admin-bar-fill" style="width:' +
-          pct +
-          '%"></div></div>' +
-          '<span class="admin-bar-count">' +
-          escapeHtml(String(r.count)) +
-          "</span>" +
-          "</div>"
-        );
-      })
       .join("");
   }
 
@@ -676,7 +687,6 @@
         const on = u.activeNow
           ? '<span class="admin-badge admin-badge--yes">' + ACTIVE_LABEL + "</span>"
           : '<span class="admin-badge admin-badge--offline">Away</span>';
-        const nc = Number(u.notesCount) || 0;
         const inv = Number(u.invitedFriendsCount) || 0;
         return (
           "<tr>" +
@@ -692,9 +702,6 @@
           on +
           "</td>" +
           '<td class="admin-num-cell">' +
-          escapeHtml(String(nc)) +
-          "</td>" +
-          '<td class="admin-num-cell">' +
           escapeHtml(String(inv)) +
           "</td>" +
           '<td class="admin-cell-muted">' +
@@ -706,187 +713,56 @@
       .join("");
   }
 
-  function renderDashNotesTable(notes) {
-    const tbody = document.querySelector("#adminDashNotesTable tbody");
-    if (!tbody) return;
-    tbody.innerHTML = (notes || [])
-      .map(
-        (n) =>
-          "<tr>" +
-          '<td class="admin-cell-muted">' +
-          escapeHtml(fmtDate(n.createdAt)) +
-          "</td>" +
-          "<td>" +
-          escapeHtml(n.username || "—") +
-          "</td>" +
-          "<td>" +
-          escapeHtml(n.category || "—") +
-          "</td>" +
-          '<td class="admin-cell-preview">' +
-          escapeHtml(
-            (() => {
-              const titlePart = n.title ? String(n.title).trim() : "";
-              const body = cleanNotePreview(n.textPreview || "");
-              if (titlePart && body) return titlePart + " — " + body;
-              return titlePart || body || "—";
-            })()
-          ) +
-          "</td>" +
-          "</tr>"
-      )
-      .join("");
-  }
-
-  function reminderChannelPill(type) {
-    const t = (type || "web").toLowerCase();
-    if (t === "whatsapp") return '<span class="admin-pill admin-pill--wa">Legacy</span>';
-    return '<span class="admin-pill admin-pill--web">Web</span>';
-  }
-
-  function reminderStatusPill(r) {
-    if (r.sent) return '<span class="admin-pill admin-pill--ok">Sent</span>';
-    const s = (r.status || "pending").toLowerCase();
-    if (s === "failed") return '<span class="admin-pill admin-pill--fail">Failed</span>';
-    return '<span class="admin-pill admin-pill--pend">Pending</span>';
-  }
-
-  function renderDashRemindersTable(rows) {
-    const tbody = document.querySelector("#adminDashRemindersTable tbody");
-    if (!tbody) return;
-    tbody.innerHTML = (rows || [])
-      .map(
-        (r) =>
-          "<tr>" +
-          '<td class="admin-cell-muted">' +
-          escapeHtml(fmtDate(r.time)) +
-          "</td>" +
-          "<td>" +
-          escapeHtml(r.username || "—") +
-          "</td>" +
-          "<td>" +
-          reminderChannelPill(r.notificationType) +
-          "</td>" +
-          "<td>" +
-          reminderStatusPill(r) +
-          "</td>" +
-          '<td class="admin-cell-preview">' +
-          escapeHtml(r.messagePreview || "—") +
-          "</td>" +
-          "</tr>"
-      )
-      .join("");
-  }
-
   function renderDashUsersCards(users) {
     const wrap = document.getElementById("adminDashUsersCards");
     if (!wrap) return;
     const canPlan = Boolean(caps && caps.capabilities && caps.capabilities.canWritePlans);
-    wrap.innerHTML = (users || [])
-      .map((u) => {
-        const pl = effectivePlanFromUser(u);
-        const uid = escapeHtml(String(u.id || ""));
-        const on = u.activeNow
-          ? '<span class="admin-badge admin-badge--yes">' + ACTIVE_LABEL + "</span>"
-          : '<span class="admin-badge admin-badge--offline">Away</span>';
-        return (
-          '<article class="admin-dash-user-card" data-user-card="1" data-id="' +
-          uid +
-          '">' +
-          '<div class="admin-dash-user-card-top"><div>' +
-          '<div class="admin-dash-user-name">' +
-          escapeHtml(u.username || "—") +
-          "</div>" +
-          '<div class="admin-dash-user-email">' +
-          escapeHtml(u.email || "") +
-          "</div></div>" +
-          planBadge(pl) +
-          "</div>" +
-          '<div class="admin-dash-user-meta">' +
-          on +
-          '<span>' +
-          escapeHtml(fmtDate(u.createdAt)) +
-          "</span></div>" +
-          '<div class="admin-dash-card-actions">' +
-          '<button type="button" class="admin-card-ghost-btn admin-card-ghost-btn--primary" data-act="open-user" data-id="' +
-          uid +
-          '">View</button>' +
-          (canPlan
-            ? '<button type="button" class="admin-card-ghost-btn" data-act="open-user" data-id="' +
-              uid +
-              '">Plan</button>'
-            : "") +
-          "</div></article>"
-        );
-      })
-      .join("");
-  }
-
-  function renderDashNotesCards(notes) {
-    const wrap = document.getElementById("adminDashNotesCards");
-    if (!wrap) return;
-    wrap.innerHTML = (notes || [])
-      .map((n) => {
-        const titlePart = n.title ? String(n.title).trim() : "";
-        const body = cleanNotePreview(n.textPreview || "");
-        const nid = escapeHtml(String(n.id || ""));
-        const previewInner = body
-          ? escapeHtml(body)
-          : titlePart
-            ? '<span class="admin-muted">No text preview</span>'
-            : '<span class="admin-muted">—</span>';
-        return (
-          '<article class="admin-dash-note-card">' +
-          (titlePart ? '<div class="admin-dash-note-title">' + escapeHtml(titlePart) + "</div>" : "") +
-          '<div class="admin-dash-note-preview">' +
-          previewInner +
-          "</div>" +
-          '<div class="admin-dash-note-meta">' +
-          "<span>" +
-          escapeHtml(n.username || "—") +
-          "</span>" +
-          "<span>" +
-          escapeHtml(n.category || "—") +
-          "</span>" +
-          "<span>" +
-          escapeHtml(fmtDate(n.createdAt)) +
-          "</span></div>" +
-          '<div class="admin-dash-card-actions">' +
-          '<button type="button" class="admin-card-ghost-btn admin-card-ghost-btn--primary" data-act="preview-note" data-id="' +
-          nid +
-          '">View</button>' +
-          "</div></article>"
-        );
-      })
-      .join("");
-  }
-
-  function renderDashRemCards(rows) {
-    const wrap = document.getElementById("adminDashRemCards");
-    if (!wrap) return;
-    wrap.innerHTML = (rows || [])
-      .map((r) => {
-        const rid = escapeHtml(String(r.id || ""));
-        return (
-          '<article class="admin-dash-rem-card">' +
-          '<div class="admin-dash-rem-time">' +
-          escapeHtml(fmtDate(r.time)) +
-          "</div>" +
-          '<div class="admin-dash-rem-meta">' +
-          escapeHtml(r.username || "—") +
-          reminderChannelPill(r.notificationType) +
-          reminderStatusPill(r) +
-          "</div>" +
-          '<div class="admin-dash-rem-text">' +
-          escapeHtml(r.messagePreview || "—") +
-          "</div>" +
-          '<div class="admin-dash-card-actions">' +
-          '<button type="button" class="admin-card-ghost-btn admin-card-ghost-btn--primary" data-act="preview-reminder" data-id="' +
-          rid +
-          '">View</button>' +
-          "</div></article>"
-        );
-      })
-      .join("");
+    const rows = (users || []).slice(0, adminListLimit());
+    if (!rows.length) {
+      replaceChildrenFromHtml(wrap, '<p class="admin-muted">No recent users.</p>');
+      return;
+    }
+    replaceChildrenFromHtml(
+      wrap,
+      rows
+        .map((u) => {
+          const pl = effectivePlanFromUser(u);
+          const uid = escapeHtml(String(u.id || ""));
+          const on = u.activeNow
+            ? '<span class="admin-badge admin-badge--yes">' + ACTIVE_LABEL + "</span>"
+            : '<span class="admin-badge admin-badge--offline">Away</span>';
+          return (
+            '<article class="admin-dash-user-card" data-user-card="1" data-id="' +
+            uid +
+            '">' +
+            '<div class="admin-dash-user-card-top"><div>' +
+            '<div class="admin-dash-user-name">' +
+            escapeHtml(u.username || "—") +
+            "</div>" +
+            '<div class="admin-dash-user-email">' +
+            escapeHtml(u.email || "") +
+            "</div></div>" +
+            planBadge(pl) +
+            "</div>" +
+            '<div class="admin-dash-user-meta">' +
+            on +
+            "<span>" +
+            escapeHtml(fmtDate(u.createdAt)) +
+            "</span></div>" +
+            '<div class="admin-dash-card-actions">' +
+            '<button type="button" class="admin-card-ghost-btn admin-card-ghost-btn--primary" data-act="open-user" data-id="' +
+            uid +
+            '">View</button>' +
+            (canPlan
+              ? '<button type="button" class="admin-card-ghost-btn" data-act="open-user" data-id="' +
+                uid +
+                '">Plan</button>'
+              : "") +
+            "</div></article>"
+          );
+        })
+        .join("")
+    );
   }
 
   function renderAnalyticsPanels(data) {
@@ -898,8 +774,7 @@
       const pro = stats.proUsers != null ? stats.proUsers : stats.premiumUsers;
       const mini = [
         { tone: "users", label: "Sign-ups (7d)", value: analytics.signupsLast7Days ?? "—" },
-        { tone: "prem", label: "Pro users", value: pro ?? "—" },
-        { tone: "notes", label: "Total notes", value: stats.totalNotes ?? "—" }
+        { tone: "prem", label: "Pro users", value: pro ?? "—" }
       ];
       grid.innerHTML = mini
         .map(
@@ -924,45 +799,29 @@
         escapeHtml(String(analytics.signupsLast7Days ?? "—")) +
         "</strong> new registrations</p>";
     }
-
-    const remEl = document.getElementById("adminAnalyticsReminders");
-    if (remEl) {
-      const rows = analytics.remindersByStatus || [];
-      if (!rows.length) {
-        remEl.innerHTML = '<p class="admin-muted">No reminders data.</p>';
-        return;
-      }
-      remEl.innerHTML =
-        '<ul class="admin-analytics-status-list">' +
-        rows
-          .map((r) => {
-            const st = escapeHtml(String(r.status || "—"));
-            const c = escapeHtml(String(r.count ?? 0));
-            return '<li><span>' + st + '</span><span class="admin-analytics-num">' + c + "</span></li>";
-          })
-          .join("") +
-        "</ul>";
-    }
   }
 
-  function hydrateDashboard(data) {
+  function hydrateDashboard(data, opts) {
+    const force = Boolean(opts && opts.force);
+    const fp = dashboardFingerprint(data);
+    if (!force && fp && fp === lastDashboardFingerprint) return;
+    lastDashboardFingerprint = fp;
     dashboardBundleCache = data;
     const st = data.stats || {};
     renderStats(st);
     renderAnalyticsPanels(data);
-    renderNotesByCategory(data.notesByCategory || []);
     renderPlanMixDonut(st);
     renderCircularGauges(data);
     renderSignupSparkline(data);
-    const ru = data.recentUsers || [];
-    const rn = data.recentNotes || [];
-    const rr = data.recentReminders || [];
-    renderDashUsersTable(ru);
+    const limit = adminListLimit();
+    const ruAll = data.recentUsers || [];
+    const ru = ruAll.slice(0, limit);
+    if (isMobileShell()) {
+      clearDashTableBody("#adminDashUsersTable tbody");
+    } else {
+      renderDashUsersTable(ruAll);
+    }
     renderDashUsersCards(ru);
-    renderDashNotesTable(rn);
-    renderDashNotesCards(rn);
-    renderDashRemindersTable(rr);
-    renderDashRemCards(rr);
   }
 
   async function fetchAdminDashboardBundle() {
@@ -975,9 +834,6 @@
         return {
           stats,
           analytics: {},
-          notesByCategory: [],
-          recentNotes: [],
-          recentReminders: [],
           recentUsers: []
         };
       } catch (err2) {
@@ -994,9 +850,13 @@
     }
   }
 
-  async function loadDashboard() {
+  async function loadDashboard(forceFetch) {
+    if (!forceFetch && dashboardBundleCache) {
+      hydrateDashboard(dashboardBundleCache);
+      return;
+    }
     const data = await fetchAdminDashboardBundle();
-    hydrateDashboard(data);
+    hydrateDashboard(data, { force: true });
   }
 
   function renderPagination() {
@@ -1030,8 +890,11 @@
   function renderUsersRows(list) {
     const tbody = document.querySelector("#adminUsersTable tbody");
     if (!tbody) return;
+    const canGift = Boolean(caps && caps.capabilities && caps.capabilities.canGiftCoins);
 
-    tbody.innerHTML = (list || [])
+    replaceChildrenFromHtml(
+      tbody,
+      (list || [])
       .map((u) => {
         const plan = effectivePlanFromUser(u);
         const sr = effectiveStaffRole(u);
@@ -1041,12 +904,17 @@
           u.activeNow === true
             ? '<span class="admin-badge admin-badge--yes">' + ACTIVE_LABEL + "</span>"
             : '<span class="admin-badge admin-badge--offline">Offline</span>';
-        const nc = Number(u.notesCount) || 0;
-        const rc = Number(u.remindersCount) || 0;
         const fc = Number(u.invitedFriendsCount) || 0;
+        const coins = Number(u.coinBalance) || 0;
+        const uid = escapeHtml(String(u.id || ""));
+        const giftBtn = canGift
+          ? '<button type="button" class="admin-gift-icon-btn" data-act="gift-coins-quick" data-id="' +
+            uid +
+            '" title="Gift coins" aria-label="Gift coins">🎁</button> '
+          : "";
         return (
           '<tr class="admin-user-row" data-user-row="1" data-id="' +
-          escapeHtml(String(u.id || "")) +
+          uid +
           '" tabindex="0" role="button">' +
           "<td>" +
           escapeHtml(u.username) +
@@ -1064,31 +932,30 @@
           active +
           "</td>" +
           '<td class="admin-num-cell">' +
-          nc +
-          "</td>" +
-          '<td class="admin-num-cell">' +
-          rc +
-          "</td>" +
-          '<td class="admin-num-cell">' +
           fc +
+          "</td>" +
+          '<td class="admin-num-cell">' +
+          coins +
           "</td>" +
           '<td class="admin-cell-muted">' +
           escapeHtml(fmtDate(u.createdAt)) +
           "</td>" +
           "<td>" +
+          giftBtn +
           '<span class="admin-cell-muted">Open →</span>' +
           "</td>" +
           "</tr>"
         );
       })
-      .join("");
+      .join("")
+    );
   }
 
   function renderUserPanelCards(list) {
     const wrap = document.getElementById("adminUsersCards");
     if (!wrap) return;
     const canPlan = Boolean(caps && caps.capabilities && caps.capabilities.canWritePlans);
-    const rows = (list || []).slice(0, 10);
+    const rows = (list || []).slice(0, adminListLimit());
     if (!rows.length) {
       wrap.innerHTML = '<p class="admin-muted">No users on this page.</p>';
       return;
@@ -1144,12 +1011,13 @@
   function renderSubsPanelCards(list) {
     const wrap = document.getElementById("adminSubsCards");
     if (!wrap) return;
-    const rows = (list || []).slice(0, 10);
+    const rows = list || [];
     if (!rows.length) {
-      wrap.innerHTML = "";
+      replaceChildrenFromHtml(wrap, "");
       return;
     }
-    wrap.innerHTML =
+    replaceChildrenFromHtml(
+      wrap,
       rows
         .map((u) => {
           const pl = effectivePlanFromUser(u);
@@ -1186,7 +1054,8 @@
         .join("") +
       '<p class="admin-card-hint" style="margin-top:12px">Showing ' +
       rows.length +
-      " Standard accounts — the full list stays in the desktop table.</p>";
+      " Standard accounts on this page.</p>"
+    );
   }
 
   async function loadUsersPage() {
@@ -1220,74 +1089,129 @@
       usersSearchTimer = null;
       usersState.page = 1;
       void loadUsersPage();
-    }, 280);
+    }, 400);
   }
 
-  async function loadSubscriptionsPanel() {
+  function renderSubsPagination() {
+    const el = document.getElementById("adminSubsPagination");
+    if (!el) return;
+    if (subsState.totalPages <= 1) {
+      replaceChildrenFromHtml(
+        el,
+        '<span class="admin-pagination-meta">' + escapeHtml(subsState.total + " subscribers") + "</span>"
+      );
+      return;
+    }
+    replaceChildrenFromHtml(
+      el,
+      '<div class="admin-pagination-inner">' +
+        '<button type="button" class="admin-btn admin-btn--ghost admin-btn--small" data-act="subs-page" data-dir="prev"' +
+        (subsState.page <= 1 ? " disabled" : "") +
+        ">Prev</button>" +
+        '<span class="admin-pagination-meta">Page ' +
+        escapeHtml(String(subsState.page)) +
+        " / " +
+        escapeHtml(String(subsState.totalPages)) +
+        " · " +
+        escapeHtml(String(subsState.total)) +
+        " subscribers</span>" +
+        '<button type="button" class="admin-btn admin-btn--ghost admin-btn--small" data-act="subs-page" data-dir="next"' +
+        (subsState.page >= subsState.totalPages ? " disabled" : "") +
+        ">Next</button>" +
+        "</div>"
+    );
+  }
+
+  async function loadSubscriptionsPanel(forceRender) {
+    subsFetchGen += 1;
+    const gen = subsFetchGen;
     const qs = new URLSearchParams({
       tier: "standard",
-      limit: "50",
-      page: "1"
+      limit: String(subsState.limit),
+      page: String(subsState.page)
     });
     const data = await apiJson(`/api/admin/users?${qs}`, { method: "GET" });
+    if (gen !== subsFetchGen) return;
+
+    const users = data.users || [];
+    subsState.total = typeof data.total === "number" ? data.total : users.length;
+    subsState.totalPages = typeof data.totalPages === "number" ? data.totalPages : 1;
+
+    const fp = subsPanelFingerprint(users, subsState);
     const tbody = document.querySelector("#adminSubsTable tbody");
     const cardsHost = document.getElementById("adminSubsCards");
     if (!tbody) return;
 
-    if (!(data.users || []).length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="admin-cell-muted">No Standard subscribers yet.</td></tr>';
-      if (cardsHost) cardsHost.innerHTML = '<p class="admin-muted">No Standard subscribers yet.</p>';
+    if (!forceRender && fp === subsListFingerprint) {
+      renderSubsPagination();
+      return;
+    }
+    subsListFingerprint = fp;
+
+    if (!users.length) {
+      replaceChildrenFromHtml(
+        tbody,
+        '<tr><td colspan="6" class="admin-cell-muted">No Standard subscribers yet.</td></tr>'
+      );
+      if (cardsHost) replaceChildrenFromHtml(cardsHost, '<p class="admin-muted">No Standard subscribers yet.</p>');
+      renderSubsPagination();
       mergeCapabilityUi();
       return;
     }
 
-    tbody.innerHTML = (data.users || [])
-      .map((u) => {
-        const pl = effectivePlanFromUser(u);
-        const expires = u.premiumExpires ? fmtDate(u.premiumExpires) : "—";
-        const on = u.activeNow
-          ? '<span class="admin-badge admin-badge--yes">' + ACTIVE_LABEL + "</span>"
-          : '<span class="admin-badge admin-badge--offline">Offline</span>';
+    replaceChildrenFromHtml(
+      tbody,
+      users
+        .map((u) => {
+          const pl = effectivePlanFromUser(u);
+          const expires = u.premiumExpires ? fmtDate(u.premiumExpires) : "—";
+          const on = u.activeNow
+            ? '<span class="admin-badge admin-badge--yes">' + ACTIVE_LABEL + "</span>"
+            : '<span class="admin-badge admin-badge--offline">Offline</span>';
 
-        return (
-          '<tr class="admin-user-row" data-user-row="1" data-id="' +
-          escapeHtml(String(u.id || "")) +
-          '" tabindex="0">' +
-          "<td>" +
-          escapeHtml(u.username) +
-          "</td>" +
-          "<td>" +
-          escapeHtml(u.email || "") +
-          "</td>" +
-          "<td>" +
-          planBadge(pl) +
-          "</td>" +
-          "<td>" +
-          on +
-          "</td>" +
-          '<td class="admin-cell-muted">' +
-          escapeHtml(expires) +
-          "</td>" +
-          '<td><span class="admin-cell-muted">Open →</span></td>' +
-          "</tr>"
-        );
-      })
-      .join("");
+          return (
+            '<tr class="admin-user-row" data-user-row="1" data-id="' +
+            escapeHtml(String(u.id || "")) +
+            '" tabindex="0">' +
+            "<td>" +
+            escapeHtml(u.username) +
+            "</td>" +
+            "<td>" +
+            escapeHtml(u.email || "") +
+            "</td>" +
+            "<td>" +
+            planBadge(pl) +
+            "</td>" +
+            "<td>" +
+            on +
+            "</td>" +
+            '<td class="admin-cell-muted">' +
+            escapeHtml(expires) +
+            "</td>" +
+            '<td><span class="admin-cell-muted">Open →</span></td>' +
+            "</tr>"
+          );
+        })
+        .join("")
+    );
 
-    (data.users || []).forEach(stashUser);
-    if (cardsHost) renderSubsPanelCards(data.users || []);
+    users.forEach(stashUser);
+    if (cardsHost) renderSubsPanelCards(users);
+    renderSubsPagination();
     mergeCapabilityUi();
   }
 
   async function hydrateAnalyticsFromCache() {
-    if (dashboardBundleCache) {
-      renderAnalyticsPanels(dashboardBundleCache);
-      renderPlanMixDonut(dashboardBundleCache.stats || {});
-      renderCircularGauges(dashboardBundleCache);
-      renderSignupSparkline(dashboardBundleCache);
-      return;
+    if (!dashboardBundleCache) {
+      await loadDashboard(true);
     }
-    await loadDashboard();
+    const fp = dashboardFingerprint(dashboardBundleCache);
+    if (fp && fp === lastAnalyticsRenderFingerprint) return;
+    lastAnalyticsRenderFingerprint = fp;
+    renderAnalyticsPanels(dashboardBundleCache);
+    renderPlanMixDonut(dashboardBundleCache.stats || {});
+    renderCircularGauges(dashboardBundleCache);
+    renderSignupSparkline(dashboardBundleCache);
   }
 
   const meUser = getStoredUser();
@@ -1301,6 +1225,47 @@
     selectedUserId = "";
     const modal = document.getElementById("adminUserDetailsModal");
     if (modal) modal.classList.add("hidden");
+  }
+
+  function closeGiftCoinsModal() {
+    giftCoinsInFlight = false;
+    const modal = document.getElementById("adminGiftCoinsModal");
+    const confirmBtn = document.getElementById("adminGiftConfirmBtn");
+    if (modal) modal.classList.add("hidden");
+    if (confirmBtn) {
+      confirmBtn.disabled = false;
+      confirmBtn.classList.remove("is-busy");
+    }
+    const amountInput = document.getElementById("adminGiftAmount");
+    const reasonInput = document.getElementById("adminGiftReason");
+    if (amountInput) amountInput.value = "";
+    if (reasonInput) reasonInput.value = "";
+  }
+
+  async function openGiftCoinsModal(userId) {
+    if (!(caps && caps.capabilities && caps.capabilities.canGiftCoins)) return;
+    const user = await ensureUserResolved(userId);
+    if (!user) return;
+    selectedUserId = String(user.id);
+
+    const modal = document.getElementById("adminGiftCoinsModal");
+    if (!modal) return;
+
+    const nameEl = document.getElementById("adminGiftRecipientName");
+    const balanceEl = document.getElementById("adminGiftCurrentBalance");
+    const amountInput = document.getElementById("adminGiftAmount");
+    const reasonInput = document.getElementById("adminGiftReason");
+
+    if (nameEl) nameEl.textContent = user.username || "—";
+    if (balanceEl) balanceEl.textContent = String(Number(user.coinBalance) || 0);
+    if (amountInput) {
+      amountInput.value = "";
+      amountInput.max = "1200";
+    }
+    if (reasonInput) reasonInput.value = "";
+
+    modal.classList.remove("hidden");
+    if (amountInput) amountInput.focus();
   }
 
   async function ensureUserResolved(id) {
@@ -1339,9 +1304,9 @@
     const activeEl = document.getElementById("adminDetailActive");
     if (activeEl) activeEl.innerHTML = activeHtml;
 
-    document.getElementById("adminDetailNotesCount").textContent = String(Number(user.notesCount) || 0);
-    document.getElementById("adminDetailRemindersCount").textContent = String(Number(user.remindersCount) || 0);
     document.getElementById("adminDetailInvitesCount").textContent = String(Number(user.invitedFriendsCount) || 0);
+    document.getElementById("adminDetailCoinBalance").textContent = String(Number(user.coinBalance) || 0);
+    document.getElementById("adminDetailGiftedCoins").textContent = String(Number(user.totalGiftedCoins) || 0);
     document.getElementById("adminDetailPremiumExpires").textContent = user.premiumExpires
       ? fmtDate(user.premiumExpires)
       : "Not set / lifetime";
@@ -1455,20 +1420,38 @@
     });
   }
 
-  async function goPanel(panel, scrollToId) {
+  async function goPanel(panel, scrollToId, opts) {
+    const force = Boolean(opts && opts.force);
     setNavActive(panel);
     setMobilePanelLabel(panel);
     setBottomNavActive(panel);
     setAlert("");
+    const now = Date.now();
     try {
-      if (panel === "dashboard") await loadDashboard();
-      if (panel === "users") {
-        await loadUsersPage();
+      if (panel === "dashboard") {
+        if (force || !dashboardBundleCache || now - panelLoadedAt.dashboard > PANEL_STALE_MS) {
+          await loadDashboard(force);
+          panelLoadedAt.dashboard = Date.now();
+        }
       }
-      if (panel === "subscriptions") await loadSubscriptionsPanel();
+      if (panel === "users") {
+        if (force || now - panelLoadedAt.users > PANEL_STALE_MS) {
+          await loadUsersPage();
+          panelLoadedAt.users = Date.now();
+        }
+      }
+      if (panel === "subscriptions") {
+        if (force || now - panelLoadedAt.subscriptions > PANEL_STALE_MS) {
+          await loadSubscriptionsPanel(force);
+          panelLoadedAt.subscriptions = Date.now();
+        }
+      }
       if (panel === "analytics") await hydrateAnalyticsFromCache();
       if (panel === "settings") {
-        await Promise.all([loadDiscordConfig(), loadMessages()]);
+        if (force || now - panelLoadedAt.settings > PANEL_STALE_MS) {
+          await Promise.all([loadDiscordConfig(), loadMessages()]);
+          panelLoadedAt.settings = Date.now();
+        }
       }
     } catch (err) {
       setAlert(err.message, "error");
@@ -1573,50 +1556,6 @@
       if (id) void openUserDetailsModal(id);
       return;
     }
-    if (act === "preview-note") {
-      const id = actHost.getAttribute("data-id");
-      const rows = (dashboardBundleCache && dashboardBundleCache.recentNotes) || [];
-      const n = rows.find((x) => dashboardRowId(x.id ?? x._id) === String(id || ""));
-      if (n) {
-        const body = cleanNotePreview(n.textPreview || "");
-        const titlePart = n.title ? String(n.title).trim() : "";
-        const block = (
-          (titlePart ? "<strong>" + escapeHtml(titlePart) + "</strong><br/>" : "") +
-          escapeHtml(body || "—")
-        ).slice(0, 2000);
-        setAlert("<strong>" + escapeHtml(n.username || "User") + "</strong><br/>" + block, "info");
-        focusAdminAlert();
-      } else {
-        setAlert("Preview unavailable — tap <strong>Refresh</strong> at the top of the dashboard.", "error");
-        focusAdminAlert();
-      }
-      return;
-    }
-    if (act === "preview-reminder") {
-      const id = actHost.getAttribute("data-id");
-      const rows = (dashboardBundleCache && dashboardBundleCache.recentReminders) || [];
-      const r = rows.find((x) => dashboardRowId(x.id ?? x._id) === String(id || ""));
-      if (r) {
-        setAlert(
-          "<strong>" +
-            escapeHtml(fmtDate(r.time)) +
-            "</strong><br/>" +
-            escapeHtml(r.username || "—") +
-            "<br/>" +
-            reminderChannelPill(r.notificationType) +
-            " " +
-            reminderStatusPill(r) +
-            "<br/>" +
-            escapeHtml(r.messagePreview || "—"),
-          "info"
-        );
-        focusAdminAlert();
-      } else {
-        setAlert("Preview unavailable — tap <strong>Refresh</strong> at the top of the dashboard.", "error");
-        focusAdminAlert();
-      }
-      return;
-    }
     if (act === "refresh-dashboard") {
       debouncedRefreshDashboard();
       return;
@@ -1635,11 +1574,20 @@
       return;
     }
     if (act === "reload-subs") {
-      try {
-        await loadSubscriptionsPanel();
-        setAlert("Subscription list refreshed.", "info");
-      } catch (err) {
-        setAlert(err.message, "error");
+      debouncedReloadSubs(true);
+      return;
+    }
+    if (act === "subs-page") {
+      const dir = actHost.getAttribute("data-dir");
+      if (dir === "prev" && subsState.page > 1) {
+        subsState.page -= 1;
+        subsListFingerprint = "";
+        await loadSubscriptionsPanel(true);
+      }
+      if (dir === "next" && subsState.page < subsState.totalPages) {
+        subsState.page += 1;
+        subsListFingerprint = "";
+        await loadSubscriptionsPanel(true);
       }
       return;
     }
@@ -1695,6 +1643,76 @@
       } catch (err) {
         setAlert(err.message, "error");
       }
+      return;
+    }
+    if (act === "open-gift-coins") {
+      if (!(caps && caps.capabilities && caps.capabilities.canGiftCoins)) return;
+      if (!selectedUserId) return;
+      void openGiftCoinsModal(selectedUserId);
+      return;
+    }
+    if (act === "gift-coins-quick") {
+      if (!(caps && caps.capabilities && caps.capabilities.canGiftCoins)) return;
+      const id = actHost.getAttribute("data-id");
+      if (!id) return;
+      actHost.closest("tr")?.blur?.();
+      void openGiftCoinsModal(id);
+      return;
+    }
+    if (act === "close-gift-coins") {
+      closeGiftCoinsModal();
+      return;
+    }
+    if (act === "confirm-gift-coins") {
+      if (!(caps && caps.capabilities && caps.capabilities.canGiftCoins)) return;
+      if (!selectedUserId || giftCoinsInFlight) return;
+      const amountInput = document.getElementById("adminGiftAmount");
+      const reasonInput = document.getElementById("adminGiftReason");
+      const amount = amountInput ? Math.floor(Number(amountInput.value)) : 0;
+      const reason = reasonInput ? String(reasonInput.value || "").trim() : "";
+      if (!Number.isFinite(amount) || amount < 1) {
+        setAlert("Enter a valid coin amount (1 or more).", "error");
+        focusAdminAlert();
+        return;
+      }
+      const confirmBtn = document.getElementById("adminGiftConfirmBtn");
+      giftCoinsInFlight = true;
+      if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.classList.add("is-busy");
+      }
+      void (async () => {
+        try {
+          const out = await apiJson("/api/admin/users/" + encodeURIComponent(selectedUserId) + "/gift-coins", {
+            method: "POST",
+            body: JSON.stringify({ amount, reason })
+          });
+          if (out && out.user) stashUser(out.user);
+          const credited = out && out.gift && out.gift.amount != null ? out.gift.amount : amount;
+          const after = out && out.gift && out.gift.balanceAfter != null ? out.gift.balanceAfter : "—";
+          setAlert(
+            "🎁 Gifted <strong>" +
+              escapeHtml(String(credited)) +
+              "</strong> coins. New balance: <strong>" +
+              escapeHtml(String(after)) +
+              "</strong>.",
+            "success"
+          );
+          focusAdminAlert();
+          closeGiftCoinsModal();
+          await Promise.all([loadUsersPage(), loadDashboard()]);
+          await openUserDetailsModal(selectedUserId);
+        } catch (err) {
+          setAlert(err.message || "Failed to gift coins.", "error");
+          focusAdminAlert();
+        } finally {
+          giftCoinsInFlight = false;
+          if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.classList.remove("is-busy");
+          }
+        }
+      })();
       return;
     }
     if (act === "grant-premium") {
@@ -1764,7 +1782,9 @@
         });
         if (out && out.user) stashUser(out.user);
         setAlert("Plan updated.", "info");
-        await Promise.all([loadUsersPage(), loadDashboard()]);
+        await Promise.all([loadUsersPage(), loadDashboard(true)]);
+        subsListFingerprint = "";
+        panelLoadedAt.subscriptions = 0;
         await openUserDetailsModal(selectedUserId);
       } catch (err) {
         setAlert(err.message, "error");
@@ -1821,6 +1841,10 @@
     }
   });
 
+  function bindAdminStaticUi() {
+    if (adminStaticUiBound) return;
+    adminStaticUiBound = true;
+
   document.querySelectorAll(".admin-nav-item").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const panel = btn.getAttribute("data-panel");
@@ -1856,7 +1880,7 @@
     (document.getElementById("adminUsersPageSize"));
   if (pageSize) {
     pageSize.addEventListener("change", async () => {
-      usersState.limit = Math.min(100, Math.max(5, parseInt(pageSize.value || "25", 10)));
+      usersState.limit = Math.min(100, Math.max(5, parseInt(pageSize.value || "20", 10)));
       usersState.page = 1;
       await loadUsersPage();
     });
@@ -1866,7 +1890,7 @@
   if (messagesFilterEl) {
     messagesFilterEl.addEventListener("input", () => {
       clearTimeout(messagesFilterTimer);
-      messagesFilterTimer = setTimeout(() => applyMessagesFilter(), 180);
+      messagesFilterTimer = setTimeout(() => applyMessagesFilter(), 350);
     });
   }
 
@@ -1877,8 +1901,20 @@
     });
   }
 
+  const giftCoinsModal = document.getElementById("adminGiftCoinsModal");
+  if (giftCoinsModal) {
+    giftCoinsModal.addEventListener("click", (ev) => {
+      if (ev.target === giftCoinsModal) closeGiftCoinsModal();
+    });
+  }
+
   document.addEventListener("keydown", (evt) => {
     if (evt.key === "Escape") {
+      const giftModal = document.getElementById("adminGiftCoinsModal");
+      if (giftModal && !giftModal.classList.contains("hidden")) {
+        closeGiftCoinsModal();
+        return;
+      }
       const modal = document.getElementById("adminUserDetailsModal");
       if (modal && !modal.classList.contains("hidden")) {
         closeUserDetailsModal();
@@ -1895,6 +1931,9 @@
       if (rid) void openUserDetailsModal(rid);
     }
   });
+  }
+
+  bindAdminStaticUi();
 
   async function init() {
     const user = getStoredUser();
@@ -1930,7 +1969,8 @@
     setAdminDrawerOpen(false);
     setMobilePanelLabel("dashboard");
     setBottomNavActive("dashboard");
-    hydrateDashboard(dash);
+    hydrateDashboard(dash, { force: true });
+    panelLoadedAt.dashboard = Date.now();
     mergeCapabilityUi();
     try {
       await loadDiscordConfig();

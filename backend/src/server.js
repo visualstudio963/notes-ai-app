@@ -36,6 +36,7 @@ const { publicUser } = require("./utils/serializers");
 const Note = require("./models/Note");
 const Reminder = require("./models/Reminder");
 const ContactMessage = require("./models/ContactMessage");
+const CoinGiftLog = require("./models/CoinGiftLog");
 const AppConfig = require("./models/AppConfig");
 const { createAdminMiddleware } = require("./middleware/admin");
 const { createTouchLastActiveMiddleware } = require("./middleware/touchLastActive");
@@ -460,6 +461,7 @@ const apiRouter = createApiRouter(app, {
   Note,
   Reminder,
   ContactMessage,
+  CoinGiftLog,
   AppConfig,
   jwtSecret: config.jwtSecret,
   jwtRefreshSecret: config.jwtRefreshSecret,

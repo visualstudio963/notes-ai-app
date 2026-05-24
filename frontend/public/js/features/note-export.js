@@ -164,11 +164,32 @@
   }
 
   function isNativeExportTarget() {
-    return (
+    if (
       typeof window !== "undefined" &&
       typeof window.isNativeApp === "function" &&
       window.isNativeApp()
-    );
+    ) {
+      return true;
+    }
+    try {
+      return Boolean(
+        window.Capacitor &&
+          typeof window.Capacitor.isNativePlatform === "function" &&
+          window.Capacitor.isNativePlatform()
+      );
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function capGetPlatform() {
+    try {
+      return window.Capacitor && typeof window.Capacitor.getPlatform === "function"
+        ? window.Capacitor.getPlatform()
+        : "web";
+    } catch (e) {
+      return "web";
+    }
   }
 
   function getCapFsPlugin() {
@@ -183,12 +204,6 @@
       }
     }
     return null;
-  }
-
-  function getCapSharePlugin() {
-    var c = typeof window !== "undefined" ? window.Capacitor : null;
-    if (!c || !c.Plugins) return null;
-    return c.Plugins.Share || null;
   }
 
   function blobToBase64(blob) {
@@ -235,40 +250,98 @@
     return "noteExportTxtSaved";
   }
 
-  function ensureNativeFilesystemPermissions(Fs) {
-    if (!Fs || typeof Fs.checkPermissions !== "function") return Promise.resolve(true);
-    return Fs.checkPermissions()
-      .then(function (perms) {
-        var st = perms && perms.publicStorage ? String(perms.publicStorage) : "granted";
-        if (st === "granted") return true;
-        if (typeof Fs.requestPermissions !== "function") return st !== "denied";
-        return Fs.requestPermissions().then(function (req) {
-          var next = req && req.publicStorage ? String(req.publicStorage) : "";
-          return next === "granted";
-        });
-      })
-      .catch(function () {
-        return true;
+  function requestNativeFilesystemPermissions(Fs) {
+    if (!Fs) return Promise.resolve(true);
+    var chain = Promise.resolve();
+    if (typeof Fs.requestPermissions === "function") {
+      chain = Fs.requestPermissions().catch(function () {
+        return null;
       });
+    }
+    return chain.then(function (req) {
+      if (req && req.publicStorage) {
+        var st = String(req.publicStorage);
+        if (st === "granted" || st === "limited") return true;
+      }
+      if (typeof Fs.checkPermissions !== "function") return true;
+      return Fs.checkPermissions()
+        .then(function (perms) {
+          var state = perms && perms.publicStorage ? String(perms.publicStorage) : "granted";
+          return state === "granted" || state === "limited";
+        })
+        .catch(function () {
+          return true;
+        });
+    });
   }
 
-  function tryNativeShareFallback(uri, safeName) {
-    var Share = getCapSharePlugin();
-    if (!Share || typeof Share.share !== "function" || !uri) return Promise.resolve(false);
-    var dlg = typeof t === "function" ? t("noteExportShareDialogTitle") : "Export";
-    var opts = { title: safeName, text: safeName, dialogTitle: dlg };
-    if (/^content:|^file:/i.test(uri)) {
-      opts.files = [uri];
-    } else {
-      opts.url = uri;
-    }
-    return Share.share(opts)
-      .then(function () {
-        return true;
-      })
-      .catch(function () {
-        return false;
+  function nativePrepareWritePayload(blob, safeName) {
+    var isUtf8Text =
+      (blob && blob.type && String(blob.type).indexOf("text/plain") === 0) ||
+      /\.txt$/i.test(safeName);
+    if (isUtf8Text) {
+      return new Promise(function (resolve, reject) {
+        var fr = new FileReader();
+        fr.onload = function () {
+          resolve({ data: String(fr.result || ""), encoding: "utf8" });
+        };
+        fr.onerror = function () {
+          reject(fr.error || new Error("read text"));
+        };
+        fr.readAsText(blob, "utf-8");
       });
+    }
+    return blobToBase64(blob).then(function (b64) {
+      return { data: b64 };
+    });
+  }
+
+  function nativeWriteFileAttempt(Fs, directory, relPath, payload) {
+    var opts = {
+      path: relPath,
+      data: payload.data,
+      directory: directory,
+      recursive: true
+    };
+    if (payload.encoding) opts.encoding = payload.encoding;
+    return Fs.writeFile(opts);
+  }
+
+  function nativeWriteWithFallbacks(Fs, blob, safeName) {
+    var relPath = NATIVE_EXPORT_FOLDER + "/" + safeName;
+    var platform = capGetPlatform();
+    var targets = [{ directory: "DOCUMENTS", relPath: relPath }];
+    if (platform === "android") {
+      targets.push({ directory: "EXTERNAL", relPath: relPath });
+    }
+
+    return requestNativeFilesystemPermissions(Fs).then(function (allowed) {
+      if (!allowed) {
+        throw new Error(
+          typeof t === "function"
+            ? t("noteExportStoragePermissionDenied")
+            : "Allow storage permission in Settings to save files."
+        );
+      }
+      return nativePrepareWritePayload(blob, safeName).then(function (payload) {
+        var lastErr = null;
+        function attempt(i) {
+          if (i >= targets.length) {
+            return Promise.reject(lastErr || new Error("write failed"));
+          }
+          var target = targets[i];
+          return nativeWriteFileAttempt(Fs, target.directory, target.relPath, payload)
+            .then(function () {
+              return { directory: target.directory, path: target.relPath };
+            })
+            .catch(function (err) {
+              lastErr = err;
+              return attempt(i + 1);
+            });
+        }
+        return attempt(0);
+      });
+    });
   }
 
   function toastExportNativeError(err) {
@@ -283,8 +356,8 @@
   }
 
   /**
-   * Capacitor APK: save to public Documents/Notes-AI (visible in Files app). Share sheet only on failure.
-   * Web / PWA keeps anchor-only behavior via saveOrDownloadBlob.
+   * Capacitor APK: save directly to device storage (Documents/Notes-AI). Never opens share sheet.
+   * Web / PWA keeps anchor download.
    */
   function saveBlobNative(blob, filename) {
     var Fs = getCapFsPlugin();
@@ -292,81 +365,18 @@
     var kind = inferNativeExportKind(blob, safeName);
     var savedKey = nativeExportSavedToastKey(kind);
     var savedFallback = kind === "pdf" ? "PDF saved" : kind === "jpg" ? "JPG saved" : "TXT saved";
-    var relPath = NATIVE_EXPORT_FOLDER + "/" + safeName;
-    var directory = "DOCUMENTS";
 
     if (!Fs || typeof Fs.writeFile !== "function") {
       toastExportNativeError(new Error("Filesystem plugin unavailable"));
-      return tryNativeShareFallback(null, safeName).then(function (shared) {
-        if (!shared) downloadBlobWithAnchor(blob, safeName);
-      });
+      return Promise.resolve();
     }
 
-    var isUtf8Text =
-      (blob && blob.type && String(blob.type).indexOf("text/plain") === 0) ||
-      /\.txt$/i.test(safeName);
-
-    return ensureNativeFilesystemPermissions(Fs)
-      .then(function (allowed) {
-        if (!allowed) {
-          throw new Error(
-            typeof t === "function"
-              ? t("noteExportStoragePermissionDenied")
-              : "Allow storage permission in Settings to save files."
-          );
-        }
-        if (isUtf8Text) {
-          return new Promise(function (resolve, reject) {
-            var fr = new FileReader();
-            fr.onload = function () {
-              resolve(String(fr.result || ""));
-            };
-            fr.onerror = function () {
-              reject(fr.error || new Error("read text"));
-            };
-            fr.readAsText(blob, "utf-8");
-          }).then(function (text) {
-            return Fs.writeFile({
-              path: relPath,
-              data: text,
-              directory: directory,
-              encoding: "utf8",
-              recursive: true
-            });
-          });
-        }
-        return blobToBase64(blob).then(function (b64) {
-          return Fs.writeFile({
-            path: relPath,
-            data: b64,
-            directory: directory,
-            recursive: true
-          });
-        });
-      })
+    return nativeWriteWithFallbacks(Fs, blob, safeName)
       .then(function () {
         toastExportNative(savedKey, savedFallback);
       })
       .catch(function (err) {
         toastExportNativeError(err);
-        var uriPromise =
-          typeof Fs.getUri === "function"
-            ? Fs.getUri({ path: relPath, directory: directory }).catch(function () {
-                return null;
-              })
-            : Promise.resolve(null);
-        return uriPromise.then(function (uriResult) {
-          var uri = uriResult && uriResult.uri ? String(uriResult.uri) : "";
-          return tryNativeShareFallback(uri, safeName).then(function (shared) {
-            if (!shared) {
-              try {
-                downloadBlobWithAnchor(blob, safeName);
-              } catch (e2) {
-                /* ignore */
-              }
-            }
-          });
-        });
       });
   }
 
@@ -806,7 +816,11 @@
       toastExportPdfFailed();
       return false;
     }
-    await saveOrDownloadBlob(pdfBlob, outName);
+    if (typeof window.saveOrDownloadBlob === "function") {
+      await window.saveOrDownloadBlob(pdfBlob, outName);
+    } else {
+      doc.save(outName);
+    }
     return true;
     })().catch(function () {
       toastExportPdfFailed();
@@ -927,4 +941,8 @@
     }
     })();
   };
+
+  if (typeof window !== "undefined") {
+    window.saveOrDownloadBlob = saveOrDownloadBlob;
+  }
 })();

@@ -899,12 +899,17 @@ body {
   backdrop-filter: blur(8px);
   z-index: 80;
   padding: 18px;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .admin-modal-card {
   width: min(720px, 96vw);
+  max-width: 100%;
   max-height: 90vh;
   overflow: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
   background: linear-gradient(165deg, rgba(30, 41, 59, 0.84), rgba(15, 23, 42, 0.98));
   border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 20px;
@@ -964,6 +969,14 @@ body {
   font-size: 0.9rem;
   color: #e2e8f0;
   word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+#adminDetailUserId {
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
 }
 
 .admin-role-editor {
@@ -1095,6 +1108,27 @@ body {
   background: rgba(30, 58, 138, 0.35);
   border: 1px solid rgba(96, 165, 250, 0.35);
   color: #dbeafe;
+}
+
+.admin-banner--success {
+  border-color: rgba(74, 222, 128, 0.42);
+  background: rgba(22, 101, 52, 0.28);
+  color: #dcfce7;
+}
+
+.admin-banner--pulse {
+  animation: adminBannerPulse 520ms ease;
+}
+
+@keyframes adminBannerPulse {
+  0% {
+    transform: scale(0.98);
+    opacity: 0.72;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .admin-sidebar-role-line {
@@ -1313,6 +1347,93 @@ body {
 
 .admin-role-editor--grant {
   border-style: dashed;
+}
+
+.admin-role-editor--gift {
+  border-color: rgba(251, 191, 36, 0.35);
+  background: rgba(120, 53, 15, 0.12);
+}
+
+.admin-modal--gift {
+  z-index: 90;
+}
+
+.admin-gift-modal-card {
+  width: min(460px, 94vw);
+  background: linear-gradient(165deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.98));
+  border: 1px solid rgba(251, 191, 36, 0.22);
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.admin-gift-recipient,
+.admin-gift-balance-hint {
+  margin: 0 0 10px;
+  color: #cbd5e1;
+  font-size: 0.9rem;
+}
+
+.admin-gift-field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.admin-gift-field label {
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+.admin-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #f8fafc;
+  padding: 10px 12px;
+  font-size: 0.92rem;
+}
+
+.admin-input:focus {
+  outline: none;
+  border-color: rgba(251, 191, 36, 0.55);
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.14);
+}
+
+.admin-modal-actions--gift {
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.admin-btn--gift {
+  border-color: rgba(251, 191, 36, 0.45);
+  background: linear-gradient(145deg, rgba(245, 158, 11, 0.92), rgba(180, 83, 9, 0.95));
+  color: #fffbeb;
+}
+
+.admin-btn--gift:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.admin-btn--gift.is-busy {
+  opacity: 0.72;
+  cursor: wait;
+}
+
+.admin-gift-icon-btn {
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(120, 53, 15, 0.35);
+  border-radius: 10px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  line-height: 1;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.admin-gift-icon-btn:hover {
+  background: rgba(180, 83, 9, 0.45);
 }
 
 @media (max-width: 900px) {
@@ -2033,5 +2154,162 @@ body {
 
   .admin-app-shell .admin-dash-table-desktop {
     display: block !important;
+  }
+}
+
+/* Performance: lighter paint on phones / narrow admin shell */
+@media (max-width: 900px) {
+  .admin-root {
+    background: #020617;
+  }
+
+  .admin-drawer-backdrop {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(2, 6, 23, 0.82);
+  }
+
+  .admin-stat-card,
+  .admin-card,
+  .admin-user-card,
+  .admin-subs-card,
+  .admin-dash-user-card,
+  .admin-modal-content {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  }
+
+  .admin-stat-card::before,
+  .admin-card::before {
+    opacity: 0.35;
+  }
+
+  .admin-donut {
+    filter: none;
+  }
+
+  .admin-user-card,
+  .admin-subs-card,
+  .admin-dash-user-card {
+    content-visibility: auto;
+    contain-intrinsic-size: 120px;
+  }
+
+  .admin-table-wrap--scroll-x {
+    content-visibility: auto;
+  }
+
+  .admin-stat-card,
+  .admin-card,
+  .admin-user-card,
+  .admin-subs-card,
+  .admin-dash-user-card,
+  .admin-dash-note-card {
+    transition: border-color 0.15s ease, opacity 0.15s ease !important;
+  }
+
+  .admin-banner--pulse {
+    animation: none !important;
+  }
+
+  .admin-donut,
+  .admin-ring-svg circle {
+    filter: none !important;
+  }
+
+  .admin-modal {
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .admin-modal-card,
+  .admin-modal-card--user,
+  .admin-gift-modal-card {
+    width: 100%;
+    max-width: 100%;
+    min-height: 100dvh;
+    max-height: 100dvh;
+    height: auto;
+    flex: 1 1 auto;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    margin: 0;
+    padding:
+      calc(12px + env(safe-area-inset-top, 0px))
+      calc(14px + env(safe-area-inset-right, 0px))
+      calc(16px + env(safe-area-inset-bottom, 0px))
+      calc(14px + env(safe-area-inset-left, 0px));
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-modal-head {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.98) 70%, rgba(15, 23, 42, 0));
+  }
+
+  .admin-user-detail-grid,
+  .admin-user-detail-grid--wide {
+    grid-template-columns: 1fr;
+    min-width: 0;
+  }
+
+  .admin-user-detail-row,
+  .admin-role-editor {
+    min-width: 0;
+  }
+
+  .admin-select {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .admin-role-editor-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-role-editor-controls .admin-btn {
+    width: 100%;
+    margin-right: 0;
+  }
+
+  .admin-grant-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .admin-grant-row .admin-btn {
+    width: 100%;
+    min-width: 0;
+    margin-right: 0;
+    margin-bottom: 0;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .admin-modal-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-modal-actions .admin-btn {
+    width: 100%;
+    margin-right: 0;
   }
 }

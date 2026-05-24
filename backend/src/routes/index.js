@@ -20,6 +20,7 @@ function createApiRouter(app, deps) {
     Note,
     Reminder,
     ContactMessage,
+    CoinGiftLog,
     AppConfig,
     jwtSecret,
     jwtRefreshSecret,
@@ -85,6 +86,7 @@ function createApiRouter(app, deps) {
       Note,
       Reminder,
       ContactMessage,
+      CoinGiftLog,
       AppConfig,
       authMiddleware,
       adminMiddleware

@@ -246,15 +246,15 @@ button {
 }
 
 @media (max-width: 840px) {
-  /* FAB clearance on main scroll only; footer sits below with normal safe-area padding */
+  /* Bottom spacing: mobile-responsive.css is authoritative */
   .app .main {
-    padding-bottom: max(96px, calc(72px + env(safe-area-inset-bottom, 0px)));
-    scroll-padding-bottom: max(96px, calc(72px + env(safe-area-inset-bottom, 0px)));
+    padding-bottom: var(--notes-main-bottom-pad, max(20px, calc(88px + env(safe-area-inset-bottom, 0px))));
+    scroll-padding-bottom: var(--notes-main-bottom-pad, max(20px, calc(88px + env(safe-area-inset-bottom, 0px))));
   }
 
   .site-footer-inner {
-    padding-top: 16px;
-    padding-bottom: max(18px, calc(10px + env(safe-area-inset-bottom, 0px)));
+    padding-top: var(--notes-footer-pad-top, 14px);
+    padding-bottom: var(--notes-footer-pad-bottom, max(14px, calc(8px + env(safe-area-inset-bottom, 0px))));
   }
 
   .site-footer-links {
@@ -5720,8 +5720,7 @@ button.save-button.secondary:hover {
 @media (max-width: 840px) {
   .app {
     display: block;
-    min-height: 100vh;
-    min-height: 100dvh;
+    min-height: auto;
   }
 
   .mobile-menu-toggle {
@@ -12334,7 +12333,7 @@ body {
 #webChat.web-chat-drawer {
   position: fixed;
   inset: 0;
-  z-index: 55;
+  z-index: 1400;
   display: flex;
   align-items: flex-end;
   justify-content: center;

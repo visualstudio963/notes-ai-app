@@ -11,13 +11,29 @@
   --notes-safe-left: env(safe-area-inset-left, 0px);
   --notes-pad-inline: clamp(12px, 4.2vw, 18px);
   --notes-modal-pad: clamp(14px, 4vw, 28px);
-  /* Room for stacked chat + planner FABs (main scroll only — not footer) */
-  --notes-fab-clearance: max(100px, calc(72px + var(--notes-safe-bottom)));
+  /* Bottom layout tokens — single source for main, footer, FAB stack */
+  --notes-footer-zone: 88px;
+  --notes-footer-pad-top: 14px;
+  --notes-footer-pad-bottom: max(14px, calc(8px + var(--notes-safe-bottom)));
+  --notes-footer-fab-gutter: 76px;
+  --notes-fab-size: 46px;
+  --notes-fab-size-chat: var(--notes-fab-size);
+  --notes-fab-size-planner: var(--notes-fab-size);
+  --notes-fab-stack-gap: clamp(6px, 1.8vw, 8px);
+  --notes-fab-planner-offset: 0px;
+  --notes-fab-stack-total: calc(
+    var(--notes-fab-size) + var(--notes-fab-stack-gap) + var(--notes-fab-size)
+  );
+  /* FABs sit above footer zone; main only needs modest end padding for scroll */
+  --notes-fab-bottom-base: calc(var(--notes-footer-zone) + var(--notes-safe-bottom));
+  --notes-main-bottom-pad: max(20px, calc(var(--notes-fab-stack-total) + 16px));
+  --notes-fab-clearance: var(--notes-main-bottom-pad);
 }
 
 html.capacitor-native {
-  /* Modest fallback when WebView reports 0 safe-area (avoid double-stacking with footer) */
+  /* Modest fallback when WebView reports 0 safe-area */
   --notes-safe-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
+  --notes-footer-zone: 92px;
 }
 
 html {
@@ -26,8 +42,7 @@ html {
 }
 
 html,
-body,
-.app {
+body {
   min-height: 100vh;
   min-height: var(--notes-app-height);
 }
@@ -211,7 +226,7 @@ select {
 
   .home-dashboard-top,
   .home-stats-grid,
-  .hex-grid,
+  .hex-grid:not(.home-categories-grid),
   .bot-panel-grid,
   .pricing-lite-grid,
   .pricing-lite-why,
@@ -220,17 +235,6 @@ select {
   .settings-grid,
   .home-reminders-fields {
     grid-template-columns: 1fr !important;
-  }
-
-  #home .home-categories-grid {
-    grid-template-columns: 1fr !important;
-    gap: 10px !important;
-  }
-
-  #home .home-categories-grid .hex-card {
-    min-height: auto !important;
-    width: 100%;
-    max-width: 100%;
   }
 
   .home-stats-panel {
@@ -296,7 +300,8 @@ select {
 /* Tighter 320–390px devices */
 @media (max-width: 390px) {
   :root {
-    --notes-fab-clearance: max(124px, calc(96px + var(--notes-safe-bottom)));
+    --notes-footer-fab-gutter: 68px;
+    --notes-main-bottom-pad: max(18px, calc(var(--notes-fab-stack-total) + 12px));
   }
 
   .modal-content {
@@ -355,20 +360,43 @@ select {
   }
 }
 
-/* Mobile: FAB runway on main only; footer uses safe-area once */
+/* Mobile/APK: balanced bottom — no giant void, footer clear of FABs */
 @media (max-width: 840px) {
-  .app .main {
-    padding-bottom: var(--notes-fab-clearance);
-    scroll-padding-bottom: var(--notes-fab-clearance);
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: var(--notes-app-height);
+  }
+
+  .app {
+    flex: 0 0 auto;
+    min-height: auto !important;
+    width: 100%;
+  }
+
+  .main {
+    min-height: auto !important;
+    padding-bottom: var(--notes-main-bottom-pad) !important;
+    scroll-padding-bottom: var(--notes-main-bottom-pad);
+  }
+
+  .site-footer {
+    flex-shrink: 0;
+    width: 100%;
+    margin-top: 0;
   }
 
   .site-footer-inner {
-    padding-bottom: max(18px, calc(10px + var(--notes-safe-bottom)));
+    padding-top: var(--notes-footer-pad-top);
+    padding-bottom: var(--notes-footer-pad-bottom);
+    padding-left: max(14px, var(--notes-safe-left));
+    padding-right: max(calc(14px + var(--notes-footer-fab-gutter)), calc(var(--notes-safe-right) + 14px));
+    gap: 12px;
   }
 
-  html.capacitor-native .app .main {
-    padding-bottom: var(--notes-fab-clearance) !important;
-    scroll-padding-bottom: var(--notes-fab-clearance);
+  html.capacitor-native .main {
+    padding-bottom: var(--notes-main-bottom-pad) !important;
+    scroll-padding-bottom: var(--notes-main-bottom-pad);
   }
 
   html.capacitor-native .modal {
@@ -387,63 +415,51 @@ select {
 
   body:has(#webChat:not(.hidden)) .app .main,
   body:has(.daily-planner-modal:not(.hidden)) .app .main {
-    scroll-padding-bottom: max(112px, calc(var(--notes-fab-clearance) + 12px));
+    scroll-padding-bottom: max(96px, calc(var(--notes-main-bottom-pad) + 8px));
   }
 }
 
 /**
  * FAB stack — mobile / touch / APK only.
- * Chat FAB sits lower; Daily Planner sits above with a clear vertical gap.
- * Uses CSS variables so heights + gap stay in sync (no brittle bottom chains).
+ * Anchored above footer zone; clear vertical gap between planner + chat.
  */
 @media (max-width: 840px), (pointer: coarse) {
-  :root {
-    --notes-fab-size-chat: 50px;
-    --notes-fab-size-planner: 44px;
-    --notes-fab-stack-gap: clamp(14px, 3.2vw, 18px);
-    --notes-fab-bottom-base: max(20px, calc(var(--notes-safe-bottom) + 12px));
-    /* Extra lift for planner above the chat column */
-    --notes-fab-planner-offset: 6px;
-    --notes-fab-clearance: max(
-      118px,
-      calc(
-        82px + var(--notes-safe-bottom) + var(--notes-fab-size-chat) + var(--notes-fab-stack-gap) +
-        var(--notes-fab-size-planner) + var(--notes-fab-planner-offset)
-      )
-    );
-  }
-
   html.capacitor-native {
-    --notes-fab-bottom-base: max(24px, calc(var(--notes-safe-bottom) + 16px));
-    --notes-fab-stack-gap: clamp(16px, 3.6vw, 20px);
+    --notes-fab-bottom-base: calc(var(--notes-footer-zone) + var(--notes-safe-bottom));
+    --notes-fab-stack-gap: clamp(6px, 1.8vw, 8px);
   }
 
   @media (max-height: 640px) {
     :root {
-      --notes-fab-bottom-base: max(18px, calc(var(--notes-safe-bottom) + 10px));
-      --notes-fab-stack-gap: max(12px, 3vw);
-      --notes-fab-planner-offset: 4px;
+      --notes-footer-zone: 80px;
+      --notes-fab-stack-gap: 6px;
+      --notes-fab-planner-offset: 0px;
     }
   }
 
   .web-chat-fab,
+  #webChatFab,
+  .daily-planner-fab,
+  #dailyPlannerFab {
+    right: max(14px, calc(var(--notes-safe-right) + 10px)) !important;
+    width: var(--notes-fab-size) !important;
+    height: var(--notes-fab-size) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .web-chat-fab,
   #webChatFab {
-    right: max(14px, calc(var(--notes-safe-right) + 10px));
     bottom: var(--notes-fab-bottom-base) !important;
-    width: var(--notes-fab-size-chat) !important;
-    height: var(--notes-fab-size-chat) !important;
     z-index: 1301;
   }
 
   .daily-planner-fab,
   #dailyPlannerFab {
-    right: max(14px, calc(var(--notes-safe-right) + 10px));
     bottom: calc(
-      var(--notes-fab-bottom-base) + var(--notes-fab-size-chat) + var(--notes-fab-stack-gap) +
-      var(--notes-fab-planner-offset)
+      var(--notes-fab-bottom-base) + var(--notes-fab-size) + var(--notes-fab-stack-gap)
     ) !important;
-    width: var(--notes-fab-size-planner) !important;
-    height: var(--notes-fab-size-planner) !important;
     z-index: 1300;
   }
 
@@ -460,8 +476,238 @@ select {
   body:has(#webChat:not(.hidden)) .daily-planner-fab,
   body:has(#webChat:not(.hidden)) #dailyPlannerFab {
     bottom: calc(
-      var(--notes-fab-bottom-base) + var(--notes-fab-size-chat) + var(--notes-fab-stack-gap) +
-      var(--notes-fab-planner-offset)
+      var(--notes-fab-bottom-base) + var(--notes-fab-size) + var(--notes-fab-stack-gap)
     ) !important;
   }
+}
+
+/* Home / Work / School — 3 cards side-by-side on all phone widths */
+@media (max-width: 840px) {
+  #home .home-categories-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: clamp(6px, 2vw, 10px) !important;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  #home .home-categories-grid .hex-card {
+    min-height: clamp(168px, 48vw, 196px) !important;
+    width: auto !important;
+    max-width: none !important;
+    border-radius: clamp(12px, 3.5vw, 16px) !important;
+  }
+
+  #home .home-categories-grid .hex-card-main {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    text-align: center !important;
+    grid-template-columns: unset !important;
+    padding: clamp(8px, 2.5vw, 12px) clamp(6px, 2vw, 10px) clamp(6px, 2vw, 8px) !important;
+    gap: clamp(4px, 1.5vw, 7px) !important;
+  }
+
+  #home .home-categories-grid .category-icon,
+  #home .home-categories-grid .hex-icon {
+    width: clamp(36px, 11vw, 46px) !important;
+    height: clamp(36px, 11vw, 46px) !important;
+    min-width: clamp(36px, 11vw, 46px) !important;
+    font-size: clamp(1rem, 4vw, 1.28rem) !important;
+    border-radius: clamp(10px, 3vw, 12px) !important;
+    margin: 0 !important;
+    flex-shrink: 0;
+  }
+
+  #home .home-categories-grid .hex-card-main strong {
+    font-size: clamp(0.82rem, 3.2vw, 1.02rem) !important;
+    line-height: 1.15 !important;
+  }
+
+  #home .home-categories-grid .card-subtitle {
+    font-size: clamp(0.62rem, 2.6vw, 0.78rem) !important;
+    line-height: 1.28 !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  #home .home-categories-grid .hex-card-add {
+    min-height: clamp(28px, 8vw, 34px) !important;
+    padding: clamp(5px, 1.5vw, 7px) clamp(4px, 1.2vw, 8px) !important;
+    font-size: clamp(0.62rem, 2.4vw, 0.76rem) !important;
+    margin-top: auto;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+@media (max-width: 360px) {
+  #home .home-categories-grid {
+    gap: 6px !important;
+  }
+
+  #home .home-categories-grid .hex-card {
+    min-height: 158px !important;
+  }
+}
+
+/* Web Chat drawer — above mobile topbar; hide plan reminder chips */
+@media (max-width: 840px) {
+  #webChat.web-chat-drawer {
+    z-index: 1400 !important;
+  }
+
+  body.web-chat-drawer-open .topbar {
+    visibility: hidden;
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  #webChat .web-chat-messenger__header {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    flex-shrink: 0;
+  }
+
+  #webChat .web-chat-messenger__back {
+    display: grid !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  #webChat .web-chat-quick-actions,
+  #webChatQuickActions {
+    display: none !important;
+  }
+}
+
+/* Lighter mobile/APK paint: cut Recalculate style + Paint cost */
+@media (max-width: 840px), (pointer: coarse) {
+  :root {
+    --depth-glass-blur: 0px;
+    --depth-elev-1: 0 3px 10px rgba(0, 0, 0, 0.14);
+    --depth-elev-2: 0 6px 16px rgba(0, 0, 0, 0.18);
+  }
+
+  .background-canvas {
+    transform: none !important;
+    will-change: auto !important;
+  }
+
+  .depth-blob {
+    filter: blur(28px) !important;
+    opacity: 0.32 !important;
+    animation: none !important;
+  }
+
+  .note-card,
+  .hex-card,
+  .home-stats-panel,
+  .home-reminders-shell,
+  .home-stats-cta,
+  .reminder-card,
+  .settings-card,
+  .glass-panel,
+  .topbar,
+  .notes-toolbar,
+  .sidebar .menu-item,
+  .admin-stat-card,
+  .admin-card,
+  .admin-user-card,
+  .admin-subs-card,
+  .admin-dash-user-card,
+  .admin-dash-note-card {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.14) !important;
+    transition: transform 0.18s ease, opacity 0.18s ease, border-color 0.18s ease !important;
+  }
+
+  .modal-content,
+  .web-chat-messenger,
+  #webChat.web-chat-drawer .web-chat-messenger,
+  .admin-drawer-backdrop.is-open,
+  .admin-drawer-backdrop:not([hidden]) {
+    backdrop-filter: blur(8px) saturate(112%) !important;
+    -webkit-backdrop-filter: blur(8px) saturate(112%) !important;
+  }
+
+  body.mobile-scrolled .topbar,
+  body.mobile-scrolled .main,
+  body.mobile-scrolled .notes-toolbar,
+  body.mobile-scrolled .topbar-inner {
+    transition: none !important;
+  }
+
+  .web-chat-fab,
+  #webChatFab,
+  .daily-planner-fab,
+  #dailyPlannerFab,
+  .discord-fab {
+    will-change: opacity, transform;
+    transform: translate3d(0, 0, 0);
+    contain: layout style paint;
+    transition: opacity 0.2s ease, transform 0.2s ease !important;
+  }
+
+  body.floating-scrolled .web-chat-fab,
+  body.floating-scrolled #webChatFab,
+  body.floating-scrolled .daily-planner-fab,
+  body.floating-scrolled #dailyPlannerFab,
+  body.floating-scrolled .discord-fab {
+    opacity: 0.84;
+    transform: translate3d(0, 0, 0);
+  }
+
+  .tilt-target.is-tilting,
+  .tilt-target {
+    transform: none !important;
+  }
+
+  .note-card:hover,
+  .hex-card:hover,
+  .home-stats-panel:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16) !important;
+  }
+
+  #notesList,
+  #remindersList,
+  .admin-subs-cards,
+  .admin-user-cards {
+    content-visibility: auto;
+    contain-intrinsic-size: 480px;
+  }
+}
+
+html.capacitor-native {
+  --depth-glass-blur: 0px;
+}
+
+html.capacitor-native .depth-blob {
+  filter: blur(22px) !important;
+  opacity: 0.24 !important;
+  animation: none !important;
+}
+
+html.capacitor-native .note-card,
+html.capacitor-native .hex-card,
+html.capacitor-native .home-stats-panel,
+html.capacitor-native .reminder-card {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.14) !important;
+}
+
+html.capacitor-native .modal-content,
+html.capacitor-native #webChat.web-chat-drawer .web-chat-messenger {
+  backdrop-filter: blur(6px) saturate(110%) !important;
+  -webkit-backdrop-filter: blur(6px) saturate(110%) !important;
 }

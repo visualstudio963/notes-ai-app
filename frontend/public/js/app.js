@@ -123,6 +123,59 @@ function scheduleNoteRichEditorPreload() {
   }
 }
 
+const LAZY_APP_SCRIPTS = {
+  noteExport: "/js/features/note-export.js?v=perf-260523-v1",
+  onboarding: "/js/onboarding-tutorial.js?v=perf-260523-v1",
+  webChatIntents: "/js/features/web-chat-intents.js?v=perf-260523-v1",
+  webChatReminderParse: "/js/features/web-chat-reminder-parse.js?v=perf-260523-v1"
+};
+
+function ensureNoteExportLoaded() {
+  return appendNotesAiAppBundle(LAZY_APP_SCRIPTS.noteExport, "note-export");
+}
+
+function ensureOnboardingTutorialLoaded() {
+  return appendNotesAiAppBundle(LAZY_APP_SCRIPTS.onboarding, "onboarding");
+}
+
+function ensureWebChatModulesLoaded() {
+  return appendNotesAiAppBundle(LAZY_APP_SCRIPTS.webChatIntents, "web-chat-intents").then(() =>
+    appendNotesAiAppBundle(LAZY_APP_SCRIPTS.webChatReminderParse, "web-chat-reminder-parse")
+  );
+}
+
+function runNoteExportActionLazy(kind) {
+  void ensureNoteExportLoaded().then(() => {
+    if (typeof window.runNoteExportAction === "function" && window.runNoteExportAction !== runNoteExportActionLazy) {
+      window.runNoteExportAction(kind);
+    }
+  });
+}
+
+function openNoteExportModalLazy(note) {
+  return ensureNoteExportLoaded().then(() => {
+    if (typeof window.openNoteExportModal === "function" && window.openNoteExportModal !== openNoteExportModalLazy) {
+      return window.openNoteExportModal(note);
+    }
+    return undefined;
+  });
+}
+
+function scheduleOnboardingTutorialAfterAuthLazy() {
+  void ensureOnboardingTutorialLoaded().then(() => {
+    if (
+      typeof window.scheduleOnboardingTutorialAfterAuth === "function" &&
+      window.scheduleOnboardingTutorialAfterAuth !== scheduleOnboardingTutorialAfterAuthLazy
+    ) {
+      window.scheduleOnboardingTutorialAfterAuth();
+    }
+  });
+}
+
+window.runNoteExportAction = runNoteExportActionLazy;
+window.openNoteExportModal = openNoteExportModalLazy;
+window.scheduleOnboardingTutorialAfterAuth = scheduleOnboardingTutorialAfterAuthLazy;
+
 /** Plain preview when the rich editor bundle is not loaded yet. */
 function noteStoredPlainPreview(raw, maxLen) {
   const limit = Math.max(1, Number(maxLen) || 50000);
@@ -1490,7 +1543,8 @@ function refreshDepthRevealObserversNow() {
 function initPremiumTiltSystem() {
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const coarse = window.matchMedia("(pointer: coarse)").matches;
-  premiumTiltEnabled = !reduce && !coarse;
+  const nativeApp = typeof isNativeApp === "function" && isNativeApp();
+  premiumTiltEnabled = !reduce && !coarse && !nativeApp && !isMobileViewport();
   refreshPremiumTiltTargets();
 }
 
@@ -2580,11 +2634,6 @@ function syncPremiumGatedNav() {
 }
 
 function getWebChatMode() {
-  try {
-    localStorage.setItem(WEB_CHAT_MODE_KEY, "chatbot");
-  } catch {
-    /* ignore */
-  }
   return "chatbot";
 }
 
@@ -2597,9 +2646,11 @@ function setWebChatMode(_mode) {
   return "chatbot";
 }
 
+function webChatModelCanUseMode(value) {
+  return value === "chatbot";
+}
+
 function syncWebChatModelSelectorUi() {
-  const sel = document.getElementById("webChatModelMode");
-  if (sel) sel.value = "chatbot";
   setWebChatMode("chatbot");
   syncWebChatModePresentation("chatbot", false);
 }
@@ -2632,12 +2683,69 @@ function syncWebChatModePresentation(_modeValue, _aiLive) {
   refreshWebChatWelcomeForMode("chatbot");
 }
 
+function webChatModelDismissLockBanner() {
+  /* lock banner removed — chatbot only */
+}
+
+function webChatModelShowLockBanner() {
+  /* chatbot only */
+}
+
+function webChatModelSyncPopoverState() {
+  /* mode pills removed — chatbot only */
+}
+
+function webChatDismissPremiumTabTooltip() {
+  if (window.__webChatPremiumTabTooltipHideTimer) {
+    clearTimeout(window.__webChatPremiumTabTooltipHideTimer);
+    window.__webChatPremiumTabTooltipHideTimer = null;
+  }
+  const el = window.__webChatPremiumTabTooltipEl;
+  if (el && el.parentNode) {
+    el.classList.remove("is-visible");
+    try {
+      el.parentNode.removeChild(el);
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  window.__webChatPremiumTabTooltipEl = null;
+}
+
+function webChatShowPremiumTabTooltip(anchor) {
+  if (!anchor || !document.body) return;
+  webChatDismissPremiumTabTooltip();
+  const tip = document.createElement("div");
+  tip.className = "web-chat-premium-tab-tooltip";
+  tip.setAttribute("role", "status");
+  tip.textContent = typeof t === "function" ? t("webChatPremiumTabTooltip") : "Switch to Standard for this option.";
+  document.body.appendChild(tip);
+  window.__webChatPremiumTabTooltipEl = tip;
+  const rect = anchor.getBoundingClientRect();
+  const margin = 8;
+  const gap = 10;
+  const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+  let w = tip.offsetWidth || tip.getBoundingClientRect().width;
+  let h = tip.offsetHeight || tip.getBoundingClientRect().height;
+  let left = rect.left + rect.width / 2 - w / 2;
+  left = Math.max(margin, Math.min(left, vw - w - margin));
+  let top = rect.top - h - gap;
+  if (top < margin) top = rect.bottom + gap;
+  tip.style.left = `${left}px`;
+  tip.style.top = `${top}px`;
+  requestAnimationFrame(() => tip.classList.add("is-visible"));
+  window.__webChatPremiumTabTooltipHideTimer = window.setTimeout(webChatDismissPremiumTabTooltip, 2600);
+}
+
+function webChatModelSelectOption(_ev, _value) {
+  /* chatbot only — no mode switching */
+}
+
 function syncWebChatSoftPaywallUi() {
   const hint = document.getElementById("webChatSoftLockHint");
   const quotaEl = document.getElementById("webChatFreeQuotaHint");
   const input = document.getElementById("webChatInput");
   const sendBtn = document.querySelector(".web-chat-send");
-  const quick = document.getElementById("webChatQuickActions");
   syncWebChatModelSelectorUi();
   if (!hint) return;
   const paid =
@@ -2649,13 +2757,11 @@ function syncWebChatSoftPaywallUi() {
     hint.classList.add("hidden");
     if (input) input.disabled = false;
     if (sendBtn) sendBtn.disabled = false;
-    if (quick) quick.classList.remove("web-chat-quick-actions--disabled");
     return;
   }
   hint.classList.remove("hidden");
   if (input) input.disabled = true;
   if (sendBtn) sendBtn.disabled = true;
-  if (quick) quick.classList.add("web-chat-quick-actions--disabled");
 }
 
 function updatePremiumUi() {
@@ -4996,6 +5102,12 @@ function closeWebChatDrawer() {
 
 async function openWebChat() {
   if (!requireAuth("use Web Chat")) return;
+  try {
+    await ensureWebChatModulesLoaded();
+  } catch {
+    showToast(typeof t === "function" ? t("webChatPlanVerifyFailed") : "Web Chat could not load.");
+    return;
+  }
   const mergedOk = await mergePremiumFromServer();
   if (!mergedOk) {
     showToast(t("webChatPlanVerifyFailed"));
@@ -5713,7 +5825,32 @@ function scanCamDownloadPdf() {
       doc.text(line, margin, y);
       y += step;
     });
-    doc.save("scan-note.pdf");
+    const outName = "scan-note.pdf";
+    let pdfBlob = null;
+    try {
+      if (doc.output && typeof doc.output === "function") {
+        pdfBlob = doc.output("blob");
+      }
+    } catch {
+      pdfBlob = null;
+    }
+    if (!(pdfBlob instanceof Blob) || pdfBlob.size < 1) {
+      try {
+        const ab = doc.output && typeof doc.output === "function" ? doc.output("arraybuffer") : null;
+        if (ab && ab.byteLength) pdfBlob = new Blob([ab], { type: "application/pdf" });
+      } catch {
+        pdfBlob = null;
+      }
+    }
+    if (!(pdfBlob instanceof Blob) || pdfBlob.size < 1) {
+      showToast(typeof t === "function" ? t("noteExportPdfUnavailable") : "Could not build the PDF.");
+      return;
+    }
+    if (typeof window.saveOrDownloadBlob === "function") {
+      await window.saveOrDownloadBlob(pdfBlob, outName);
+      return;
+    }
+    doc.save(outName);
   })();
 }
 
@@ -5725,12 +5862,24 @@ function scanCamDownloadImage() {
     showToast(t("scanCamNoImageDownload"));
     return;
   }
-  const a = document.createElement("a");
-  a.href = src;
-  a.download = "scan-capture.jpg";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  void (async () => {
+    try {
+      const res = await fetch(src);
+      const blob = await res.blob();
+      if (typeof window.saveOrDownloadBlob === "function") {
+        await window.saveOrDownloadBlob(blob, "scan-capture.jpg");
+        return;
+      }
+    } catch {
+      /* fall through to anchor */
+    }
+    const a = document.createElement("a");
+    a.href = src;
+    a.download = "scan-capture.jpg";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  })();
 }
 
 function scanCamCloseCameraUi() {
@@ -6323,7 +6472,7 @@ async function sendWebChatMessageWithText(text) {
 
 function webChatModelModeChanged() {
   setWebChatMode("chatbot");
-  syncWebChatModelSelectorUi();
+  syncWebChatModePresentation("chatbot", false);
 }
 
 function stripWebChatReminderPrefix(raw) {
@@ -10201,13 +10350,20 @@ window.addEventListener("DOMContentLoaded", async () => {
   let lastDepthParallaxRounded = -1;
   let lastFloatingScrolledState = null;
   let lastMobileScrolledState = null;
+  const useCompactScrollHeader = () => {
+    if (typeof isNativeApp === "function" && isNativeApp()) return false;
+    if (isMobileViewport()) return false;
+    return true;
+  };
   const syncMobileScrollState = () => {
     const y = window.scrollY || 0;
     const canvas = document.querySelector(".background-canvas");
+    const skipParallax =
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+      (typeof isNativeApp === "function" && isNativeApp()) ||
+      isMobileViewport();
     if (canvas) {
-      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      const nativeWebView = typeof isNativeApp === "function" && isNativeApp();
-      if (reduce || nativeWebView) {
+      if (skipParallax) {
         if (lastDepthParallaxRounded !== 0) {
           lastDepthParallaxRounded = 0;
           canvas.style.setProperty("--depth-parallax-y", "0px");
@@ -10221,8 +10377,8 @@ window.addEventListener("DOMContentLoaded", async () => {
         }
       }
     }
-    const scrolled = y > 8;
-    if (!isMobileViewport()) {
+    const scrolled = y > 12;
+    if (useCompactScrollHeader()) {
       if (lastMobileScrolledState !== false) {
         lastMobileScrolledState = false;
         document.body.classList.remove("mobile-scrolled");
@@ -10233,9 +10389,9 @@ window.addEventListener("DOMContentLoaded", async () => {
       }
       return;
     }
-    if (lastMobileScrolledState !== scrolled) {
-      lastMobileScrolledState = scrolled;
-      document.body.classList.toggle("mobile-scrolled", scrolled);
+    if (lastMobileScrolledState) {
+      lastMobileScrolledState = false;
+      document.body.classList.remove("mobile-scrolled");
     }
     if (lastFloatingScrolledState !== scrolled) {
       lastFloatingScrolledState = scrolled;

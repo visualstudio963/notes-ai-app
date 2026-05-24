@@ -13,6 +13,9 @@ const noteSearchHaystackCache = new Map();
 let lastCategoryNotesRenderKey = "";
 let lastAllNotesRenderKey = "";
 const HISTORY_COLUMN_LIMIT = 5;
+const LIST_RENDER_BATCH = 20;
+const LIST_VIRTUALIZE_THRESHOLD = 32;
+const WEB_CHAT_DOM_MAX_ROWS = 44;
 let historyPruneInFlight = false;
 let allNotesSortMode = "newest";
 let currentUser = getStoredUser();
@@ -112,23 +115,31 @@ function ensureNoteRichEditorLoaded() {
 }
 
 function scheduleNoteRichEditorPreload() {
-  if (!accessToken || !currentUser) return;
-  const run = () => {
-    void ensureNoteRichEditorLoaded().catch(() => {});
-  };
-  if (typeof requestIdleCallback === "function") {
-    requestIdleCallback(run, { timeout: 4500 });
-  } else {
-    window.setTimeout(run, 2200);
-  }
+  /* Editor loads on first open only — avoids parsing multi‑MB bundle at idle. */
 }
 
 const LAZY_APP_SCRIPTS = {
   noteExport: "/js/features/note-export.js?v=export-notif-v1",
   onboarding: "/js/onboarding-tutorial.js?v=perf-260523-v1",
   webChatIntents: "/js/features/web-chat-intents.js?v=webchat-plan-v1",
-  webChatReminderParse: "/js/features/web-chat-reminder-parse.js?v=webchat-plan-v1"
+  webChatReminderParse: "/js/features/web-chat-reminder-parse.js?v=webchat-plan-v1",
+  socketClient: "/js/services/socket-client.js?v=lazy-sock-v1"
 };
+
+let socketClientScriptPromise = null;
+
+function ensureSocketClientScript() {
+  if (typeof window.__notesAiEnsureSocket === "function") return Promise.resolve();
+  if (!socketClientScriptPromise) {
+    socketClientScriptPromise = appendNotesAiAppBundle(LAZY_APP_SCRIPTS.socketClient, "socket-client").catch(
+      (err) => {
+        socketClientScriptPromise = null;
+        throw err;
+      }
+    );
+  }
+  return socketClientScriptPromise;
+}
 
 function ensureNoteExportLoaded() {
   return appendNotesAiAppBundle(LAZY_APP_SCRIPTS.noteExport, "note-export");
@@ -1465,6 +1476,7 @@ function scheduleDailyPlannerNotificationLoop() {
   }
   if (dailyPlannerNotifyTimer) window.clearInterval(dailyPlannerNotifyTimer);
   dailyPlannerNotifyTimer = window.setInterval(() => {
+    if (isDocumentHidden()) return;
     void dailyPlannerMaybeTriggerNotifications();
   }, 30000);
   void dailyPlannerMaybeTriggerNotifications();
@@ -1633,6 +1645,7 @@ function openDailyPlannerModal() {
   closeWebChatQuickActions();
   modal.classList.remove("hidden");
   document.body.classList.add("modal-open");
+  syncAppBackgroundActivity();
   renderDailyPlannerList();
   if (typeof applyTranslations === "function") applyTranslations();
   /* No programmatic focus — Android/Capacitor otherwise opens the soft keyboard immediately. */
@@ -1742,6 +1755,173 @@ function initDepthRevealSystem() {
 }
 
 let depthRevealRefreshRaf = 0;
+let mobileScrollRaf = 0;
+let resizeUiRaf = 0;
+let appBackgroundHooksReady = false;
+/** @type {AbortController | null} */
+let webChatUiAbortController = null;
+let depthRevealObserverPaused = false;
+let reminderPollingSuspendedByHidden = false;
+let dailyPlannerNotifySuspendedByHidden = false;
+let offlineFlushSuspendedByHidden = false;
+
+function isDocumentHidden() {
+  return typeof document !== "undefined" && document.visibilityState === "hidden";
+}
+
+function isElementInVisiblePage(el) {
+  if (!(el instanceof Element)) return false;
+  let node = el;
+  while (node && node !== document.body) {
+    if (node.classList && node.classList.contains("hidden")) return false;
+    node = node.parentElement;
+  }
+  return true;
+}
+
+function hasBlockingOverlay() {
+  if (document.body.classList.contains("modal-open")) return true;
+  if (document.body.classList.contains("mobile-nav-open")) return true;
+  if (webChatDrawerIsOpen()) return true;
+  const authLanding = document.getElementById("authLanding");
+  if (authLanding && !authLanding.classList.contains("hidden")) return true;
+  return false;
+}
+
+function cancelPendingScrollRafs() {
+  if (mobileScrollRaf) {
+    cancelAnimationFrame(mobileScrollRaf);
+    mobileScrollRaf = 0;
+  }
+  if (resizeUiRaf) {
+    cancelAnimationFrame(resizeUiRaf);
+    resizeUiRaf = 0;
+  }
+  if (depthRevealRefreshRaf) {
+    cancelAnimationFrame(depthRevealRefreshRaf);
+    depthRevealRefreshRaf = 0;
+  }
+}
+
+function pauseDepthRevealObserver() {
+  if (!depthRevealObserver || depthRevealObserverPaused) return;
+  depthRevealObserver.disconnect();
+  depthRevealObserverPaused = true;
+}
+
+function resumeDepthRevealObserver() {
+  if (!depthRevealObserverPaused || !depthRevealObserver) return;
+  if (isDocumentHidden()) return;
+  depthRevealObserverPaused = false;
+  refreshDepthRevealObserversNow();
+}
+
+function pauseWebReminderPollingForHidden() {
+  if (!reminderPollingStarted || reminderPollingSuspendedByHidden) return;
+  if (webNotificationSchedulerIntervalId != null) {
+    window.clearInterval(webNotificationSchedulerIntervalId);
+    webNotificationSchedulerIntervalId = null;
+    reminderPollingSuspendedByHidden = true;
+  }
+}
+
+function resumeWebReminderPollingForHidden() {
+  if (!reminderPollingSuspendedByHidden) return;
+  reminderPollingSuspendedByHidden = false;
+  if (!isAuthSessionReady() || authInvalidated || isNativeLocalNotificationsAvailable()) return;
+  if (!reminderPollingStarted || webNotificationSchedulerIntervalId != null) return;
+  webNotificationSchedulerIntervalId = window.setInterval(() => {
+    if (isDocumentHidden()) return;
+    void checkForDueReminders();
+  }, REMINDER_POLL_INTERVAL_MS);
+}
+
+function pauseDailyPlannerNotifyLoopForHidden() {
+  if (!dailyPlannerNotifyTimer || dailyPlannerNotifySuspendedByHidden) return;
+  window.clearInterval(dailyPlannerNotifyTimer);
+  dailyPlannerNotifyTimer = null;
+  dailyPlannerNotifySuspendedByHidden = true;
+}
+
+function resumeDailyPlannerNotifyLoopForHidden() {
+  if (!dailyPlannerNotifySuspendedByHidden || !dailyPlannerNotifyLoopRegistered) return;
+  if (isNativeLocalNotificationsAvailable()) {
+    dailyPlannerNotifySuspendedByHidden = false;
+    return;
+  }
+  dailyPlannerNotifySuspendedByHidden = false;
+  if (dailyPlannerNotifyTimer) return;
+  dailyPlannerNotifyTimer = window.setInterval(() => {
+    if (isDocumentHidden()) return;
+    void dailyPlannerMaybeTriggerNotifications();
+  }, 30000);
+}
+
+function pauseOfflineFlushForHidden() {
+  if (offlineNotesFlushIntervalId == null || offlineFlushSuspendedByHidden) return;
+  window.clearInterval(offlineNotesFlushIntervalId);
+  offlineNotesFlushIntervalId = null;
+  offlineFlushSuspendedByHidden = true;
+}
+
+function resumeOfflineFlushForHidden() {
+  if (!offlineFlushSuspendedByHidden) return;
+  offlineFlushSuspendedByHidden = false;
+  ensureOfflineNotesFlushInterval();
+}
+
+function syncAppBackgroundActivity() {
+  const hidden = isDocumentHidden();
+  const pauseFx = hidden || hasBlockingOverlay();
+  document.documentElement.classList.toggle("app-effects-paused", pauseFx);
+
+  if (hidden) {
+    cancelPendingScrollRafs();
+    pauseDepthRevealObserver();
+    pauseWebReminderPollingForHidden();
+    pauseDailyPlannerNotifyLoopForHidden();
+    pauseOfflineFlushForHidden();
+    pauseWebChatFabPromptCycle();
+    premiumTiltEnabled = false;
+  } else {
+    resumeDepthRevealObserver();
+    resumeWebReminderPollingForHidden();
+    resumeDailyPlannerNotifyLoopForHidden();
+    resumeOfflineFlushForHidden();
+    initPremiumTiltSystem();
+    if (!webChatDrawerIsOpen() && !webChatQuickPanelOpen()) {
+      scheduleWebChatFabPromptCycle();
+    } else {
+      pauseWebChatFabPromptCycle();
+    }
+  }
+}
+
+function initAppBackgroundHooks() {
+  if (appBackgroundHooksReady) return;
+  appBackgroundHooksReady = true;
+  document.addEventListener("visibilitychange", syncAppBackgroundActivity, { passive: true });
+  window.addEventListener("pagehide", syncAppBackgroundActivity, { passive: true });
+  syncAppBackgroundActivity();
+}
+
+function bindWebChatDrawerUi() {
+  teardownWebChatDrawerUi();
+  webChatUiAbortController = new AbortController();
+  const { signal } = webChatUiAbortController;
+  const input = document.getElementById("webChatInput");
+  if (input) {
+    input.addEventListener("input", () => webChatAutoResizeInput(input), { signal });
+    webChatAutoResizeInput(input);
+  }
+}
+
+function teardownWebChatDrawerUi() {
+  if (webChatUiAbortController) {
+    webChatUiAbortController.abort();
+    webChatUiAbortController = null;
+  }
+}
 
 function refreshDepthRevealObservers() {
   if (depthRevealRefreshRaf) return;
@@ -1752,6 +1932,7 @@ function refreshDepthRevealObservers() {
 }
 
 function refreshDepthRevealObserversNow() {
+  if (isDocumentHidden() || depthRevealObserverPaused) return;
   const targets =
     ".note-card, .home-stats-panel, .hex-card, .home-reminders-shell, .settings-section, .home-intro, .web-chat-messenger";
   if (!depthRevealObserver) {
@@ -1763,6 +1944,10 @@ function refreshDepthRevealObserversNow() {
     return;
   }
   document.querySelectorAll(targets).forEach((el) => {
+    if (!isElementInVisiblePage(el)) {
+      if (depthRevealObserver) depthRevealObserver.unobserve(el);
+      return;
+    }
     if (!el.classList.contains("depth-reveal")) {
       el.classList.add("depth-reveal");
     }
@@ -1771,7 +1956,7 @@ function refreshDepthRevealObserversNow() {
     el.dataset.depthRevealObserved = "1";
     depthRevealObserver.observe(el);
   });
-  refreshPremiumTiltTargets();
+  if (!isDocumentHidden()) refreshPremiumTiltTargets();
 }
 
 function initPremiumTiltSystem() {
@@ -1783,6 +1968,7 @@ function initPremiumTiltSystem() {
 }
 
 function refreshPremiumTiltTargets() {
+  if (isDocumentHidden() || !premiumTiltEnabled) return;
   const targets =
     ".home-categories-grid .hex-card, .note-card, .home-stats-panel, .home-reminders-shell, .home-stats-cta, .save-button, .primaryBtn, .web-chat-send, .add-button, .back-button";
   const maxDeg = 6;
@@ -1869,6 +2055,7 @@ function releaseModalBackdropIfIdle() {
     document.body.classList.remove("modal-open");
     document.body.style.overflow = "";
   }
+  syncAppBackgroundActivity();
 }
 
 function escapeHtml(str) {
@@ -1916,6 +2103,7 @@ function openNoteShareModal(note) {
   if (!modal) return;
   modal.classList.remove("hidden");
   document.body.classList.add("modal-open");
+  syncAppBackgroundActivity();
   if (typeof applyTranslations === "function") applyTranslations();
 }
 
@@ -1984,6 +2172,7 @@ function openNoteViewModal(note, origin = "all") {
 
   modal.classList.remove("hidden");
   document.body.classList.add("modal-open");
+  syncAppBackgroundActivity();
 }
 
 function closeNoteViewModal() {
@@ -2000,12 +2189,48 @@ function closeNoteShareModal() {
   if (typeof releaseModalBackdropIfIdle === "function") releaseModalBackdropIfIdle();
 }
 
+const WHATSAPP_SHARE_TEXT_MAX = 4000;
+
+function truncateTextForWhatsApp(text) {
+  const raw = String(text || "");
+  if (raw.length <= WHATSAPP_SHARE_TEXT_MAX) return { text: raw, truncated: false };
+  return { text: `${raw.slice(0, WHATSAPP_SHARE_TEXT_MAX - 1)}…`, truncated: true };
+}
+
+async function openWhatsAppShareUrl(text) {
+  const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+  const Browser =
+    window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
+  if (typeof isNativeApp === "function" && isNativeApp() && Browser && typeof Browser.open === "function") {
+    try {
+      await Browser.open({ url });
+      return;
+    } catch {
+      /* fall through to window.open / location */
+    }
+  }
+  const opened = window.open(url, "_blank", "noopener,noreferrer");
+  if (!opened) window.location.href = url;
+}
+
 function shareNoteViaEmail() {
   const note = noteShareModalNote;
   if (!note) return;
   const { subject, content } = getNoteShareParts(note);
   const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(content)}`;
   window.location.href = mailto;
+  closeNoteShareModal();
+}
+
+function shareNoteViaWhatsApp() {
+  const note = noteShareModalNote;
+  if (!note) return;
+  const { fullText } = getNoteShareParts(note);
+  const { text, truncated } = truncateTextForWhatsApp(fullText);
+  if (truncated && typeof showToast === "function") {
+    showToast(typeof t === "function" ? t("noteShareTruncated") : "Long note was shortened for WhatsApp.");
+  }
+  void openWhatsAppShareUrl(text);
   closeNoteShareModal();
 }
 
@@ -2087,6 +2312,83 @@ function noteContentFingerprint(text) {
   const s = text != null ? String(text) : "";
   if (s.length <= 512) return s;
   return `${s.length}:${s.slice(0, 120)}:${s.slice(-60)}`;
+}
+
+const listIncrementalObservers = new WeakMap();
+
+function disconnectListIncremental(container) {
+  const state = listIncrementalObservers.get(container);
+  if (!state) return;
+  state.observer?.disconnect();
+  if (state.sentinel?.parentNode) state.sentinel.remove();
+  listIncrementalObservers.delete(container);
+}
+
+/**
+ * Renders long lists in batches (IntersectionObserver) to cut initial DOM/layout cost.
+ * @param {HTMLElement} container
+ * @param {Array} items
+ * @param {(parent: DocumentFragment | HTMLElement, item: unknown) => void} appendItem
+ * @param {{ onComplete?: () => void }} [opts]
+ */
+function renderIncrementalList(container, items, appendItem, opts = {}) {
+  disconnectListIncremental(container);
+  container.innerHTML = "";
+  const list = Array.isArray(items) ? items : [];
+  if (!list.length) {
+    opts.onComplete?.();
+    return;
+  }
+  if (list.length <= LIST_VIRTUALIZE_THRESHOLD) {
+    const fragment = document.createDocumentFragment();
+    list.forEach((item) => appendItem(fragment, item));
+    container.appendChild(fragment);
+    opts.onComplete?.();
+    return;
+  }
+  let cursor = 0;
+  const sentinel = document.createElement("div");
+  sentinel.className = "list-load-sentinel";
+  sentinel.setAttribute("aria-hidden", "true");
+  sentinel.hidden = true;
+  container.appendChild(sentinel);
+
+  const loadBatch = () => {
+    if (cursor >= list.length) return;
+    const fragment = document.createDocumentFragment();
+    const end = Math.min(cursor + LIST_RENDER_BATCH, list.length);
+    for (; cursor < end; cursor += 1) {
+      appendItem(fragment, list[cursor]);
+    }
+    container.insertBefore(fragment, sentinel);
+    if (typeof refreshDepthRevealObservers === "function") refreshDepthRevealObservers();
+    if (cursor >= list.length) {
+      disconnectListIncremental(container);
+      opts.onComplete?.();
+    }
+  };
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      loadBatch();
+    },
+    { root: null, rootMargin: "280px 0px 120px 0px", threshold: 0 }
+  );
+  listIncrementalObservers.set(container, { observer, sentinel });
+  observer.observe(sentinel);
+  loadBatch();
+}
+
+function trimWebChatMessageDom() {
+  const box = document.getElementById("webChatMessages");
+  if (!box) return;
+  const rows = box.querySelectorAll(".web-chat-row:not(#webChatTypingRow)");
+  const max = WEB_CHAT_DOM_MAX_ROWS;
+  if (rows.length <= max) return;
+  for (let i = 0; i < rows.length - max; i += 1) {
+    rows[i].remove();
+  }
 }
 
 function notesListRenderKey(notes, extra) {
@@ -2194,6 +2496,30 @@ function closeMobileNavIfNeeded() {
 
 /** Scroll position preserved while body is position:fixed during mobile nav */
 let mobileNavScrollLockY = 0;
+let webChatScrollLockY = 0;
+let webChatScrollLocked = false;
+
+function lockWebChatScroll() {
+  if (webChatScrollLocked || document.body.classList.contains("mobile-nav-open")) return;
+  webChatScrollLockY = window.scrollY || document.documentElement.scrollTop || 0;
+  document.body.style.position = "fixed";
+  document.body.style.top = `-${webChatScrollLockY}px`;
+  document.body.style.left = "0";
+  document.body.style.right = "0";
+  document.body.style.width = "100%";
+  webChatScrollLocked = true;
+}
+
+function unlockWebChatScroll() {
+  if (!webChatScrollLocked) return;
+  document.body.style.position = "";
+  document.body.style.top = "";
+  document.body.style.left = "";
+  document.body.style.right = "";
+  document.body.style.width = "";
+  window.scrollTo(0, webChatScrollLockY);
+  webChatScrollLocked = false;
+}
 
 function lockMobileNavScroll() {
   mobileNavScrollLockY = window.scrollY || document.documentElement.scrollTop || 0;
@@ -2411,6 +2737,7 @@ function openScanCamUpgradeModal() {
   modal.classList.remove("hidden");
   document.body.classList.add("modal-open");
   document.body.style.overflow = "hidden";
+  syncAppBackgroundActivity();
 }
 
 function closeScanCamUpgradeModal() {
@@ -2440,6 +2767,23 @@ function openScanCamShareModal() {
   modal.classList.remove("hidden");
   document.body.classList.add("modal-open");
   document.body.style.overflow = "hidden";
+  syncAppBackgroundActivity();
+}
+
+function scanCamShareWhatsApp() {
+  if (!scanCamEnsureConvertAccess()) return;
+  const ta = document.getElementById("scanCamResultText");
+  const raw = ta ? String(ta.value || "").trim() : "";
+  if (!raw) {
+    showToast(t("scanCamShareNoText"));
+    return;
+  }
+  const { text, truncated } = truncateTextForWhatsApp(raw);
+  if (truncated && typeof showToast === "function") {
+    showToast(typeof t === "function" ? t("noteShareTruncated") : "Long note was shortened for WhatsApp.");
+  }
+  void openWhatsAppShareUrl(text);
+  closeScanCamShareModal();
 }
 
 function scanCamShareEmail() {
@@ -2741,7 +3085,6 @@ function storeCurrentUser(user, token, refresh, remember, options) {
     if (typeof socket !== "undefined" && socket && typeof socket.emit === "function") {
       socket.emit("authenticate", token);
     }
-    scheduleNoteRichEditorPreload();
     if (!skipUi) {
       loadUserSettings();
     }
@@ -4310,7 +4653,7 @@ function openBot() {
   hideScanCamPage();
   hideCoinsHubPage();
   updatePremiumUi();
-  premiumLiteInitPricingUi();
+  ensurePremiumLiteUiInitialized();
 }
 
 async function openCoinsRewards() {
@@ -4757,6 +5100,14 @@ function coinsHubShareInvite() {
 function premiumLiteInitPricingUi() {
   premiumLiteSelectPlan("standard", { initial: true });
   premiumLiteBillingToggle("monthly");
+}
+
+let premiumLiteUiInitialized = false;
+function ensurePremiumLiteUiInitialized() {
+  if (premiumLiteUiInitialized) return;
+  premiumLiteUiInitialized = true;
+  premiumSelectPaymentMethod("card");
+  premiumLiteInitPricingUi();
 }
 
 function premiumLiteSelectPlan(plan, opts = {}) {
@@ -5491,10 +5842,13 @@ function closeWebChatDrawer() {
   const el = document.getElementById("webChat");
   if (!el) return;
   el.classList.remove("web-chat-drawer--active", "web-chat-drawer--opening");
+  teardownWebChatDrawerUi();
   window.setTimeout(() => {
     if (!el.classList.contains("web-chat-drawer--active")) el.classList.add("hidden");
     document.body.classList.remove("web-chat-drawer-open");
+    unlockWebChatScroll();
     scheduleWebChatFabPromptCycle();
+    syncAppBackgroundActivity();
   }, 260);
 }
 
@@ -5512,15 +5866,17 @@ async function openWebChat() {
     openBot();
     return;
   }
-  setBodyHomePage(false);
   const drawer = document.getElementById("webChat");
   if (!drawer) return;
   drawer.classList.remove("hidden");
-  window.requestAnimationFrame(() => drawer.classList.add("web-chat-drawer--active"));
-  drawer.classList.add("web-chat-drawer--opening");
-  window.setTimeout(() => drawer.classList.remove("web-chat-drawer--opening"), 300);
   document.body.classList.add("web-chat-drawer-open");
+  lockWebChatScroll();
+  bindWebChatDrawerUi();
+  drawer.classList.add("web-chat-drawer--opening");
+  window.requestAnimationFrame(() => drawer.classList.add("web-chat-drawer--active"));
+  window.setTimeout(() => drawer.classList.remove("web-chat-drawer--opening"), 300);
   pauseWebChatFabPromptCycle();
+  syncAppBackgroundActivity();
   webChatSetUnread(0);
   closeWebChatQuickActions();
   if (typeof applyTranslations === "function") applyTranslations();
@@ -5997,6 +6353,7 @@ function scanCamOpenDocSourceSheet() {
   if (!sheet) return;
   sheet.classList.remove("hidden");
   document.body.classList.add("modal-open");
+  syncAppBackgroundActivity();
   if (scanCamDocSheetEscHandler) {
     document.removeEventListener("keydown", scanCamDocSheetEscHandler);
     scanCamDocSheetEscHandler = null;
@@ -6011,11 +6368,11 @@ function scanCamCloseDocSourceSheet() {
   const sheet = document.getElementById("scanCamDocSourceSheet");
   if (!sheet) return;
   sheet.classList.add("hidden");
-  document.body.classList.remove("modal-open");
   if (scanCamDocSheetEscHandler) {
     document.removeEventListener("keydown", scanCamDocSheetEscHandler);
     scanCamDocSheetEscHandler = null;
   }
+  releaseModalBackdropIfIdle();
 }
 
 function scanCamUploadDocument() {
@@ -6777,6 +7134,7 @@ async function appendWebChatBotReplyStreaming(fullText, opts = {}) {
   wrap.appendChild(fb);
   box.scrollTop = box.scrollHeight;
   webChatMarkUnreadFromBot();
+  trimWebChatMessageDom();
 }
 
 function appendWebChatBubble(role, text, opts = {}) {
@@ -6813,6 +7171,7 @@ function appendWebChatBubble(role, text, opts = {}) {
     row.classList.add("web-chat-row--visible");
   });
   box.scrollTop = box.scrollHeight;
+  trimWebChatMessageDom();
   if (role === "bot" && !opts.welcomeExamples) {
     webChatMarkUnreadFromBot();
   }
@@ -7952,6 +8311,8 @@ function openSettingsSection(sectionKey) {
   document.querySelectorAll("[data-settings-tab]").forEach((btn) => {
     btn.classList.toggle("is-active", btn.getAttribute("data-settings-tab") === key);
   });
+  if (key === "premium") ensurePremiumLiteUiInitialized();
+  refreshDepthRevealObservers();
 }
 
 function settingsSearchInputChanged(value) {
@@ -8347,6 +8708,7 @@ function openReminderEditModal(reminder) {
   timeEl.value = toDatetimeLocalValue(reminder.time);
   modal.classList.remove("hidden");
   document.body.classList.add("modal-open");
+  syncAppBackgroundActivity();
   msgEl.focus();
 }
 
@@ -8476,6 +8838,7 @@ function stopWebReminderPollingScheduler() {
     webNotificationSchedulerIntervalId = null;
   }
   reminderPollingStarted = false;
+  reminderPollingSuspendedByHidden = false;
 }
 
 /** Clear session after invalid/expired tokens without toast; idempotent. */
@@ -8509,6 +8872,7 @@ function startWebNotificationScheduler() {
     return;
   }
   webNotificationSchedulerIntervalId = window.setInterval(() => {
+    if (isDocumentHidden()) return;
     void checkForDueReminders();
   }, REMINDER_POLL_INTERVAL_MS);
   if (!webNotificationVisibilityHooked) {
@@ -8730,36 +9094,9 @@ function renderNotes(notes) {
     return;
   }
 
-  const fragment = document.createDocumentFragment();
-  notes.forEach((note) => {
-    const noteCard = document.createElement("div");
-    noteCard.className = "note-card";
-    const inner = document.createElement("div");
-    inner.className = "note-card-inner";
-    const content = document.createElement("div");
-    content.className = "note-content";
-    appendNoteCardHeadingAndBody(content, note);
-    inner.appendChild(content);
-    const canManage = currentUser && !note.public;
-    if (canManage) {
-      inner.appendChild(createNoteActionToolbar(note, "category"));
-    }
-    noteCard.setAttribute("role", "button");
-    noteCard.setAttribute("tabindex", "0");
-    noteCard.addEventListener("click", (event) => {
-      if (event.target instanceof Element && event.target.closest(".note-actions--toolbar")) return;
-      openNoteViewModal(note, "category");
-    });
-    noteCard.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      openNoteViewModal(note, "category");
-    });
-    noteCard.appendChild(inner);
-    fragment.appendChild(noteCard);
+  renderIncrementalList(container, notes, appendCategoryNoteCard, {
+    onComplete: () => refreshDepthRevealObservers()
   });
-  container.appendChild(fragment);
-  refreshDepthRevealObservers();
 }
 
 function populateNoteEditorCategorySelect() {
@@ -9505,12 +9842,35 @@ function orderedCategoryKeysFromNotes(notes) {
   return [...ordered, ...rest, ...tail];
 }
 
+function appendCategoryNoteCard(parent, note) {
+  const noteCard = document.createElement("div");
+  noteCard.className = "note-card";
+  const content = document.createElement("div");
+  content.className = "note-content";
+  appendNoteCardHeadingAndBody(content, note);
+  const canManage = currentUser && !note.public;
+  if (canManage) {
+    content.appendChild(createNoteActionToolbar(note, "category"));
+  }
+  noteCard.setAttribute("role", "button");
+  noteCard.setAttribute("tabindex", "0");
+  noteCard.addEventListener("click", (event) => {
+    if (event.target instanceof Element && event.target.closest(".note-actions--toolbar")) return;
+    openNoteViewModal(note, "category");
+  });
+  noteCard.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    openNoteViewModal(note, "category");
+  });
+  noteCard.appendChild(content);
+  parent.appendChild(noteCard);
+}
+
 function appendMyNoteCard(container, note) {
   const theme = noteCategoryThemeKey(note.category);
   const noteCard = document.createElement("div");
   noteCard.className = `note-card note-card--accent-${theme}`;
-  const inner = document.createElement("div");
-  inner.className = "note-card-inner";
   const content = document.createElement("div");
   content.className = "note-content";
   const badge = document.createElement("span");
@@ -9521,8 +9881,7 @@ function appendMyNoteCard(container, note) {
     : t("myNotesUncategorizedBadge");
   content.appendChild(badge);
   appendNoteCardHeadingAndBody(content, note);
-  inner.appendChild(content);
-  inner.appendChild(createNoteActionToolbar(note, "all"));
+  content.appendChild(createNoteActionToolbar(note, "all"));
   noteCard.setAttribute("role", "button");
   noteCard.setAttribute("tabindex", "0");
   noteCard.addEventListener("click", (event) => {
@@ -9534,7 +9893,7 @@ function appendMyNoteCard(container, note) {
     event.preventDefault();
     openNoteViewModal(note, "all");
   });
-  noteCard.appendChild(inner);
+  noteCard.appendChild(content);
   container.appendChild(noteCard);
 }
 
@@ -9562,10 +9921,12 @@ function renderAllNotesList(notes) {
   }
 
   container.className = "notes-list notes-list--grid";
-  const fragment = document.createDocumentFragment();
-  notes.forEach((note) => appendMyNoteCard(fragment, note));
-  container.appendChild(fragment);
-  refreshDepthRevealObservers();
+  renderIncrementalList(
+    container,
+    notes,
+    (parent, note) => appendMyNoteCard(parent, note),
+    { onComplete: () => refreshDepthRevealObservers() }
+  );
 }
 
 function resetHistoryPageUi() {
@@ -9892,11 +10253,14 @@ function clearAppLifecycleTimers() {
   loadNotesInflight = null;
   loadNotesInflightCategory = "";
   loadMyNotesInflight = null;
+  teardownWebChatDrawerUi();
 }
 
 function ensureOfflineNotesFlushInterval() {
   if (offlineNotesFlushIntervalId != null) return;
+  offlineFlushSuspendedByHidden = false;
   offlineNotesFlushIntervalId = window.setInterval(() => {
+    if (isDocumentHidden()) return;
     if (isBrowserOnline() && offlineNotesReadQueue().length) void offlineNotesFlushQueue();
   }, 45000);
 }
@@ -10765,13 +11129,11 @@ window.addEventListener("DOMContentLoaded", async () => {
   syncOfflineIndicatorUi();
 
   initDepthRevealSystem();
-  initPremiumTiltSystem();
+  initAppBackgroundHooks();
   cleanupDailyPlannerStorage();
   scheduleDailyPlannerMidnightReset();
   scheduleDailyPlannerNotificationLoop();
   renderDailyPlannerList();
-  premiumSelectPaymentMethod("card");
-  premiumLiteInitPricingUi();
   consumeCheckoutQueryToast();
   consumeBillingRoute();
   void consumeEmailVerificationQuery();
@@ -10781,21 +11143,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (fabTip) fabTip.classList.add("hidden");
   window.setTimeout(() => showWebChatFabTip(), 2200);
   scheduleWebChatFabPromptCycle();
-
-  if (!document.__notesAiVisibilityHooks) {
-    document.__notesAiVisibilityHooks = true;
-    document.addEventListener(
-      "visibilitychange",
-      () => {
-        if (document.visibilityState === "hidden") {
-          pauseWebChatFabPromptCycle();
-          return;
-        }
-        scheduleWebChatFabPromptCycle();
-      },
-      { passive: true }
-    );
-  }
 
   const dailyPlannerInput = document.getElementById("dailyPlannerTaskInput");
   if (dailyPlannerInput) {
@@ -10864,7 +11211,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     closeWebChatQuickActions();
   });
 
-  let mobileScrollRaf = 0;
   let lastDepthParallaxRounded = -1;
   let lastFloatingScrolledState = null;
   let lastMobileScrolledState = null;
@@ -10961,20 +11307,23 @@ window.addEventListener("DOMContentLoaded", async () => {
     syncTopbarAutoHide(y);
   };
   const onScrollParallaxThrottled = () => {
+    if (isDocumentHidden()) return;
     if (mobileScrollRaf) return;
     mobileScrollRaf = requestAnimationFrame(() => {
       mobileScrollRaf = 0;
+      if (isDocumentHidden()) return;
       syncMobileScrollState();
     });
   };
   window.addEventListener("scroll", onScrollParallaxThrottled, { passive: true });
   syncMobileScrollState();
 
-  let resizeUiRaf = 0;
   window.addEventListener("resize", () => {
+    if (isDocumentHidden()) return;
     if (resizeUiRaf) return;
     resizeUiRaf = requestAnimationFrame(() => {
       resizeUiRaf = 0;
+      if (isDocumentHidden()) return;
       if (!isMobileViewport()) closeMobileNav();
       syncMobileHeaderActionUi();
       initPremiumTiltSystem();
@@ -11007,22 +11356,23 @@ window.addEventListener("DOMContentLoaded", async () => {
     closeMobileLogoutConfirm();
   });
 
-  const webChatInput = document.getElementById("webChatInput");
-  if (webChatInput) {
-    webChatInput.addEventListener("input", () => webChatAutoResizeInput(webChatInput));
-    webChatAutoResizeInput(webChatInput);
-  }
-
   syncMobileHeaderActionUi();
-  ensureRealtimeSocket();
-  if (isAuthSessionReady()) scheduleNoteRichEditorPreload();
+  if (isAuthSessionReady()) ensureRealtimeSocket();
 });
 
 function ensureRealtimeSocket() {
-  if (typeof window.__notesAiEnsureSocket === "function") {
-    window.__notesAiEnsureSocket();
-  }
-  registerRealtimeNoteSyncHandlers();
+  void ensureSocketClientScript()
+    .then(() => {
+      if (typeof window.__notesAiEnsureSocket === "function") {
+        window.__notesAiEnsureSocket();
+      }
+      registerRealtimeNoteSyncHandlers();
+      const token = getStoredAccessToken();
+      if (token && typeof socket !== "undefined" && socket && typeof socket.emit === "function") {
+        socket.emit("authenticate", token);
+      }
+    })
+    .catch(() => {});
 }
 
 // Socket event listeners (debounced: multi-tab bursts coalesce into one refetch)

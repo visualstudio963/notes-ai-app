@@ -20,7 +20,7 @@
     "cap:copy:dev": "node scripts/capacitor-dev.mjs copy",
     "cap:run:android:dev": "node scripts/capacitor-dev.mjs run android",
     "vercel-build": "node scripts/inject-build-hash.mjs",
-    "icons:android": "node scripts/generate-android-icons.mjs",
+    "icons:android": "node scripts/generate-notes-ai-icon-master.mjs && node scripts/generate-android-icons.mjs",
     "splash:android": "node scripts/generate-android-splash.mjs"
   },
   "dependencies": {

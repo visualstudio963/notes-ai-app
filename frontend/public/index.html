@@ -24,9 +24,9 @@
   </script>
   <link rel="manifest" href="/manifest.json?v=apk-emb-260508-v1" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="stylesheet" href="/css/style.css?v=perf-audit-v1" />
+  <link rel="stylesheet" href="/css/style.css?v=mobile-render-v1" />
   <link rel="stylesheet" href="/css/settings-theme.css?v=perf-audit-v1" />
-  <link rel="stylesheet" href="/css/mobile-responsive.css?v=perf-audit-v1" />
+  <link rel="stylesheet" href="/css/mobile-responsive.css?v=mobile-render-v1" />
   <script defer src="/js/sw-register.js?v=apk-emb-260508-v1"></script>
 </head>
 <body>
@@ -1733,6 +1733,12 @@
           </button>
         </li>
         <li>
+          <button type="button" class="note-export-option" onclick="shareNoteViaWhatsApp()">
+            <span class="note-export-option__ext" data-t="noteShareWhatsApp">WhatsApp</span>
+            <span class="note-export-option__meta" data-t="noteShareWhatsAppHint">whatsapp</span>
+          </button>
+        </li>
+        <li>
           <button type="button" class="note-export-option" onclick="shareNoteCopyToClipboard()">
             <span class="note-export-option__ext" data-t="noteShareCopy">Copy</span>
             <span class="note-export-option__meta" data-t="noteShareCopyHint">clipboard</span>
@@ -1750,6 +1756,7 @@
       </div>
       <p class="scan-cam-share-modal__hint" data-t="scanCamShareModalHint">Send extracted text using one of the options below.</p>
       <div class="scan-cam-share-modal__actions">
+        <button type="button" class="save-button" onclick="scanCamShareWhatsApp()" data-t="scanCamShareWhatsApp">WhatsApp</button>
         <button type="button" class="save-button" onclick="scanCamShareEmail()" data-t="scanCamShareEmail">Email</button>
         <button type="button" class="save-button secondary" onclick="scanCamShareCopy()" data-t="scanCamShareCopy">Copy text</button>
       </div>
@@ -1903,9 +1910,8 @@
   <script defer src="/js/config/constants.js?v=apk-emb-260508-v1"></script>
   <script defer src="/js/config/api-base.js?v=invite-public-url-v1"></script>
   <script defer src="/js/features/premium.js?v=trial-sync-v1"></script>
-  <script defer src="/js/services/socket-client.js?v=audit-safe-v1"></script>
-  <script defer src="/translations.js?v=scan-doc-preview-v1"></script>
+  <script defer src="/translations.js?v=share-whatsapp-v1"></script>
   <script defer src="/js/components/toast.js?v=toast-balance-v1"></script>
-  <script defer src="/js/app.js?v=perf-audit-v1"></script>
+  <script defer src="/js/app.js?v=perf-lazy-v1"></script>
 </body>
 </html>

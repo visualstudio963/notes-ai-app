@@ -19,10 +19,10 @@ body {
   color: #e5e7eb;
 }
 
-/* Capacitor WebView: lighter decorative blur for smoother scrolling */
+/* Capacitor WebView: no filter blur on blobs — opacity-only wash (cheaper paint) */
 html.capacitor-native .depth-blob {
-  filter: blur(52px);
-  opacity: 0.16;
+  filter: none;
+  opacity: 0.18;
 }
 
 html.capacitor-native .background-canvas {
@@ -127,6 +127,12 @@ html.depth-motion-ready .depth-reveal {
 html.depth-motion-ready .depth-reveal.depth-reveal--in {
   opacity: 1;
   transform: translate3d(0, 0, 0);
+}
+
+html.app-effects-paused *,
+html.app-effects-paused *::before,
+html.app-effects-paused *::after {
+  animation-play-state: paused !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2057,27 +2063,24 @@ body.modal-open {
 @keyframes scanCamGlowPulse {
   0%,
   100% {
-    box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.24), 0 12px 28px rgba(2, 8, 20, 0.3), 0 0 20px rgba(56, 189, 248, 0.14),
-      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    opacity: 0.92;
+    transform: scale(1);
   }
   50% {
-    box-shadow: 0 0 0 1px rgba(125, 211, 252, 0.32), 0 14px 32px rgba(2, 8, 20, 0.34), 0 0 28px rgba(56, 189, 248, 0.2),
-      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    opacity: 1;
+    transform: scale(1.02);
   }
 }
 
 @keyframes scanCamLensSweep {
-  0% {
-    top: 18%;
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
     opacity: 0.2;
   }
   50% {
-    top: 78%;
+    transform: translate3d(0, 240%, 0);
     opacity: 0.85;
-  }
-  100% {
-    top: 18%;
-    opacity: 0.2;
   }
 }
 
@@ -3169,7 +3172,14 @@ body.modal-open {
 }
 
 .note-card-inner {
+  display: contents;
+}
+
+.note-card > .note-content {
+  position: relative;
   padding: 20px 20px 18px;
+  min-width: 0;
+  padding-right: 170px;
 }
 
 .note-content {
@@ -3573,7 +3583,7 @@ body.modal-open {
   margin-bottom: 22px;
 }
 
-.main:has(#webChat:not(.hidden)) {
+.main:has(#webChat:not(.hidden):not(.web-chat-drawer)) {
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -12524,42 +12534,22 @@ body {
 #webChat.web-chat-drawer {
   position: fixed;
   inset: 0;
-  z-index: 1400;
+  z-index: 9999;
   display: flex;
   align-items: flex-end;
-  justify-content: center;
-  padding: 0;
-  background: transparent;
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  justify-content: flex-end;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 280ms ease;
+  transition: opacity 220ms ease;
 }
 
-#webChat.web-chat-drawer::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background: linear-gradient(
-    165deg,
-    rgba(3, 7, 18, 0.9) 0%,
-    rgba(12, 74, 110, 0.52) 38%,
-    rgba(14, 116, 144, 0.44) 62%,
-    rgba(15, 118, 110, 0.42) 100%
-  );
-  pointer-events: none;
-}
-
+#webChat.web-chat-drawer::before,
 #webChat.web-chat-drawer::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  opacity: 0.045;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  pointer-events: none;
+  display: none;
 }
 
 #webChat.web-chat-drawer.hidden {
@@ -12571,27 +12561,34 @@ body {
   pointer-events: auto;
 }
 
+#webChat.web-chat-drawer.web-chat-page--messenger {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  flex: none;
+  min-height: 0;
+}
+
 #webChat.web-chat-drawer .web-chat-messenger {
   position: relative;
   z-index: 1;
-  width: min(760px, 100vw);
-  min-height: min(78dvh, 760px);
-  max-height: min(78dvh, 760px);
-  border-radius: 20px 20px 0 0;
+  width: min(420px, calc(100vw - 32px));
+  max-width: 420px;
+  min-height: min(520px, 80vh);
+  max-height: min(80vh, 760px);
+  border-radius: 20px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(22px) saturate(165%);
-  -webkit-backdrop-filter: blur(22px) saturate(165%);
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(12px) saturate(130%);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
   box-shadow:
-    0 -28px 56px rgba(2, 8, 20, 0.45),
-    0 24px 48px rgba(0, 0, 0, 0.35),
-    0 0 40px rgba(0, 245, 212, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  transform: translateY(22px) scale(0.96);
+    0 24px 48px rgba(2, 8, 20, 0.42),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+  transform: translateY(10px) scale(0.97);
   opacity: 0;
-  transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 300ms ease;
-  transform-origin: 92% 100%;
+  transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1), opacity 280ms ease;
+  transform-origin: bottom right;
 }
 
 #webChat.web-chat-drawer.web-chat-drawer--active .web-chat-messenger {
@@ -12600,7 +12597,19 @@ body {
 }
 
 body.web-chat-drawer-open {
-  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* Footer is outside .app — lift app above it and hide legal links while chat is open */
+body.web-chat-drawer-open .app {
+  position: relative;
+  z-index: 1500;
+}
+
+body.web-chat-drawer-open .site-footer {
+  visibility: hidden;
+  pointer-events: none;
+  user-select: none;
 }
 
 /* Mobile / APK: hide floating controls while chat drawer is open (FAB z-index > drawer) */
@@ -12748,10 +12757,10 @@ body.web-chat-drawer-open {
   }
 
   #webChat.web-chat-drawer .web-chat-messenger {
-    width: 100vw;
-    min-height: min(80dvh, 860px) !important;
-    max-height: min(80dvh, 860px) !important;
-    border-radius: 20px 20px 0 0;
+    width: auto !important;
+    min-height: min(62dvh, 520px) !important;
+    max-height: min(78dvh, 580px) !important;
+    border-radius: 20px 20px 12px 12px !important;
   }
 }
 
@@ -17829,7 +17838,7 @@ body.theme-normal .welcome-sheet__close {
  */
 @media (max-width: 600px) {
   :root {
-    --depth-glass-blur: 9px;
+    --depth-glass-blur: 0px;
   }
   .web-chat-fab,
   #webChatFab,
@@ -17840,35 +17849,35 @@ body.theme-normal .welcome-sheet__close {
     backface-visibility: hidden;
   }
   #webChat.web-chat-drawer .web-chat-messenger {
-    backdrop-filter: blur(14px) saturate(125%);
-    -webkit-backdrop-filter: blur(14px) saturate(125%);
-    box-shadow:
-      0 14px 32px rgba(2, 8, 20, 0.32),
-      0 0 1px rgba(255, 255, 255, 0.06);
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(15, 23, 42, 0.98) !important;
+    box-shadow: 0 12px 28px rgba(2, 8, 20, 0.32) !important;
   }
 }
 
 /* APK: lighter inherited glass tokens — same hierarchy, cheaper compositing on scroll */
 html.capacitor-native {
-  --depth-glass-blur: 6px;
-  --depth-elev-1: 0 5px 20px rgba(0, 0, 0, 0.2);
-  --depth-elev-2: 0 12px 32px rgba(0, 0, 0, 0.28);
-  --ds-shadow: 0 10px 26px rgba(2, 8, 22, 0.26);
-  --ds-shadow-soft: 0 6px 18px rgba(2, 8, 22, 0.2);
+  --depth-glass-blur: 0px;
+  --depth-elev-1: 0 4px 12px rgba(0, 0, 0, 0.16);
+  --depth-elev-2: 0 8px 20px rgba(0, 0, 0, 0.22);
+  --ds-shadow: 0 8px 20px rgba(2, 8, 22, 0.22);
+  --ds-shadow-soft: 0 4px 12px rgba(2, 8, 22, 0.16);
 }
 
 @media (max-width: 600px), (pointer: coarse) {
   html.capacitor-native {
-    --depth-glass-blur: 4px;
-    --depth-elev-1: 0 4px 14px rgba(0, 0, 0, 0.18);
-    --depth-elev-2: 0 10px 24px rgba(0, 0, 0, 0.24);
-    --ds-shadow: 0 8px 20px rgba(2, 8, 22, 0.22);
-    --ds-shadow-soft: 0 4px 14px rgba(2, 8, 22, 0.16);
+    --depth-glass-blur: 0px;
+    --depth-elev-1: 0 3px 10px rgba(0, 0, 0, 0.14);
+    --depth-elev-2: 0 6px 16px rgba(0, 0, 0, 0.2);
+    --ds-shadow: 0 6px 16px rgba(2, 8, 22, 0.2);
+    --ds-shadow-soft: 0 3px 10px rgba(2, 8, 22, 0.14);
   }
 
   html.capacitor-native #webChat.web-chat-drawer .web-chat-messenger {
-    backdrop-filter: blur(10px) saturate(118%);
-    -webkit-backdrop-filter: blur(10px) saturate(118%);
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(15, 23, 42, 0.98) !important;
   }
 
   html.capacitor-native .web-chat-fab,

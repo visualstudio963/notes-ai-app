@@ -728,30 +728,28 @@ html.capacitor-native body.topbar-auto-hidden .notes-toolbar {
   }
 }
 
-/* Web Chat drawer — centered modal on mobile/APK */
+/* Web Chat drawer — floating overlay on current page (mobile/APK) */
 @media (max-width: 840px) {
   #webChat.web-chat-drawer {
-    z-index: 1400 !important;
-    align-items: center !important;
+    z-index: 9999 !important;
+    align-items: flex-end !important;
     justify-content: center !important;
     padding:
       max(12px, env(safe-area-inset-top, 0px))
-      max(14px, env(safe-area-inset-right, 0px))
-      max(14px, env(safe-area-inset-bottom, 0px))
-      max(14px, env(safe-area-inset-left, 0px)) !important;
+      max(12px, env(safe-area-inset-right, 0px))
+      max(12px, env(safe-area-inset-bottom, 0px))
+      max(12px, env(safe-area-inset-left, 0px)) !important;
+    background: rgba(0, 0, 0, 0.25) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
   }
 
   #webChat.web-chat-drawer .web-chat-messenger {
-    width: min(100%, calc(100vw - 28px)) !important;
+    width: calc(100vw - 24px) !important;
+    max-width: calc(100vw - 24px) !important;
     min-height: min(62dvh, 520px) !important;
-    max-height: min(70dvh, 580px) !important;
-    border-radius: 22px !important;
-    transform: translateY(10px) scale(0.94) !important;
-    transform-origin: center center !important;
-    box-shadow:
-      0 24px 48px rgba(2, 8, 20, 0.44),
-      0 0 0 1px rgba(255, 255, 255, 0.1),
-      0 0 36px rgba(56, 189, 248, 0.1) !important;
+    max-height: min(78dvh, 580px) !important;
+    border-radius: 20px 20px 12px 12px !important;
   }
 
   #webChat.web-chat-drawer.web-chat-drawer--active .web-chat-messenger {
@@ -789,10 +787,15 @@ html.capacitor-native body.topbar-auto-hidden .notes-toolbar {
     border-radius: 14px !important;
   }
 
-  body.web-chat-drawer-open .topbar {
+  body.web-chat-drawer-open .app {
+    position: relative;
+    z-index: 1500;
+  }
+
+  body.web-chat-drawer-open .site-footer {
     visibility: hidden;
     pointer-events: none;
-    opacity: 0;
+    user-select: none;
   }
 
   #webChat .web-chat-messenger__header {
@@ -820,7 +823,10 @@ html.capacitor-native body.topbar-auto-hidden .notes-toolbar {
   :root {
     --depth-glass-blur: 0px;
     --depth-elev-1: 0 3px 10px rgba(0, 0, 0, 0.14);
-    --depth-elev-2: 0 6px 16px rgba(0, 0, 0, 0.18);
+    --depth-elev-2: 0 6px 14px rgba(0, 0, 0, 0.18);
+    --ds-shadow-soft: 0 4px 12px rgba(2, 8, 22, 0.18);
+    --mobile-panel-bg: rgba(15, 23, 42, 0.94);
+    --mobile-modal-bg: rgba(15, 23, 42, 0.96);
   }
 
   .background-canvas {
@@ -829,9 +835,108 @@ html.capacitor-native body.topbar-auto-hidden .notes-toolbar {
   }
 
   .depth-blob {
-    filter: blur(28px) !important;
-    opacity: 0.32 !important;
+    filter: none !important;
+    opacity: 0.18 !important;
     animation: none !important;
+  }
+
+  .brand-mark {
+    animation: none !important;
+  }
+
+  .site-footer {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(15, 23, 42, 0.92) !important;
+  }
+
+  .sidebar {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(10, 18, 36, 0.96)) !important;
+  }
+
+  body.mobile-nav-open .sidebar {
+    box-shadow: 8px 0 24px rgba(2, 8, 20, 0.4) !important;
+  }
+
+  .toast,
+  #toast,
+  .reminder-foreground-toast {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(15, 23, 42, 0.96) !important;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28) !important;
+  }
+
+  .notes-search-input,
+  .notes-select-input,
+  .history-search-input,
+  .history-sort-select,
+  .field-group input,
+  .field-group textarea,
+  .field-group select,
+  #webChatInput,
+  .web-chat-composer,
+  .web-chat-composer textarea,
+  .daily-planner-item,
+  .home-reminders-shell::before,
+  .scan-cam-fake-doc,
+  .scan-cam-zone,
+  .scan-cam-camera-glow,
+  .web-chat-fab-tip,
+  #webChatFabTip,
+  .web-chat-premium-tab-tooltip,
+  .note-rich-editor-glass,
+  .pricing-lite-card,
+  .premium-plan-card,
+  .settings-section,
+  .home-stats-cta,
+  .coins-dash-shell,
+  .bot-connect-panel,
+  .manual-panel {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    filter: none !important;
+  }
+
+  .scan-cam-fake-doc {
+    animation: none !important;
+  }
+
+  .scan-cam-camera-glow {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.2), 0 6px 16px rgba(2, 8, 20, 0.22) !important;
+  }
+
+  #webChat .web-chat-messenger__header,
+  #webChat .web-chat-messenger__back,
+  #webChat .web-chat-composer,
+  #webChat .web-chat-messenger__footer,
+  #webChat .web-chat-mode-pill,
+  #webChat .web-chat-bubble,
+  #webChat .web-chat-model-lock-banner--slim,
+  #webChat .web-chat-soft-lock,
+  .web-chat-messenger__footer {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  #webChat .web-chat-messenger::after,
+  #webChat .web-chat-messenger::before,
+  #webChat .web-chat-messenger.chat-container.chat-bot-mode::after,
+  #webChat .web-chat-messenger.chat-container.auto-mode::after,
+  #webChat .web-chat-messenger.chat-container.openai-mode::after,
+  #webChat .web-chat-messenger.chat-container.openai-mode::before {
+    display: none !important;
+    animation: none !important;
+    filter: none !important;
+  }
+
+  #webChat.web-chat-drawer {
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
   }
 
   .note-card,
@@ -850,20 +955,36 @@ html.capacitor-native body.topbar-auto-hidden .notes-toolbar {
   .admin-user-card,
   .admin-subs-card,
   .admin-dash-user-card,
-  .admin-dash-note-card {
+  .admin-dash-note-card,
+  body.theme-advanced .note-card,
+  body.theme-advanced .settings-section,
+  body.theme-normal .note-card {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.14) !important;
-    transition: transform 0.18s ease, opacity 0.18s ease, border-color 0.18s ease !important;
+    background: var(--mobile-panel-bg) !important;
+    box-shadow: var(--depth-elev-1) !important;
+    transition: transform 0.18s ease, opacity 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease !important;
   }
 
   .modal-content,
-  .web-chat-messenger,
   #webChat.web-chat-drawer .web-chat-messenger,
+  .note-view-modal .modal-content,
+  .note-export-modal,
+  .note-share-modal {
+    backdrop-filter: blur(6px) saturate(112%) !important;
+    -webkit-backdrop-filter: blur(6px) saturate(112%) !important;
+    background: var(--mobile-modal-bg) !important;
+    box-shadow: 0 14px 32px rgba(2, 8, 20, 0.34) !important;
+  }
+
+  #webChat.web-chat-drawer .web-chat-messenger {
+    background: rgba(15, 23, 42, 0.97) !important;
+  }
+
   .admin-drawer-backdrop.is-open,
   .admin-drawer-backdrop:not([hidden]) {
-    backdrop-filter: blur(8px) saturate(112%) !important;
-    -webkit-backdrop-filter: blur(8px) saturate(112%) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
   }
 
   body.mobile-scrolled .topbar,
@@ -919,6 +1040,8 @@ html.capacitor-native body.topbar-auto-hidden .notes-toolbar {
   .daily-planner-item {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+    background: rgba(15, 23, 42, 0.88) !important;
+    box-shadow: 0 3px 10px rgba(2, 6, 23, 0.22) !important;
   }
 
   body.floating-scrolled .web-chat-fab,
@@ -940,6 +1063,72 @@ html.capacitor-native body.topbar-auto-hidden .notes-toolbar {
   .home-stats-panel:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16) !important;
   }
+
+  .main,
+  .page,
+  #home,
+  #notes-all,
+  #category,
+  #bot,
+  #settings,
+  #reminder-history,
+  #coins-hub,
+  .settings-section-pane,
+  #dailyPlannerList,
+  #activeReminders,
+  #pastReminders,
+  #webChatMessages {
+    content-visibility: auto;
+    contain-intrinsic-size: 1px 480px;
+  }
+
+  .list-load-sentinel {
+    display: block;
+    width: 100%;
+    height: 1px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    pointer-events: none;
+    visibility: hidden;
+  }
+
+  .note-card,
+  .hex-card,
+  .reminder-card,
+  .save-button,
+  .primaryBtn,
+  .menu-item {
+    transition: transform 0.22s ease, opacity 0.22s ease, border-color 0.22s ease !important;
+  }
+
+  .note-card:hover,
+  .hex-card:hover {
+    box-shadow: var(--depth-elev-1) !important;
+  }
+}
+
+/* Theme overrides: mobile uses solid panels, blur only on modals/chat shell */
+@media (max-width: 840px), (pointer: coarse) {
+  body.theme-advanced .note-card,
+  body.theme-advanced .settings-section,
+  body.theme-advanced .bot-connect-panel,
+  body.theme-classic .settings-section,
+  body.theme-normal .note-card,
+  body.theme-normal .settings-section {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: var(--depth-elev-1) !important;
+  }
+
+  body.theme-advanced .workspace-item.sticky,
+  body.theme-advanced .workspace-item.note-1,
+  body.theme-advanced .workspace-item.note-2 {
+    animation: none !important;
+    will-change: auto !important;
+    filter: none !important;
+  }
 }
 
 html.capacitor-native {
@@ -947,15 +1136,17 @@ html.capacitor-native {
 }
 
 html.capacitor-native .depth-blob {
-  filter: blur(22px) !important;
-  opacity: 0.24 !important;
+  filter: none !important;
+  opacity: 0.16 !important;
   animation: none !important;
 }
 
 html.capacitor-native .note-card,
 html.capacitor-native .hex-card,
 html.capacitor-native .home-stats-panel,
-html.capacitor-native .reminder-card {
+html.capacitor-native .reminder-card,
+html.capacitor-native .site-footer,
+html.capacitor-native .sidebar {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.14) !important;
@@ -963,8 +1154,10 @@ html.capacitor-native .reminder-card {
 
 html.capacitor-native .modal-content,
 html.capacitor-native #webChat.web-chat-drawer .web-chat-messenger {
-  backdrop-filter: blur(6px) saturate(110%) !important;
-  -webkit-backdrop-filter: blur(6px) saturate(110%) !important;
+  backdrop-filter: blur(6px) saturate(108%) !important;
+  -webkit-backdrop-filter: blur(6px) saturate(108%) !important;
+  background: rgba(15, 23, 42, 0.97) !important;
+  box-shadow: 0 12px 28px rgba(2, 8, 20, 0.32) !important;
 }
 
 /* APK: always pin FAB stack just above system nav — immune to style.css mobile overrides */

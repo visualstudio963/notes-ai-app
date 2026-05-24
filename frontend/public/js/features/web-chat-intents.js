@@ -214,22 +214,18 @@
         "pagesë",
         "cmimi i planit",
         "çmimi i planit",
-        "sa kushton premium",
         "sa kushton standard",
-        "free standard premium",
-        "standard premium",
+        "free standard",
         "compare plans",
         "plan comparison",
         "dua standard",
-        "dua premium",
-        "më duhet premium",
-        "me duhet premium",
+        "më duhet standard",
+        "me duhet standard",
         "standard",
-        "premium",
         "pricing page",
         "about plans"
       ],
-      weakTokens: ["standard", "premium", "plan", "pricing", "abonim", "upgrade"]
+      weakTokens: ["standard", "plan", "pricing", "abonim", "upgrade"]
     },
     {
       id: "reminder",

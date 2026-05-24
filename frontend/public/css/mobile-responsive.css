@@ -12,20 +12,21 @@
   --notes-pad-inline: clamp(12px, 4.2vw, 18px);
   --notes-modal-pad: clamp(14px, 4vw, 28px);
   /* Bottom layout tokens — single source for main, footer, FAB stack */
-  --notes-footer-zone: 88px;
-  --notes-footer-pad-top: 14px;
-  --notes-footer-pad-bottom: max(14px, calc(8px + var(--notes-safe-bottom)));
-  --notes-footer-fab-gutter: 76px;
+  --notes-footer-zone: 54px;
+  --notes-footer-pad-top: 6px;
+  --notes-footer-pad-bottom: max(6px, calc(4px + var(--notes-safe-bottom)));
+  --notes-footer-fab-gutter: 58px;
   --notes-fab-size: 46px;
   --notes-fab-size-chat: var(--notes-fab-size);
   --notes-fab-size-planner: var(--notes-fab-size);
   --notes-fab-stack-gap: clamp(6px, 1.8vw, 8px);
   --notes-fab-planner-offset: 0px;
+  --notes-fab-nav-gap: 14px;
   --notes-fab-stack-total: calc(
     var(--notes-fab-size) + var(--notes-fab-stack-gap) + var(--notes-fab-size)
   );
-  /* FABs sit above footer zone; main only needs modest end padding for scroll */
-  --notes-fab-bottom-base: calc(var(--notes-footer-zone) + var(--notes-safe-bottom));
+  /* FABs: small gap above system nav (not full footer zone) */
+  --notes-fab-bottom-base: calc(var(--notes-fab-nav-gap) + var(--notes-safe-bottom));
   --notes-main-bottom-pad: max(20px, calc(var(--notes-fab-stack-total) + 16px));
   --notes-fab-clearance: var(--notes-main-bottom-pad);
 }
@@ -33,7 +34,8 @@
 html.capacitor-native {
   /* Modest fallback when WebView reports 0 safe-area */
   --notes-safe-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
-  --notes-footer-zone: 92px;
+  --notes-footer-zone: 58px;
+  --notes-fab-nav-gap: 12px;
 }
 
 html {
@@ -292,8 +294,11 @@ select {
   .web-chat-messenger {
     width: 100%;
     max-width: 100%;
-    min-height: min(calc(var(--notes-app-height) - 168px), 520px);
-    max-height: calc(var(--notes-app-height) - 148px);
+  }
+
+  #webChat.web-chat-drawer .web-chat-messenger {
+    min-height: min(62dvh, 520px);
+    max-height: min(70dvh, 580px);
   }
 }
 
@@ -384,14 +389,42 @@ select {
     flex-shrink: 0;
     width: 100%;
     margin-top: 0;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Body-level FABs must stack above the footer (chat FAB was inside .app before). */
+  .web-chat-fab,
+  #webChatFab,
+  .web-chat-fab-tip,
+  #webChatFabTip,
+  .daily-planner-fab,
+  #dailyPlannerFab {
+    z-index: 1302 !important;
   }
 
   .site-footer-inner {
     padding-top: var(--notes-footer-pad-top);
     padding-bottom: var(--notes-footer-pad-bottom);
-    padding-left: max(14px, var(--notes-safe-left));
-    padding-right: max(calc(14px + var(--notes-footer-fab-gutter)), calc(var(--notes-safe-right) + 14px));
-    gap: 12px;
+    padding-left: max(12px, var(--notes-safe-left));
+    padding-right: max(calc(12px + var(--notes-footer-fab-gutter)), calc(var(--notes-safe-right) + 12px));
+    gap: 3px;
+  }
+
+  .site-footer-links-grid {
+    width: min(100%, calc(100vw - 24px - var(--notes-footer-fab-gutter)));
+    max-width: 300px;
+    gap: 1px 6px;
+  }
+
+  .site-footer-links-grid a {
+    font-size: 0.65rem;
+    padding: 2px 1px;
+  }
+
+  .site-footer-copy {
+    font-size: 0.62rem;
+    opacity: 0.88;
   }
 
   html.capacitor-native .main {
@@ -425,13 +458,13 @@ select {
  */
 @media (max-width: 840px), (pointer: coarse) {
   html.capacitor-native {
-    --notes-fab-bottom-base: calc(var(--notes-footer-zone) + var(--notes-safe-bottom));
+    --notes-fab-bottom-base: calc(var(--notes-fab-nav-gap) + var(--notes-safe-bottom));
     --notes-fab-stack-gap: clamp(6px, 1.8vw, 8px);
   }
 
   @media (max-height: 640px) {
     :root {
-      --notes-footer-zone: 80px;
+      --notes-footer-zone: 50px;
       --notes-fab-stack-gap: 6px;
       --notes-fab-planner-offset: 0px;
     }
@@ -557,10 +590,104 @@ select {
   }
 }
 
-/* Web Chat drawer — above mobile topbar; hide plan reminder chips */
+/* Auto-hide app topbar on scroll down (mobile + APK) */
+@media (max-width: 840px) {
+  body .topbar {
+    transform: translate3d(0, 0, 0);
+    transition:
+      transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.28s ease,
+      min-height 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+      padding 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+      background 0.28s ease,
+      border-color 0.28s ease,
+      box-shadow 0.28s ease !important;
+  }
+
+  body.topbar-auto-hidden .topbar {
+    transform: translate3d(0, calc(-100% - env(safe-area-inset-top, 0px)), 0);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  body.topbar-auto-hidden .notes-toolbar {
+    top: max(6px, env(safe-area-inset-top, 0px)) !important;
+  }
+
+  body.topbar-auto-hidden.mobile-scrolled .notes-toolbar {
+    top: max(6px, env(safe-area-inset-top, 0px)) !important;
+  }
+}
+
+html.capacitor-native body.topbar-auto-hidden .notes-toolbar {
+  top: max(8px, env(safe-area-inset-top, 0px)) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.topbar-auto-hidden .topbar {
+    transition: none !important;
+  }
+}
+
+/* Web Chat drawer — centered modal on mobile/APK */
 @media (max-width: 840px) {
   #webChat.web-chat-drawer {
     z-index: 1400 !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding:
+      max(12px, env(safe-area-inset-top, 0px))
+      max(14px, env(safe-area-inset-right, 0px))
+      max(14px, env(safe-area-inset-bottom, 0px))
+      max(14px, env(safe-area-inset-left, 0px)) !important;
+  }
+
+  #webChat.web-chat-drawer .web-chat-messenger {
+    width: min(100%, calc(100vw - 28px)) !important;
+    min-height: min(62dvh, 520px) !important;
+    max-height: min(70dvh, 580px) !important;
+    border-radius: 22px !important;
+    transform: translateY(10px) scale(0.94) !important;
+    transform-origin: center center !important;
+    box-shadow:
+      0 24px 48px rgba(2, 8, 20, 0.44),
+      0 0 0 1px rgba(255, 255, 255, 0.1),
+      0 0 36px rgba(56, 189, 248, 0.1) !important;
+  }
+
+  #webChat.web-chat-drawer.web-chat-drawer--active .web-chat-messenger {
+    transform: translateY(0) scale(1) !important;
+  }
+
+  #webChat .web-chat-sheet-handle {
+    display: none !important;
+  }
+
+  #webChat .web-chat-messenger::after,
+  #webChat .web-chat-messenger.chat-container.chat-bot-mode::after,
+  #webChat .web-chat-messenger.chat-container.openai-mode::before {
+    animation: none !important;
+    transform: none !important;
+    filter: none !important;
+    will-change: auto !important;
+  }
+
+  #webChat .web-chat-messenger__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  #webChat .web-chat-messages {
+    padding-bottom: 96px !important;
+  }
+
+  #webChat .web-chat-messenger__footer {
+    left: 10px !important;
+    right: 10px !important;
+    bottom: 10px !important;
+    border-radius: 14px !important;
   }
 
   body.web-chat-drawer-open .topbar {

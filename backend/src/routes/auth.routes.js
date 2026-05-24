@@ -10,6 +10,7 @@ const {
 const { publicUser } = require("../utils/serializers");
 const { TRIAL_DURATION_MS } = require("../features/coins/coinConstants");
 const { bindReferralCode, ensureReferralCode } = require("../features/coins/coinService");
+const { ensureEligibleNewUserTrial } = require("../features/premium/subscriptionService");
 
 /** Fields applied on every brand-new account (14-day Standard trial). */
 function newUserStandardTrialFields() {
@@ -231,6 +232,7 @@ async function upsertGoogleUserFromIdTokenPayload(User, payload, cleanDeviceId) 
     user = await ensureReferralCode(User, user);
   }
 
+  await ensureEligibleNewUserTrial(User, user._id);
   return User.findById(user._id);
 }
 
@@ -409,6 +411,7 @@ function createAuthRouter({
 
       delete req.session.pendingGoogleOAuth;
 
+      await ensureEligibleNewUserTrial(User, user._id);
       const freshUser = await User.findById(user._id);
       const outUser = freshUser || user;
       const { accessToken, refreshToken } = await issueSessionTokens(outUser._id);

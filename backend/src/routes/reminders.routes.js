@@ -1,7 +1,8 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const {
-  hasStandardTierAccess,
+  hasStandardAccess,
+  syncExpiredStandardAccess,
   LEAN_USER_SUBSCRIPTION_TIER_FIELDS
 } = require("../features/premium/subscriptionService");
 
@@ -83,8 +84,9 @@ function createRemindersRouter({ User, Reminder, authMiddleware }) {
       }
 
       if (source === "web_chat") {
+        await syncExpiredStandardAccess(User, req.userId);
         const u = await User.findById(req.userId).select(LEAN_USER_SUBSCRIPTION_TIER_FIELDS).lean();
-        if (!hasStandardTierAccess(u)) {
+        if (!hasStandardAccess(u)) {
           return res.status(403).json({
             error: "Web Chat reminders require Standard.",
             code: "WEB_CHAT_PLAN"

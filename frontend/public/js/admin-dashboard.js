@@ -126,7 +126,7 @@
     const signups = Array.isArray(analytics.signupsByDay) ? analytics.signupsByDay : [];
     return JSON.stringify({
       tu: st.totalUsers,
-      pro: st.proUsers != null ? st.proUsers : st.premiumUsers,
+      tn: st.totalNotes,
       std: st.standardUsers,
       free: st.freeUsers,
       au: st.activeUsers,
@@ -379,23 +379,22 @@
     const host = document.getElementById("adminDonutUsers");
     if (!host) return;
     const total = Number(stats.totalUsers) || 0;
-    const pro = Number(stats.proUsers != null ? stats.proUsers : stats.premiumUsers) || 0;
     const std =
       stats.standardUsers != null && stats.standardUsers !== ""
         ? Number(stats.standardUsers)
         : NaN;
     const standard = Number.isFinite(std) ? std : 0;
     let free =
-      stats.freeUsers != null && stats.freeUsers !== "" ? Number(stats.freeUsers) : Math.max(0, total - pro - standard);
-    if (!Number.isFinite(free) || free < 0) free = Math.max(0, total - pro - standard);
+      stats.freeUsers != null && stats.freeUsers !== ""
+        ? Number(stats.freeUsers)
+        : Math.max(0, total - standard);
+    if (!Number.isFinite(free) || free < 0) free = Math.max(0, total - standard);
     if (!total) {
       host.innerHTML = '<p class="admin-muted">No user data yet.</p>';
       return;
     }
-    const pctPro = Math.min(100, Math.round((pro / total) * 100000) / 1000);
     const pctStd = Math.min(100, Math.round((standard / total) * 100000) / 1000);
-    const cumPro = pctPro;
-    const cumStd = Math.min(100, pctPro + pctStd);
+    const cumStd = pctStd;
     const bd =
       stats.standardBreakdown && typeof stats.standardBreakdown === "object"
         ? stats.standardBreakdown
@@ -430,11 +429,8 @@
       : "";
     host.innerHTML =
       '<div class="admin-donut-wrap">' +
-      '<div class="admin-donut admin-donut--triple" role="img" aria-label="Plan mix: Pro, Standard, Free"></div>' +
+      '<div class="admin-donut admin-donut--dual" role="img" aria-label="Plan mix: Standard and Free"></div>' +
       '<div class="admin-donut-legend">' +
-      '<span><span class="admin-donut-dot" style="background:linear-gradient(135deg,#fbbf24,#f97316)"></span>Pro · <strong>' +
-      escapeHtml(String(pro)) +
-      "</strong></span>" +
       '<span><span class="admin-donut-dot" style="background:linear-gradient(135deg,#38bdf8,#6366f1)"></span>Standard · <strong>' +
       escapeHtml(String(standard)) +
       "</strong></span>" +
@@ -447,11 +443,7 @@
     const d = host.querySelector(".admin-donut");
     if (d) {
       d.style.background =
-        "conic-gradient(rgba(251,191,36,0.95) 0% " +
-        cumPro +
-        "%, rgba(56,189,248,0.88) " +
-        cumPro +
-        "% " +
+        "conic-gradient(rgba(56,189,248,0.88) 0% " +
         cumStd +
         "%, rgba(100,116,139,0.6) " +
         cumStd +
@@ -497,10 +489,10 @@
     const total = Number(stats.totalUsers) || 0;
     const online = Number(stats.activeUsers) || 0;
     const today = Number(stats.activeUsersToday) || 0;
-    const pro = Number(stats.proUsers != null ? stats.proUsers : stats.premiumUsers) || 0;
+    const standard = Number(stats.standardUsers) || 0;
     host.innerHTML =
       ringSvg("Online", String(online), pctRatio(online, total), "#38bdf8") +
-      ringSvg("Pro", String(pro), pctRatio(pro, total), "#34d399") +
+      ringSvg("Standard", String(standard), pctRatio(standard, total), "#34d399") +
       ringSvg("Active today", String(today), pctRatio(today, total), "#a78bfa");
   }
 
@@ -552,7 +544,28 @@
   }
 
   function effectivePlanFromUser(u) {
-    return normalizePlan(u && (u.plan || u.membershipRole || u.subscriptionPlan));
+    if (!u) return "free";
+    if (u.standardActive === true) return "standard";
+    const life = u.lifecycle ? String(u.lifecycle).toLowerCase() : "";
+    if (life === "trial" || life === "standard") return "standard";
+    return normalizePlan(u.plan || u.membershipRole || u.subscriptionPlan);
+  }
+
+  function planBadgeForUser(u) {
+    const pl = effectivePlanFromUser(u);
+    if (pl !== "standard") return planBadge(pl);
+    const src = u && u.standardSource ? String(u.standardSource).toLowerCase() : "";
+    const life = u && u.lifecycle ? String(u.lifecycle).toLowerCase() : "";
+    if (src === "trial" || life === "trial") {
+      return '<span class="admin-badge admin-badge--standard">Standard · Trial</span>';
+    }
+    if (src === "coins") {
+      return '<span class="admin-badge admin-badge--standard">Standard · Coins</span>';
+    }
+    if (src === "stripe") {
+      return '<span class="admin-badge admin-badge--standard">Standard · Paid</span>';
+    }
+    return planBadge("standard");
   }
 
   function effectiveStaffRole(u) {
@@ -637,10 +650,9 @@
     const grid = document.getElementById("adminStats");
     if (!grid) return;
     const mins = data.activeWithinMinutes != null ? String(data.activeWithinMinutes) : "7";
-    const pro = data.proUsers != null ? data.proUsers : data.premiumUsers;
     const cards = [
       { tone: "users", icon: "👥", label: "Total users", value: data.totalUsers },
-      { tone: "prem", icon: "✦", label: "Pro users", value: pro },
+      { tone: "notes", icon: "📝", label: "Total notes", value: data.totalNotes },
       { tone: "live", icon: "●", label: "Online (~" + mins + " min)", value: data.activeUsers },
       { tone: "today", icon: "◎", label: "Active today", value: data.activeUsersToday ?? "—" }
     ];
@@ -682,8 +694,7 @@
     if (!tbody) return;
     tbody.innerHTML = (users || [])
       .map((u) => {
-        const pl = effectivePlanFromUser(u);
-        const badge = planBadge(pl);
+        const badge = planBadgeForUser(u);
         const on = u.activeNow
           ? '<span class="admin-badge admin-badge--yes">' + ACTIVE_LABEL + "</span>"
           : '<span class="admin-badge admin-badge--offline">Away</span>';
@@ -742,7 +753,7 @@
             '<div class="admin-dash-user-email">' +
             escapeHtml(u.email || "") +
             "</div></div>" +
-            planBadge(pl) +
+            planBadgeForUser(u) +
             "</div>" +
             '<div class="admin-dash-user-meta">' +
             on +
@@ -771,10 +782,9 @@
 
     const grid = document.getElementById("adminAnalyticsGrid");
     if (grid) {
-      const pro = stats.proUsers != null ? stats.proUsers : stats.premiumUsers;
       const mini = [
         { tone: "users", label: "Sign-ups (7d)", value: analytics.signupsLast7Days ?? "—" },
-        { tone: "prem", label: "Pro users", value: pro ?? "—" }
+        { tone: "notes", label: "Total notes", value: stats.totalNotes ?? "—" }
       ];
       grid.innerHTML = mini
         .map(
@@ -896,9 +906,8 @@
       tbody,
       (list || [])
       .map((u) => {
-        const plan = effectivePlanFromUser(u);
+        const planHtml = planBadgeForUser(u);
         const sr = effectiveStaffRole(u);
-        const planHtml = planBadge(plan);
         const staffHtml = staffBadgeLabel(sr);
         const active =
           u.activeNow === true
@@ -982,7 +991,7 @@
             escapeHtml(u.email || "") +
             "</div></div>" +
             '<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-items:flex-start">' +
-            planBadge(pl) +
+            planBadgeForUser(u) +
             staffBadgeLabel(sr) +
             "</div></div>" +
             '<div class="admin-dash-user-meta">' +
@@ -1037,7 +1046,7 @@
             '<div class="admin-dash-user-email">' +
             escapeHtml(u.email || "") +
             "</div></div>" +
-            planBadge(pl) +
+            planBadgeForUser(u) +
             "</div>" +
             '<div class="admin-dash-user-meta">' +
             on +
@@ -1180,7 +1189,7 @@
             escapeHtml(u.email || "") +
             "</td>" +
             "<td>" +
-            planBadge(pl) +
+            planBadgeForUser(u) +
             "</td>" +
             "<td>" +
             on +
@@ -1292,7 +1301,7 @@
     document.getElementById("adminDetailEmail").textContent = user.email || "—";
 
     const planBadgeEl = document.getElementById("adminDetailPlanBadge");
-    if (planBadgeEl) planBadgeEl.innerHTML = planBadge(plan);
+    if (planBadgeEl) planBadgeEl.innerHTML = planBadgeForUser(user);
 
     const staffBadgeEl = document.getElementById("adminDetailStaffBadge");
     const staffSel = effectiveStaffRole(user);
@@ -1307,8 +1316,10 @@
     document.getElementById("adminDetailInvitesCount").textContent = String(Number(user.invitedFriendsCount) || 0);
     document.getElementById("adminDetailCoinBalance").textContent = String(Number(user.coinBalance) || 0);
     document.getElementById("adminDetailGiftedCoins").textContent = String(Number(user.totalGiftedCoins) || 0);
-    document.getElementById("adminDetailPremiumExpires").textContent = user.premiumExpires
-      ? fmtDate(user.premiumExpires)
+    const billingEnds =
+      user.standardExpiresAt || user.trialEndsAt || user.premiumExpires || null;
+    document.getElementById("adminDetailPremiumExpires").textContent = billingEnds
+      ? fmtDate(billingEnds)
       : "Not set / lifetime";
 
     document.getElementById("adminDetailCreated").textContent = fmtDate(user.createdAt);

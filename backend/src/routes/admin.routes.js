@@ -6,6 +6,8 @@ const {
   grantPremium,
   revokePremium,
   getUserPlan,
+  getUserLifecycle,
+  getPremiumStatusPayload,
   applyProductPlan,
   adminGrantPremiumMonths,
   adminGrantPremiumLifetime
@@ -14,7 +16,7 @@ const { adminGiftCoins, clampCoins } = require("../features/coins/coinService");
 const { COIN_CAP } = require("../features/coins/coinConstants");
 
 const ADMIN_USER_SELECT =
-  "username emailOrPhone email isPremium premiumExpires plan subscriptionPlan role membershipRole standardSource createdAt lastActive coins";
+  "username emailOrPhone email isPremium premiumExpires plan subscriptionPlan role membershipRole standardSource trialEndsAt standardCoinExpiresAt createdAt lastActive coins";
 
 const STAFF_PANEL_ROLES = new Set(["admin", "moderator", "support"]);
 const STAFF_ASSIGNABLE_ROLES = ["user", "admin", "moderator", "support"];
@@ -118,6 +120,8 @@ function activeNowFlag(user, activeWindowMs) {
  */
 function adminUserJson(user, activeWindowMs, activeNowOverride, counts) {
   const plan = getUserPlan(user);
+  const lifecycle = getUserLifecycle(user);
+  const premium = getPremiumStatusPayload(user);
   let activeNow;
   if (activeNowOverride !== undefined) activeNow = Boolean(activeNowOverride);
   else activeNow = activeNowFlag(user, activeWindowMs);
@@ -131,8 +135,9 @@ function adminUserJson(user, activeWindowMs, activeNowOverride, counts) {
     username: user.username,
     email: user.email || user.emailOrPhone,
     isPremium: hasActivePremium(user),
-    standardActive: hasActivePremium(user),
-    standardSource: user.standardSource || null,
+    standardActive: premium.standardActive,
+    standardSource: premium.standardSource || user.standardSource || null,
+    lifecycle,
     plan,
     staffRole: panelRole === "user" ? "user" : panelRole,
     /** @deprecated Prefer staffRole */
@@ -142,7 +147,9 @@ function adminUserJson(user, activeWindowMs, activeNowOverride, counts) {
     createdAt: user.createdAt,
     lastActive: user.lastActive,
     activeNow,
-    premiumExpires: user.premiumExpires ? new Date(user.premiumExpires).toISOString() : null,
+    premiumExpires: premium.premiumExpiresAt || (user.premiumExpires ? new Date(user.premiumExpires).toISOString() : null),
+    standardExpiresAt: premium.standardExpiresAt,
+    trialEndsAt: premium.trialEndsAt,
     coinBalance: clampCoins(Number(user.coins) || 0),
     ...(counts
       ? {
@@ -352,43 +359,6 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
         }))
       };
 
-      let notesByCategory = [];
-      try {
-        notesByCategory = await Note.aggregate([
-          { $group: { _id: "$category", count: { $sum: 1 } } },
-          { $sort: { count: -1 } }
-        ]).exec();
-      } catch (err) {
-        console.error("[admin/dashboard] notesByCategory", err.message);
-      }
-      if (!Array.isArray(notesByCategory)) notesByCategory = [];
-
-      let recentNotesDocs = [];
-      try {
-        recentNotesDocs = await Note.find()
-          .sort({ createdAt: -1 })
-          .limit(10)
-          .populate("userId", "username")
-          .select("category title text createdAt userId")
-          .lean()
-          .exec();
-      } catch (err) {
-        console.error("[admin/dashboard] recentNotes", err.message);
-      }
-
-      let recentReminderDocs = [];
-      try {
-        recentReminderDocs = await Reminder.find()
-          .sort({ createdAt: -1 })
-          .limit(10)
-          .populate("userId", "username")
-          .select("message time notificationType status sent createdAt userId")
-          .lean()
-          .exec();
-      } catch (err) {
-        console.error("[admin/dashboard] recentReminders", err.message);
-      }
-
       let recentUserDocs = [];
       try {
         recentUserDocs = await User.find()
@@ -400,41 +370,6 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
       } catch (err) {
         console.error("[admin/dashboard] recentUsers", err.message);
       }
-
-      const notesByCategoryOut = notesByCategory.map((row) => ({
-        category: row._id || "—",
-        count: row.count
-      }));
-
-      const recentNotes = (recentNotesDocs || []).map((n) => {
-        const u = n.userId;
-        const username = u && typeof u === "object" && u.username ? u.username : "—";
-        const text = n.text != null ? String(n.text) : "";
-        return {
-          id: n._id,
-          category: n.category,
-          title: n.title || "",
-          textPreview: text.length > 100 ? `${text.slice(0, 100)}…` : text,
-          createdAt: n.createdAt,
-          username
-        };
-      });
-
-      const recentReminders = (recentReminderDocs || []).map((r) => {
-        const u = r.userId;
-        const username = u && typeof u === "object" && u.username ? u.username : "—";
-        const msg = r.message != null ? String(r.message) : "";
-        return {
-          id: r._id,
-          username,
-          messagePreview: msg.length > 80 ? `${msg.slice(0, 80)}…` : msg,
-          time: r.time,
-          notificationType: r.notificationType || "web",
-          status: r.status || "pending",
-          sent: Boolean(r.sent),
-          createdAt: r.createdAt
-        };
-      });
 
       const aggBundle = await adminEnrichCountsForUsers(
         User,
@@ -454,9 +389,6 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
       res.json({
         stats,
         analytics,
-        notesByCategory: notesByCategoryOut,
-        recentNotes,
-        recentReminders,
         recentUsers
       });
     } catch (err) {

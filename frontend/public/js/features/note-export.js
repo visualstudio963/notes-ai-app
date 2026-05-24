@@ -365,17 +365,47 @@
     var kind = inferNativeExportKind(blob, safeName);
     var savedKey = nativeExportSavedToastKey(kind);
     var savedFallback = kind === "pdf" ? "PDF saved" : kind === "jpg" ? "JPG saved" : "TXT saved";
+    var notifId = null;
+    var showStarting =
+      typeof window !== "undefined" && typeof window.notesAiShowExportDownloadStarting === "function"
+        ? window.notesAiShowExportDownloadStarting
+        : null;
+    var showComplete =
+      typeof window !== "undefined" && typeof window.notesAiShowExportDownloadComplete === "function"
+        ? window.notesAiShowExportDownloadComplete
+        : null;
+    var dismissNotif =
+      typeof window !== "undefined" && typeof window.notesAiDismissExportDownloadNotification === "function"
+        ? window.notesAiDismissExportDownloadNotification
+        : null;
 
     if (!Fs || typeof Fs.writeFile !== "function") {
       toastExportNativeError(new Error("Filesystem plugin unavailable"));
       return Promise.resolve();
     }
 
-    return nativeWriteWithFallbacks(Fs, blob, safeName)
+    var startChain = showStarting
+      ? Promise.resolve(showStarting(safeName, kind)).then(function (id) {
+          notifId = id;
+        })
+      : Promise.resolve();
+
+    return startChain
       .then(function () {
+        return nativeWriteWithFallbacks(Fs, blob, safeName);
+      })
+      .then(function (writeResult) {
+        if (showComplete && notifId != null) {
+          return Promise.resolve(showComplete(notifId, safeName, kind, writeResult)).then(function () {
+            toastExportNative(savedKey, savedFallback);
+          });
+        }
         toastExportNative(savedKey, savedFallback);
       })
       .catch(function (err) {
+        if (dismissNotif && notifId != null) {
+          dismissNotif(notifId);
+        }
         toastExportNativeError(err);
       });
   }

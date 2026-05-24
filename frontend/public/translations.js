@@ -285,7 +285,7 @@ const translations = {
       "Open Upgrade plan in the sidebar for Free and Standard (€2.99/mo). Billing connects when you are ready.",
     webChatReplyUnknown: "I didn't quite catch that — try help or rephrase your question.",
     webChatReplyUnknownSmart:
-      "I’m not fully sure what you meant. You can try:\n• help — full list of topics and reminder formats\n• hi or thanks — quick social replies\n• plan or standard — pricing & tiers\n• kujto 2026-05-01 14:00 your text — web reminder (needs future date & time)\n• my notes or new note — working with notes\n• scan document or Scan Cam — photo → text (Standard+)\n• settings or browser reminder — app & Home alerts\n• what time is it — your device date & time\n\nTip: combine words naturally (e.g. “tell me about standard” or “remind me tomorrow at 09:30 …”); for reminders the date/time pattern still needs to be readable.",
+      "I’m not fully sure what you meant. You can try:\n• help — full list of topics and reminder formats\n• hi or thanks — quick social replies\n• plan or standard — pricing & tiers\n• kujto 2026-05-01 14:00 your text — web reminder (needs future date & time)\n• my notes or new note — working with notes\n• scan document or Scan Cam — photo → text (Standard)\n• settings or browser reminder — app & Home alerts\n• what time is it — your device date & time\n\nTip: combine words naturally (e.g. “tell me about standard” or “remind me tomorrow at 09:30 …”); for reminders the date/time pattern still needs to be readable.",
     webChatUnknownNearReminder:
       "That sounds like a reminder — add a future date and time after the keyword (example: kujto 2026-05-01 14:00 Buy milk).",
     webChatUnknownNearPlans:
@@ -556,7 +556,7 @@ const translations = {
       "Web Chat needs Standard-level access — use your 14-day Standard trial when eligible, unlock with coins under Rewards & coins, or subscribe from Upgrade plan.",
     webChatPlanVerifyFailed: "Could not verify your plan. Check your connection and try again.",
     webChatReminderRequiresStandard:
-      "Saving a reminder from Web Chat needs Standard. You can still schedule free browser reminders from Home → Date & time alerts.",
+      "Saving a reminder from Web Chat needs Standard (14-day trial, coins, or subscription). Free browser reminders stay on Home → Date & time alerts.",
     scanCamPickImage: "Take photo or choose image",
     scanCamRunOcr: "Read text (OCR)",
     scanCamProcessing: "Reading text…",
@@ -593,6 +593,15 @@ const translations = {
     noteExportStoragePermissionDenied: "Allow storage permission in Settings to save files.",
     noteExportNativeShareReady: "Ready to share",
     noteExportNativeFailed: "Could not save the file. Try again.",
+    noteExportNotifChannelName: "Downloads",
+    noteExportNotifChannelDesc: "Shows progress while Notes AI saves exported files.",
+    noteExportNotifDownloading: "Downloading…",
+    noteExportNotifPdfBody: "Saving PDF",
+    noteExportNotifJpgBody: "Saving image",
+    noteExportNotifTxtBody: "Saving text",
+    noteExportNotifComplete: "Download complete",
+    noteExportNotifTapToOpen: "Tap to open",
+    noteExportOpenFailed: "Could not open the file on this device.",
     noteExportShareDialogTitle: "Export",
     noteShareTitle: "Share",
     noteShareLead: "Choose how to share this note",
@@ -1176,7 +1185,7 @@ const translations = {
       "Hap Përmirëso planin: Falas dhe Standard (€2.99/muaj). Pagesa lidhet kur të jeni gati.",
     webChatReplyUnknown: "Nuk e zbulova plotësisht — provo help ose shkruaj ndryshe.",
     webChatReplyUnknownSmart:
-      "Nuk jam i sigurt çfarë doje. Mund të provosh:\n• help — lista e plotë dhe formatet e kujtesave\n• hi ose faleminderit — përgjigje të shkurtra\n• plan ose standard — çmime dhe nivele\n• kujto 2026-05-01 14:00 teksti — kujtesë web (duhet datë & kohë në të ardhmen)\n• shënimet e mia ose shënim i ri — me shënime\n• skano dokument ose Scan Cam — foto → tekst (Standard+)\n• cilësimet ose kujtesë në shfletues — aplikacioni dhe Shtëpia\n• sa është ora — data dhe koha në pajisje\n\nKëshillë: mund të përdorësh fraza natyrale (p.sh. “më trego për standardin”); për kujtesë formati i datës/kohës duhet të lexohet qartë.",
+      "Nuk jam i sigurt çfarë doje. Mund të provosh:\n• help — lista e plotë dhe formatet e kujtesave\n• hi ose faleminderit — përgjigje të shkurtra\n• plan ose standard — çmime dhe nivele\n• kujto 2026-05-01 14:00 teksti — kujtesë web (duhet datë & kohë në të ardhmen)\n• shënimet e mia ose shënim i ri — me shënime\n• skano dokument ose Scan Cam — foto → tekst (Standard)\n• cilësimet ose kujtesë në shfletues — aplikacioni dhe Shtëpia\n• sa është ora — data dhe koha në pajisje\n\nKëshillë: mund të përdorësh fraza natyrale (p.sh. “më trego për standardin”); për kujtesë formati i datës/kohës duhet të lexohet qartë.",
     webChatUnknownNearReminder:
       "Duket se do një kujtesë — shto datë dhe kohë në të ardhmen pas fjalës kyçe (p.sh.: kujto 2026-05-01 14:00 Bli qumësht).",
     webChatUnknownNearPlans:
@@ -1450,7 +1459,7 @@ const translations = {
       "Web Chat kërkon Standard — përdor trial-in 14 ditë kur je i ri, ose aktivizo me monedha te «Shpërblime & monedha», ose abono te Përmirëso planin.",
     webChatPlanVerifyFailed: "Nuk e verifikuam planin. Kontrollo lidhjen dhe provo përsëri.",
     webChatReminderRequiresStandard:
-      "Ruajtja e kujtesës nga Web Chat kërkon Standard. Kujtesat falas në shfletues mbeten te Shtëpia → Sinjalizimet me datë & kohë.",
+      "Ruajtja e kujtesës nga Web Chat kërkon Standard (trial 14 ditë, monedha ose abonim). Kujtesat falas në shfletues mbeten te Shtëpia → Sinjalizimet me datë & kohë.",
     scanCamPickImage: "Bëj foto ose zgjidh imazh",
     scanCamRunOcr: "Lexo tekstin (OCR)",
     scanCamProcessing: "Po lexohet teksti…",
@@ -1487,6 +1496,15 @@ const translations = {
     noteExportStoragePermissionDenied: "Lejo lejen e ruajtjes në Settings për të ruajtur skedarët.",
     noteExportNativeShareReady: "Gati për ndarje",
     noteExportNativeFailed: "Nuk u ruajt skedari. Provo përsëri.",
+    noteExportNotifChannelName: "Shkarkime",
+    noteExportNotifChannelDesc: "Tregon progresin kur Notes AI ruan skedarët e eksportuar.",
+    noteExportNotifDownloading: "Duke u shkarkuar…",
+    noteExportNotifPdfBody: "Duke ruajtur PDF",
+    noteExportNotifJpgBody: "Duke ruajtur imazhin",
+    noteExportNotifTxtBody: "Duke ruajtur tekstin",
+    noteExportNotifComplete: "Shkarkimi përfundoi",
+    noteExportNotifTapToOpen: "Prek për ta hapur",
+    noteExportOpenFailed: "Nuk u hap dot skedari në këtë pajisje.",
     noteExportShareDialogTitle: "Eksporto",
     noteShareTitle: "Ndaj",
     noteShareLead: "Zgjidh si ta ndash këtë shënim",

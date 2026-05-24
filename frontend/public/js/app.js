@@ -124,10 +124,10 @@ function scheduleNoteRichEditorPreload() {
 }
 
 const LAZY_APP_SCRIPTS = {
-  noteExport: "/js/features/note-export.js?v=perf-260523-v1",
+  noteExport: "/js/features/note-export.js?v=export-notif-v1",
   onboarding: "/js/onboarding-tutorial.js?v=perf-260523-v1",
-  webChatIntents: "/js/features/web-chat-intents.js?v=perf-260523-v1",
-  webChatReminderParse: "/js/features/web-chat-reminder-parse.js?v=perf-260523-v1"
+  webChatIntents: "/js/features/web-chat-intents.js?v=webchat-plan-v1",
+  webChatReminderParse: "/js/features/web-chat-reminder-parse.js?v=webchat-plan-v1"
 };
 
 function ensureNoteExportLoaded() {
@@ -396,6 +396,8 @@ const REMINDER_NOTIFY_PREFS_KEY = "webReminderNotificationPrefs";
 const WEB_REMINDER_NOTIFICATIONS_APP_ENABLED_KEY = "aiNotesWebReminderNotificationsAppEnabled";
 /** Fresh channel id keeps importance/visibility/sound sane; reschedule happens on sync. */
 const ANDROID_NOTES_AI_CHANNEL_ID = "notes-ai-main-v4";
+const ANDROID_EXPORT_DOWNLOAD_CHANNEL_ID = "notes-ai-downloads-v1";
+const EXPORT_NOTIF_EXTRA_TYPE = "notes_ai_export_file";
 const NOTES_AI_LOCAL_NOTIF_ACTIONS_ID = "notes_ai_open_dismiss_v1";
 const NOTES_AI_LOCAL_ACTION_OPEN = "open_notes_ai";
 const NOTES_AI_LOCAL_ACTION_DISMISS = "dismiss_notes_ai";
@@ -787,6 +789,204 @@ function formatPlannerNativeNotificationCaption(task) {
   return "Daily planner";
 }
 
+function exportDownloadMimeType(kind) {
+  if (kind === "pdf") return "application/pdf";
+  if (kind === "jpg") return "image/jpeg";
+  return "text/plain";
+}
+
+function nextExportDownloadNotificationId(filename) {
+  return hashNotificationId(`export-dl:${String(filename || "")}:${Date.now()}`, 610000);
+}
+
+function getFileOpenerPlugin() {
+  try {
+    const c = window.Capacitor;
+    if (!c) return null;
+    if (c.Plugins && c.Plugins.FileOpener) return c.Plugins.FileOpener;
+    if (typeof c.registerPlugin === "function") return c.registerPlugin("FileOpener");
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+async function openNativeExportFile(extra) {
+  const meta = extra && typeof extra === "object" ? extra : {};
+  const directory = meta.directory != null ? String(meta.directory) : "";
+  const path = meta.path != null ? String(meta.path) : "";
+  const mimeType =
+    meta.mimeType != null ? String(meta.mimeType) : exportDownloadMimeType(String(meta.kind || ""));
+  if (!directory || !path) return;
+
+  const Fs =
+    window.Capacitor &&
+    window.Capacitor.Plugins &&
+    window.Capacitor.Plugins.Filesystem
+      ? window.Capacitor.Plugins.Filesystem
+      : null;
+  const opener = getFileOpenerPlugin();
+  if (!Fs || typeof Fs.getUri !== "function" || !opener || typeof opener.open !== "function") {
+    if (typeof showToast === "function") {
+      showToast(
+        typeof t === "function" ? t("noteExportOpenFailed") : "Could not open the file on this device."
+      );
+    }
+    return;
+  }
+
+  try {
+    const uriResult = await Fs.getUri({ directory, path });
+    const filePath = uriResult && uriResult.uri ? String(uriResult.uri) : "";
+    if (!filePath) throw new Error("missing uri");
+    await opener.open({ filePath, contentType: mimeType, openWithDefault: true });
+  } catch {
+    if (typeof showToast === "function") {
+      showToast(
+        typeof t === "function" ? t("noteExportOpenFailed") : "Could not open the file on this device."
+      );
+    }
+  }
+}
+
+async function ensureExportDownloadChannel() {
+  if (!isNativeLocalNotificationsAvailable()) return;
+  const localNotifications = getLocalNotificationsPlugin();
+  if (!localNotifications || typeof localNotifications.createChannel !== "function") return;
+  try {
+    await localNotifications.createChannel({
+      id: ANDROID_EXPORT_DOWNLOAD_CHANNEL_ID,
+      name: typeof t === "function" ? t("noteExportNotifChannelName") : "Downloads",
+      description:
+        typeof t === "function"
+          ? t("noteExportNotifChannelDesc")
+          : "File download progress and completed exports.",
+      importance: 4,
+      visibility: 1,
+      vibration: false,
+      lights: false
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
+async function notesAiShowExportDownloadStarting(filename, kind) {
+  if (!isNativeLocalNotificationsAvailable()) return null;
+  await ensureExportDownloadChannel();
+  const allowed = await requestNotificationPermissionIfNeeded(false);
+  if (!allowed) return null;
+
+  const localNotifications = getLocalNotificationsPlugin();
+  if (!localNotifications || typeof localNotifications.schedule !== "function") return null;
+
+  const notifId = nextExportDownloadNotificationId(filename);
+  const safeName = String(filename || "download");
+  const title =
+    typeof t === "function" ? t("noteExportNotifDownloading") : "Downloading…";
+  const body =
+    kind === "pdf"
+      ? typeof t === "function"
+        ? t("noteExportNotifPdfBody")
+        : "Saving PDF…"
+      : kind === "jpg"
+        ? typeof t === "function"
+          ? t("noteExportNotifJpgBody")
+          : "Saving image…"
+        : typeof t === "function"
+          ? t("noteExportNotifTxtBody")
+          : "Saving text…";
+
+  try {
+    await localNotifications.schedule({
+      notifications: [
+        {
+          id: notifId,
+          title,
+          body: `${body} · ${safeName}`,
+          channelId: ANDROID_EXPORT_DOWNLOAD_CHANNEL_ID,
+          ongoing: true,
+          autoCancel: false,
+          ...(capacitorPlatform() === "android"
+            ? {
+                smallIcon: "ic_stat_notes_ai",
+                iconColor: NOTES_AI_ANDROID_ICON_COLOR
+              }
+            : {})
+        }
+      ]
+    });
+    return notifId;
+  } catch {
+    return null;
+  }
+}
+
+async function notesAiShowExportDownloadComplete(notifId, filename, kind, writeResult) {
+  if (!isNativeLocalNotificationsAvailable() || notifId == null) return;
+  const localNotifications = getLocalNotificationsPlugin();
+  if (!localNotifications || typeof localNotifications.schedule !== "function") return;
+
+  const safeName = String(filename || "download");
+  const title = typeof t === "function" ? t("noteExportNotifComplete") : "Download complete";
+  const body = typeof t === "function" ? t("noteExportNotifTapToOpen") : "Tap to open";
+  const directory =
+    writeResult && writeResult.directory != null ? String(writeResult.directory) : "DOCUMENTS";
+  const path =
+    writeResult && writeResult.path != null
+      ? String(writeResult.path)
+      : `Notes-AI/${safeName}`;
+
+  try {
+    await localNotifications.schedule({
+      notifications: [
+        {
+          id: Number(notifId),
+          title,
+          body: `${body} · ${safeName}`,
+          largeBody: safeName,
+          channelId: ANDROID_EXPORT_DOWNLOAD_CHANNEL_ID,
+          ongoing: false,
+          autoCancel: true,
+          extra: {
+            type: EXPORT_NOTIF_EXTRA_TYPE,
+            directory,
+            path,
+            kind: String(kind || "txt"),
+            mimeType: exportDownloadMimeType(String(kind || "txt"))
+          },
+          ...(capacitorPlatform() === "android"
+            ? {
+                smallIcon: "ic_stat_notes_ai",
+                iconColor: NOTES_AI_ANDROID_ICON_COLOR
+              }
+            : {})
+        }
+      ]
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
+async function notesAiDismissExportDownloadNotification(notifId) {
+  if (!isNativeLocalNotificationsAvailable() || notifId == null) return;
+  const localNotifications = getLocalNotificationsPlugin();
+  if (!localNotifications || typeof localNotifications.cancel !== "function") return;
+  try {
+    await localNotifications.cancel({ notifications: [{ id: Number(notifId) }] });
+  } catch {
+    /* ignore */
+  }
+}
+
+if (typeof window !== "undefined") {
+  window.notesAiShowExportDownloadStarting = notesAiShowExportDownloadStarting;
+  window.notesAiShowExportDownloadComplete = notesAiShowExportDownloadComplete;
+  window.notesAiDismissExportDownloadNotification = notesAiDismissExportDownloadNotification;
+  window.notesAiOpenNativeExportFile = openNativeExportFile;
+}
+
 async function ensureNativeNotificationChannel() {
   if (!isNativeLocalNotificationsAvailable()) return;
   const localNotifications = getLocalNotificationsPlugin();
@@ -806,6 +1006,7 @@ async function ensureNativeNotificationChannel() {
       lights: true,
       lightColor: NOTES_AI_ANDROID_ICON_COLOR
     });
+    await ensureExportDownloadChannel();
   } catch {
     /* ignore */
   }
@@ -835,7 +1036,24 @@ async function initNotesAiNativeLocalNotificationShell() {
     await plug.addListener("localNotificationActionPerformed", async (action) => {
       const aid = action && action.actionId;
       const notif = action && action.notification;
+      const extra = notif && notif.extra && typeof notif.extra === "object" ? notif.extra : {};
       const nid = notif != null && notif.id != null ? Number(notif.id) : NaN;
+
+      if (extra && extra.type === EXPORT_NOTIF_EXTRA_TYPE) {
+        if (aid === NOTES_AI_LOCAL_ACTION_DISMISS) {
+          if (Number.isFinite(nid) && typeof plug.removeDeliveredNotifications === "function") {
+            try {
+              await plug.removeDeliveredNotifications({ notifications: [{ id: nid }] });
+            } catch {
+              /* ignore */
+            }
+          }
+          return;
+        }
+        await openNativeExportFile(extra);
+        return;
+      }
+
       if (aid !== NOTES_AI_LOCAL_ACTION_DISMISS || !Number.isFinite(nid)) return;
       if (typeof plug.removeDeliveredNotifications !== "function") return;
       try {
@@ -7057,6 +7275,88 @@ function webChatAskTextForMissing(userMessage) {
   return sq ? "Çfarë dëshiron të të kujtoj?" : "What should I remind you about?";
 }
 
+function webChatPlanErrorReply(err, userMessage) {
+  const payload = err && err.payload && typeof err.payload === "object" ? err.payload : null;
+  const code = payload && payload.code != null ? String(payload.code) : "";
+  const msg = String((err && err.message) || "").toLowerCase();
+  if (
+    code === "WEB_CHAT_PLAN" ||
+    (msg.includes("web chat") && msg.includes("reminder") && msg.includes("standard")) ||
+    (msg.includes("standard") && msg.includes("premium"))
+  ) {
+    return webChatT("webChatReminderRequiresStandard", userMessage);
+  }
+  if (err && err.message) return String(err.message);
+  return webChatT("webChatPlanVerifyFailed", userMessage);
+}
+
+async function webChatEnsureStandardForWebReminder(userMessage) {
+  if (!currentUser || !accessToken) {
+    return { ok: false, reply: webChatT("webChatReminderNeedLogin", userMessage) };
+  }
+  const mergedOk = await mergePremiumFromServer();
+  if (!mergedOk) {
+    return { ok: false, reply: webChatT("webChatPlanVerifyFailed", userMessage) };
+  }
+  if (typeof hasStandardAccess === "function" && !hasStandardAccess(currentUser)) {
+    return { ok: false, reply: webChatT("webChatReminderRequiresStandard", userMessage) };
+  }
+  return { ok: true, reply: null };
+}
+
+function webChatBuildWhenFromPendingReminder(pending, ts) {
+  if (!pending || !ts || !Number.isFinite(ts.h) || !Number.isFinite(ts.mi)) return null;
+  const now = new Date();
+  let base = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dateHint = pending.date ? String(pending.date) : "";
+  const src = String(pending.originalMessage || pending.draftLine || "");
+
+  if (dateHint === "tomorrow" || /\b(nesër|neser|tomorrow)\b/i.test(src)) {
+    base.setDate(base.getDate() + 1);
+  } else if (
+    /\b(pasnesër|pasneser|pas\s+nesër|pas\s+neser|day\s+after\s+tomorrow)\b/i.test(src)
+  ) {
+    base.setDate(base.getDate() + 2);
+  } else if (dateHint === "weekday") {
+    const wd = webChatMatchWeekdayInBody(src);
+    if (wd) {
+      const d = webChatDateFromWeekdayMatch(wd);
+      base = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    }
+  } else if (dateHint !== "today" && !/\b(sot|today)\b/i.test(src)) {
+    return null;
+  }
+
+  return new Date(base.getFullYear(), base.getMonth(), base.getDate(), ts.h, ts.mi, 0, 0);
+}
+
+async function webChatSaveWebReminder(when, msg, langSource, bodyLower) {
+  await apiFetch("/api/web-reminder", {
+    method: "POST",
+    body: JSON.stringify({
+      reminderTime: when.toISOString(),
+      message: msg,
+      source: "web_chat"
+    })
+  });
+  refreshReminderRelatedViews();
+  webChatLastReminderUserRaw = String(langSource || "").trim();
+  resetWebChatPendingReminder();
+  void maybePromptReminderNotificationPermission();
+  const summary = webChatFormatReminderConfirmSummary(
+    when,
+    String(bodyLower || langSource || "").toLowerCase(),
+    langSource
+  );
+  const defMsg = webChatT("webChatReminderDefaultMessage", langSource);
+  const line = webChatT("webChatReminderSavedLine", langSource).replace("{when}", summary);
+  const detail =
+    msg && msg.length && msg !== defMsg
+      ? `\n${webChatT("webChatReminderConfirmDetail", langSource).replace("{message}", msg)}`
+      : "";
+  return `${line}${detail}`;
+}
+
 function webChatActivatePendingFromAsk(trimmed, parsedAsk, body) {
   const missing = [];
   if (parsedAsk.ask === "time") missing.push("time");
@@ -7122,6 +7422,32 @@ async function webChatTryResolvePendingReminder(trimmed) {
   const newDraft = `${webChatPendingReminder.draftLine} ${toMerge}`.trim();
   webChatPendingReminder.draftLine = newDraft;
 
+  const pendingMissing = new Set(webChatPendingReminder.missing || []);
+  const reminderText = String(webChatPendingReminder.text || "").trim();
+  if (pendingMissing.has("time") && !pendingMissing.has("date") && reminderText) {
+    const tsOnly = webChatExtractTimeSpec(trimmed);
+    if (tsOnly) {
+      const whenFromSlots = webChatBuildWhenFromPendingReminder(webChatPendingReminder, tsOnly);
+      if (whenFromSlots && !Number.isNaN(whenFromSlots.getTime()) && isFutureReminderInput(whenFromSlots)) {
+        const gate = await webChatEnsureStandardForWebReminder(newDraft);
+        if (!gate.ok) {
+          return { handled: true, reply: gate.reply };
+        }
+        try {
+          const reply = await webChatSaveWebReminder(
+            whenFromSlots,
+            reminderText,
+            newDraft,
+            newDraft.toLowerCase()
+          );
+          return { handled: true, reply };
+        } catch (err) {
+          return { handled: true, reply: webChatPlanErrorReply(err, newDraft) };
+        }
+      }
+    }
+  }
+
   const split = webChatSplitReminderAroundKeyword(newDraft);
   let body = stripWebChatReminderPrefix(newDraft);
   if (!body || body === newDraft) body = split.combined;
@@ -7146,14 +7472,9 @@ async function webChatTryResolvePendingReminder(trimmed) {
     resetWebChatPendingReminder();
     return { handled: true, reply: webChatT("webChatReminderNeedLogin", newDraft) };
   }
-  const mergedOk = await mergePremiumFromServer();
-  if (!mergedOk) {
-    resetWebChatPendingReminder();
-    return { handled: true, reply: webChatT("webChatPlanVerifyFailed", newDraft) };
-  }
-  if (typeof hasStandardAccess === "function" && !hasStandardAccess(currentUser)) {
-    resetWebChatPendingReminder();
-    return { handled: true, reply: webChatT("webChatReminderRequiresStandard", newDraft) };
+  const gate = await webChatEnsureStandardForWebReminder(newDraft);
+  if (!gate.ok) {
+    return { handled: true, reply: gate.reply };
   }
 
   const when = parsed.when;
@@ -7174,28 +7495,10 @@ async function webChatTryResolvePendingReminder(trimmed) {
   if (!msg) msg = webChatT("webChatReminderDefaultMessage", newDraft);
 
   try {
-    await apiFetch("/api/web-reminder", {
-      method: "POST",
-      body: JSON.stringify({
-        reminderTime: when.toISOString(),
-        message: msg,
-        source: "web_chat"
-      })
-    });
-    refreshReminderRelatedViews();
-    webChatLastReminderUserRaw = newDraft;
-    resetWebChatPendingReminder();
-    void maybePromptReminderNotificationPermission();
-    const summary = webChatFormatReminderConfirmSummary(when, body.toLowerCase(), newDraft);
-    const defMsg = webChatT("webChatReminderDefaultMessage", newDraft);
-    const line = webChatT("webChatReminderSavedLine", newDraft).replace("{when}", summary);
-    const detail =
-      msg && msg.length && msg !== defMsg
-        ? `\n${webChatT("webChatReminderConfirmDetail", newDraft).replace("{message}", msg)}`
-        : "";
-    return { handled: true, reply: `${line}${detail}` };
+    const reply = await webChatSaveWebReminder(when, msg, newDraft, body.toLowerCase());
+    return { handled: true, reply };
   } catch (err) {
-    return { handled: true, reply: err.message || String(err) };
+    return { handled: true, reply: webChatPlanErrorReply(err, newDraft) };
   }
 }
 
@@ -7238,13 +7541,8 @@ function webChatFormatReminderConfirmSummary(when, combinedLower, userMessageFor
 }
 
 async function webChatNaturalReminderHandler(trimmed) {
-  if (!currentUser || !accessToken) return webChatT("webChatReminderNeedLogin", trimmed);
-
-  const mergedOk = await mergePremiumFromServer();
-  if (!mergedOk) return webChatT("webChatPlanVerifyFailed", trimmed);
-  if (typeof hasStandardAccess === "function" && !hasStandardAccess(currentUser)) {
-    return webChatT("webChatReminderRequiresStandard", trimmed);
-  }
+  const gate = await webChatEnsureStandardForWebReminder(trimmed);
+  if (!gate.ok) return gate.reply;
 
   resetWebChatPendingReminder();
 
@@ -7271,27 +7569,9 @@ async function webChatNaturalReminderHandler(trimmed) {
   if (!msg) msg = webChatT("webChatReminderDefaultMessage", trimmed);
 
   try {
-    await apiFetch("/api/web-reminder", {
-      method: "POST",
-      body: JSON.stringify({
-        reminderTime: when.toISOString(),
-        message: msg,
-        source: "web_chat"
-      })
-    });
-    refreshReminderRelatedViews();
-    webChatLastReminderUserRaw = String(trimmed || "").trim();
-    void maybePromptReminderNotificationPermission();
-    const summary = webChatFormatReminderConfirmSummary(when, body.toLowerCase(), trimmed);
-    const defMsg = webChatT("webChatReminderDefaultMessage", trimmed);
-    const line = webChatT("webChatReminderSavedLine", trimmed).replace("{when}", summary);
-    const detail =
-      msg && msg.length && msg !== defMsg
-        ? `\n${webChatT("webChatReminderConfirmDetail", trimmed).replace("{message}", msg)}`
-        : "";
-    return `${line}${detail}`;
+    return await webChatSaveWebReminder(when, msg, trimmed, body.toLowerCase());
   } catch (err) {
-    return err.message || String(err);
+    return webChatPlanErrorReply(err, trimmed);
   }
 }
 
@@ -10350,13 +10630,53 @@ window.addEventListener("DOMContentLoaded", async () => {
   let lastDepthParallaxRounded = -1;
   let lastFloatingScrolledState = null;
   let lastMobileScrolledState = null;
+  let lastTopbarScrollY = 0;
+  let topbarAutoHidden = false;
   const useCompactScrollHeader = () => {
     if (typeof isNativeApp === "function" && isNativeApp()) return false;
     if (isMobileViewport()) return false;
     return true;
   };
+  const useAutoHideTopbar = () =>
+    isMobileViewport() || (typeof isNativeApp === "function" && isNativeApp());
+  const syncTopbarAutoHide = (y) => {
+    if (!useAutoHideTopbar()) {
+      if (topbarAutoHidden) {
+        topbarAutoHidden = false;
+        document.body.classList.remove("topbar-auto-hidden");
+      }
+      lastTopbarScrollY = y;
+      return;
+    }
+    if (
+      document.body.classList.contains("mobile-nav-open") ||
+      document.body.classList.contains("web-chat-drawer-open")
+    ) {
+      if (topbarAutoHidden) {
+        topbarAutoHidden = false;
+        document.body.classList.remove("topbar-auto-hidden");
+      }
+      lastTopbarScrollY = y;
+      return;
+    }
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let hidden = topbarAutoHidden;
+    const delta = y - lastTopbarScrollY;
+    if (y <= 10) {
+      hidden = false;
+    } else if (!reduceMotion && delta > 5) {
+      hidden = true;
+    } else if (!reduceMotion && delta < -5) {
+      hidden = false;
+    }
+    lastTopbarScrollY = y;
+    if (hidden !== topbarAutoHidden) {
+      topbarAutoHidden = hidden;
+      document.body.classList.toggle("topbar-auto-hidden", hidden);
+    }
+  };
   const syncMobileScrollState = () => {
-    const y = window.scrollY || 0;
+    const y = window.scrollY || document.documentElement.scrollTop || 0;
     const canvas = document.querySelector(".background-canvas");
     const skipParallax =
       window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
@@ -10387,6 +10707,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         lastFloatingScrolledState = scrolled;
         document.body.classList.toggle("floating-scrolled", scrolled);
       }
+      syncTopbarAutoHide(y);
       return;
     }
     if (lastMobileScrolledState) {
@@ -10397,6 +10718,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       lastFloatingScrolledState = scrolled;
       document.body.classList.toggle("floating-scrolled", scrolled);
     }
+    syncTopbarAutoHide(y);
   };
   const onScrollParallaxThrottled = () => {
     if (mobileScrollRaf) return;
@@ -10419,6 +10741,9 @@ window.addEventListener("DOMContentLoaded", async () => {
       lastDepthParallaxRounded = -1;
       lastFloatingScrolledState = null;
       lastMobileScrolledState = null;
+      lastTopbarScrollY = 0;
+      topbarAutoHidden = false;
+      document.body.classList.remove("topbar-auto-hidden");
       syncMobileScrollState();
     });
   });

@@ -202,47 +202,48 @@ button {
 .site-footer-inner {
   max-width: 1180px;
   margin: 0 auto;
-  padding: 16px max(18px, env(safe-area-inset-left)) 22px max(18px, env(safe-area-inset-right));
+  padding: 10px max(18px, env(safe-area-inset-left)) 12px max(18px, env(safe-area-inset-right));
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: 6px;
   text-align: center;
 }
 
 .site-footer-links {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.site-footer-links-grid {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  gap: 8px 10px;
-  row-gap: 10px;
-  max-width: 36rem;
-  line-height: 1.62;
+  gap: 4px 14px;
+  max-width: 42rem;
 }
 
-.site-footer-links a {
+.site-footer-links-grid a {
   color: #94a3b8;
   text-decoration: none;
-  font-size: 0.82rem;
-  letter-spacing: 0.02em;
+  font-size: 0.74rem;
+  letter-spacing: 0.01em;
   transition: color 0.2s ease;
-  line-height: inherit;
-  padding: 6px 2px;
+  line-height: 1.35;
+  padding: 2px 0;
   display: inline-block;
+  white-space: nowrap;
 }
 
-.site-footer-links a:hover {
+.site-footer-links-grid a:hover {
   color: #38bdf8;
 }
 
+/* Legacy separators — removed from markup; keep for legal subpages if reused */
 .site-footer-sep {
-  color: #475569;
-  font-size: 0.72rem;
-  user-select: none;
-  margin: 0;
-  opacity: 0.85;
-  align-self: center;
+  display: none;
 }
 
 @media (max-width: 840px) {
@@ -253,26 +254,38 @@ button {
   }
 
   .site-footer-inner {
-    padding-top: var(--notes-footer-pad-top, 14px);
-    padding-bottom: var(--notes-footer-pad-bottom, max(14px, calc(8px + env(safe-area-inset-bottom, 0px))));
+    padding-top: var(--notes-footer-pad-top, 6px);
+    padding-bottom: var(--notes-footer-pad-bottom, max(6px, calc(4px + env(safe-area-inset-bottom, 0px))));
+    gap: 4px;
   }
 
-  .site-footer-links {
-    max-width: 100%;
-    column-gap: 12px;
-    row-gap: 12px;
+  .site-footer-links-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2px 8px;
+    width: min(100%, 320px);
+    max-width: 320px;
+  }
+
+  .site-footer-links-grid a {
+    font-size: 0.68rem;
+    padding: 3px 2px;
+    text-align: center;
+    line-height: 1.25;
   }
 
   .site-footer-copy {
-    line-height: 1.65;
-    margin-top: -2px;
+    line-height: 1.3;
+    margin-top: 0;
+    font-size: 0.64rem;
   }
 }
 
 .site-footer-copy {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.68rem;
   color: #64748b;
+  line-height: 1.3;
 }
 
 .sidebar {
@@ -3551,9 +3564,10 @@ body.modal-open {
     radial-gradient(ellipse 70% 45% at 15% 12%, rgba(0, 245, 212, 0.11), transparent 52%),
     radial-gradient(ellipse 55% 50% at 92% 88%, rgba(0, 198, 255, 0.1), transparent 48%),
     radial-gradient(ellipse 40% 35% at 48% 45%, rgba(255, 255, 255, 0.04), transparent 55%);
-  opacity: 0.72;
+  opacity: 0.65;
   transition: opacity 0.35s ease;
-  animation: webChatAmbientChatBot 52s ease-in-out infinite;
+  animation: none;
+  transform: none;
 }
 
 /* Calm / slow — Chat Bot */
@@ -3600,7 +3614,8 @@ body.modal-open {
     radial-gradient(ellipse 72% 48% at 18% 14%, rgba(52, 211, 153, 0.14), transparent 54%),
     radial-gradient(ellipse 58% 52% at 90% 86%, rgba(16, 185, 129, 0.1), transparent 50%),
     radial-gradient(ellipse 42% 38% at 48% 48%, rgba(255, 255, 255, 0.035), transparent 56%);
-  animation: webChatAmbientChatBot 52s ease-in-out infinite;
+  animation: none;
+  transform: none;
 }
 
 #webChat .web-chat-messenger.chat-container.auto-mode::after {
@@ -3608,7 +3623,8 @@ body.modal-open {
     radial-gradient(ellipse 68% 46% at 14% 12%, rgba(34, 211, 238, 0.16), transparent 52%),
     radial-gradient(ellipse 62% 48% at 88% 84%, rgba(14, 165, 233, 0.14), transparent 48%),
     radial-gradient(ellipse 45% 36% at 52% 44%, rgba(56, 189, 248, 0.08), transparent 54%);
-  animation: webChatAmbientAuto 30s ease-in-out infinite;
+  animation: none;
+  transform: none;
 }
 
 #webChat .web-chat-messenger.chat-container.openai-mode::after {
@@ -3617,7 +3633,8 @@ body.modal-open {
     radial-gradient(ellipse 58% 46% at 85% 82%, rgba(59, 130, 246, 0.14), transparent 48%),
     radial-gradient(ellipse 44% 38% at 45% 42%, rgba(167, 139, 250, 0.06), transparent 55%);
   opacity: 0.62;
-  animation: webChatAmbientOpenAiSheen 19s ease-in-out infinite;
+  animation: none;
+  transform: none;
 }
 
 #webChat .web-chat-messenger > * {
@@ -3638,7 +3655,8 @@ body.modal-open {
   filter: blur(18px);
   opacity: 0.92;
   transition: opacity 0.35s ease;
-  animation: webChatOpenAiNebula 7s ease-in-out infinite alternate;
+  animation: none;
+  transform: none;
   pointer-events: none;
 }
 
@@ -16639,7 +16657,8 @@ body.theme-normal .welcome-sheet__close {
     radial-gradient(ellipse 60% 40% at 18% 18%, rgba(96, 165, 250, 0.14), transparent 62%),
     radial-gradient(ellipse 52% 36% at 82% 82%, rgba(129, 140, 248, 0.12), transparent 60%),
     radial-gradient(ellipse 44% 34% at 48% 55%, rgba(255, 255, 255, 0.03), transparent 65%);
-  animation: webChatAmbientChatBot 85s ease-in-out infinite;
+  animation: none;
+  transform: none;
 }
 
 #webChat .web-chat-messenger.chat-container.chat-bot-mode::after {
@@ -17100,9 +17119,10 @@ body.theme-normal .welcome-sheet__close {
 }
 
 #webChat .web-chat-messenger::after {
-  opacity: 0.28 !important;
-  filter: blur(1.5px) !important;
-  animation-duration: 92s !important;
+  opacity: 0.32 !important;
+  filter: none !important;
+  animation: none !important;
+  transform: none !important;
 }
 
 /* top app bar */

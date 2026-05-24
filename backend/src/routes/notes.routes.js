@@ -145,7 +145,7 @@ function createNotesRouter({ User, Note, authMiddleware, getIo }) {
       if (catKey === "scan_cam") {
         if (!hasScanCamAccess(user)) {
           return res.status(403).json({
-            error: "Scan Cam requires Standard or Premium.",
+            error: "Scan Cam requires Standard.",
             code: "SCAN_CAM_PLAN"
           });
         }

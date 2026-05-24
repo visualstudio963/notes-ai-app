@@ -86,7 +86,6 @@ function hasStandardAccess(user, nowMs = Date.now()) {
   if (!user) return false;
   const exp = resolveStandardExpiresAt(user);
   if (exp) return exp.getTime() > nowMs;
-  if (getStoredProductTier(user) === "standard") return true;
   return false;
 }
 
@@ -245,6 +244,38 @@ async function grantNewUserTrial(User, userId) {
   });
 }
 
+/**
+ * Repair signup gaps: grant the one-time 14-day trial if the account is still
+ * inside the trial window and never received any Standard grant before.
+ * @returns {Promise<{ granted: boolean; user: object | null }>}
+ */
+async function ensureEligibleNewUserTrial(User, userId, nowMs = Date.now()) {
+  if (!User || !userId) return { granted: false, user: null };
+  let user = await User.findById(userId).lean();
+  if (!user) return { granted: false, user: null };
+  if (hasStandardAccess(user, nowMs)) return { granted: false, user };
+
+  const hadAnyStandardMark =
+    user.standardSource ||
+    user.trialEndsAt ||
+    user.standardCoinExpiresAt ||
+    user.premiumExpires ||
+    user.stripeSubscriptionId ||
+    user.isPremium === true;
+  if (hadAnyStandardMark) return { granted: false, user };
+
+  const createdMs = user.createdAt ? new Date(user.createdAt).getTime() : NaN;
+  if (!Number.isFinite(createdMs)) return { granted: false, user };
+  const ageMs = nowMs - createdMs;
+  if (ageMs < 0 || ageMs > TRIAL_DURATION_MS) {
+    return { granted: false, user };
+  }
+
+  await grantNewUserTrial(User, userId);
+  user = await User.findById(userId).lean();
+  return { granted: true, user };
+}
+
 async function revokeStandardAccess(User, userId) {
   return User.findByIdAndUpdate(userId, { $set: { ...REVOKE_STANDARD_SET } }, { new: true });
 }
@@ -293,10 +324,6 @@ async function syncAllExpiredStandardAccess(User) {
     {
       $or: [
         { premiumExpires: { $ne: null, $lte: now } },
-        {
-          plan: "standard",
-          $or: [{ premiumExpires: null }, { premiumExpires: { $lte: now } }]
-        },
         { trialEndsAt: { $ne: null, $lte: now } },
         { standardCoinExpiresAt: { $ne: null, $lte: now } }
       ]
@@ -391,6 +418,7 @@ module.exports = {
   inferStandardSource,
   grantStandardAccess,
   grantNewUserTrial,
+  ensureEligibleNewUserTrial,
   revokeStandardAccess,
   grantPremium,
   revokePremium,

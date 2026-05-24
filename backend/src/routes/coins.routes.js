@@ -9,7 +9,7 @@ const {
   ensureReferralCode,
   finalizeInviteBonus
 } = require("../features/coins/coinService");
-const { syncExpiredPremiumDocument } = require("../features/premium/subscriptionService");
+const { syncExpiredPremiumDocument, ensureEligibleNewUserTrial } = require("../features/premium/subscriptionService");
 
 async function finalizePendingInviteRewards(User, userId) {
   let doc = await User.findById(userId);
@@ -24,6 +24,7 @@ function createCoinsRouter({ User, authMiddleware }) {
 
   router.get("/coins/status", authMiddleware, async (req, res) => {
     try {
+      await ensureEligibleNewUserTrial(User, req.userId);
       await syncExpiredPremiumDocument(User, req.userId);
       let user = await User.findById(req.userId);
       if (!user) {

@@ -128,8 +128,30 @@ function getUserLifecycle(user) {
   return "standard";
 }
 
+/**
+ * @returns {"free"|"standard_trial"|"standard_monthly"|"standard_yearly"}
+ */
+function getStandardPlanKind(user) {
+  if (!hasStandardAccess(user)) return "free";
+  const src = inferStandardSource(user);
+  if (src === "trial") return "standard_trial";
+  const yearly = user && String(user.billingCycle || "").toLowerCase() === "yearly";
+  return yearly ? "standard_yearly" : "standard_monthly";
+}
+
 function getSubscriptionPlan(user) {
   return getUserPlan(user);
+}
+
+/**
+ * @returns {"free"|"standard_trial"|"standard_monthly"|"standard_yearly"}
+ */
+function getStandardPlanKind(user) {
+  if (!hasStandardAccess(user)) return "free";
+  const src = inferStandardSource(user);
+  if (src === "trial") return "standard_trial";
+  const yearly = user && String(user.billingCycle || "").toLowerCase() === "yearly";
+  return yearly ? "standard_yearly" : "standard_monthly";
 }
 
 function buildStandardStatusFields(user) {
@@ -157,6 +179,8 @@ function getPremiumStatusPayload(user) {
     tier,
     lifecycle,
     plan: tier,
+    planKind: getStandardPlanKind(user),
+    billingCycle: user && user.billingCycle === "yearly" ? "yearly" : "monthly",
     standardActive: fields.standardActive,
     standardExpiresAt: fields.standardExpiresAt,
     standardSource: fields.standardSource,
@@ -411,6 +435,7 @@ module.exports = {
   STRIPE_STANDARD_DURATION_MS,
   getUserPlan,
   getUserLifecycle,
+  getStandardPlanKind,
   getStoredProductTier,
   hasStandardAccess,
   hasStandardTierAccess,

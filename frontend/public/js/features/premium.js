@@ -80,6 +80,30 @@ function userCanExportNoteJpg(user) {
   return hasStandardAccess(user);
 }
 
+/**
+ * @param {Record<string, unknown> | null | undefined} user
+ * @returns {"free"|"standard_trial"|"standard_monthly"|"standard_yearly"}
+ */
+function resolveStandardPlanKind(user) {
+  if (!user) return "free";
+  const preset = user.planKind != null ? String(user.planKind).toLowerCase() : "";
+  if (
+    preset === "free" ||
+    preset === "standard_trial" ||
+    preset === "standard_monthly" ||
+    preset === "standard_yearly"
+  ) {
+    return preset;
+  }
+  if (!hasStandardAccess(user)) return "free";
+  const src = user.standardSource != null ? String(user.standardSource).toLowerCase() : "";
+  const life = user.lifecycle != null ? String(user.lifecycle).toLowerCase() : "";
+  if (src === "trial" || life === "trial") return "standard_trial";
+  const yearly = String(user.billingCycle || "").toLowerCase() === "yearly";
+  return yearly ? "standard_yearly" : "standard_monthly";
+}
+
 if (typeof window !== "undefined") {
   window.hasStandardAccess = hasStandardAccess;
+  window.resolveStandardPlanKind = resolveStandardPlanKind;
 }

@@ -1811,6 +1811,37 @@ body {
   box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.12);
 }
 
+.admin-donut-legend--quad {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+  width: 100%;
+  max-width: 320px;
+}
+
+.admin-donut-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: #cbd5e1;
+  line-height: 1.25;
+}
+
+.admin-donut-legend-item strong {
+  color: #f8fafc;
+  font-size: 0.88rem;
+}
+
+.admin-donut-wrap--quad {
+  gap: 14px;
+}
+
+.admin-donut--quad {
+  width: 132px;
+  height: 132px;
+}
+
 .admin-donut-legend {
   display: flex;
   flex-direction: column;

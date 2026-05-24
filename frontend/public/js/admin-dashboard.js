@@ -379,86 +379,113 @@
     const host = document.getElementById("adminDonutUsers");
     if (!host) return;
     const total = Number(stats.totalUsers) || 0;
-    const std =
-      stats.standardUsers != null && stats.standardUsers !== ""
-        ? Number(stats.standardUsers)
-        : NaN;
-    const standard = Number.isFinite(std) ? std : 0;
-    let free =
-      stats.freeUsers != null && stats.freeUsers !== ""
-        ? Number(stats.freeUsers)
-        : Math.max(0, total - standard);
-    if (!Number.isFinite(free) || free < 0) free = Math.max(0, total - standard);
     if (!total) {
       host.innerHTML = '<p class="admin-muted">No user data yet.</p>';
       return;
     }
-    const pctStd = Math.min(100, Math.round((standard / total) * 100000) / 1000);
-    const cumStd = pctStd;
+
     const bd =
       stats.standardBreakdown && typeof stats.standardBreakdown === "object"
         ? stats.standardBreakdown
         : null;
-    const splitTrial = bd && bd.trial != null ? Number(bd.trial) : null;
-    const splitMonthly = bd && bd.monthly != null ? Number(bd.monthly) : null;
-    const splitYearly = bd && bd.yearly != null ? Number(bd.yearly) : null;
-    const splitLegacy = bd && bd.legacy != null ? Number(bd.legacy) : 0;
+    const trial = bd && bd.trial != null ? Math.max(0, Number(bd.trial) || 0) : null;
+    const monthlyRaw = bd && bd.monthly != null ? Math.max(0, Number(bd.monthly) || 0) : null;
+    const yearly = bd && bd.yearly != null ? Math.max(0, Number(bd.yearly) || 0) : null;
+    const legacy = bd && bd.legacy != null ? Math.max(0, Number(bd.legacy) || 0) : 0;
     const hasSplit =
-      bd &&
-      splitTrial !== null &&
-      splitMonthly !== null &&
-      splitYearly !== null &&
-      Number.isFinite(splitTrial) &&
-      Number.isFinite(splitMonthly) &&
-      Number.isFinite(splitYearly);
-    let splitHtml = "";
-    if (hasSplit) {
-      let listItems =
-        "<li><span>Trial 14 ditë</span><strong>" +
-        escapeHtml(String(splitTrial)) +
-        "</strong></li>" +
-        "<li><span>Standard mujor (coins)</span><strong>" +
-        escapeHtml(String(splitMonthly)) +
-        "</strong></li>" +
-        "<li><span>Standard vjetor (coins)</span><strong>" +
-        escapeHtml(String(splitYearly)) +
-        "</strong></li>";
-      if (Number.isFinite(splitLegacy) && splitLegacy > 0) {
-        listItems +=
-          "<li><span>Legacy Stripe</span><strong>" +
-          escapeHtml(String(splitLegacy)) +
-          "</strong></li>";
+      trial !== null && monthlyRaw !== null && yearly !== null && Number.isFinite(trial + monthlyRaw + yearly);
+
+    if (!hasSplit) {
+      const standard = Number(stats.standardUsers) || 0;
+      let free = Number(stats.freeUsers);
+      if (!Number.isFinite(free)) free = Math.max(0, total - standard);
+      const pctStd = Math.min(100, Math.round((standard / total) * 100000) / 1000);
+      host.innerHTML =
+        '<div class="admin-donut-wrap">' +
+        '<div class="admin-donut admin-donut--dual" role="img" aria-label="Plan mix"></div>' +
+        '<div class="admin-donut-legend">' +
+        '<span><span class="admin-donut-dot" style="background:linear-gradient(135deg,#38bdf8,#6366f1)"></span>Standard · <strong>' +
+        escapeHtml(String(standard)) +
+        "</strong></span>" +
+        '<span><span class="admin-donut-dot" style="background:linear-gradient(135deg,#64748b,#94a3b8)"></span>Falas · <strong>' +
+        escapeHtml(String(free)) +
+        "</strong></span>" +
+        "</div></div>";
+      const d0 = host.querySelector(".admin-donut");
+      if (d0) {
+        d0.style.background =
+          "conic-gradient(rgba(56,189,248,0.88) 0% " +
+          pctStd +
+          "%, rgba(100,116,139,0.6) " +
+          pctStd +
+          "% 100%)";
+        d0.style.webkitMask =
+          "radial-gradient(farthest-side, transparent calc(100% - 14px), #000 calc(100% - 13px))";
+        d0.style.mask =
+          "radial-gradient(farthest-side, transparent calc(100% - 14px), #000 calc(100% - 13px))";
       }
-      splitHtml =
-        '<div class="admin-standard-split">' +
-        '<div class="admin-standard-split-title">Standard — ndarje</div>' +
-        '<ul class="admin-standard-split-list">' +
-        listItems +
-        "</ul>" +
-        '<p class="admin-standard-split-hint">Një përdorues numërohet vetëm një herë sipas burimit aktiv: trial, coins (mujor/vjetor), ose legacy Stripe nëse ekziston.</p>' +
-        "</div>";
+      return;
     }
+
+    const monthly = monthlyRaw + legacy;
+    let freeCount = Number(stats.freeUsers);
+    if (!Number.isFinite(freeCount)) {
+      freeCount = Math.max(0, total - trial - monthly - yearly);
+    }
+
+    const segments = [
+      { key: "trial", label: "Trial 14 ditë", value: trial, color: "#38bdf8" },
+      { key: "monthly", label: "Abonim mujor", value: monthly, color: "#34d399" },
+      { key: "yearly", label: "Abonim vjetor", value: yearly, color: "#a78bfa" },
+      { key: "free", label: "Plan Falas", value: freeCount, color: "#64748b" }
+    ];
+
+    let cumPct = 0;
+    const gradStops = [];
+    segments.forEach((seg) => {
+      const pct = total > 0 ? (seg.value / total) * 100 : 0;
+      const startPct = cumPct;
+      cumPct = Math.min(100, cumPct + pct);
+      if (pct > 0) {
+        gradStops.push(seg.color + " " + startPct.toFixed(3) + "% " + cumPct.toFixed(3) + "%");
+      }
+    });
+    if (!gradStops.length) gradStops.push("#64748b 0% 100%");
+
+    const legendHtml = segments
+      .map(
+        (seg) =>
+          '<span class="admin-donut-legend-item admin-donut-legend-item--' +
+          seg.key +
+          '"><span class="admin-donut-dot" style="background:' +
+          seg.color +
+          '"></span>' +
+          escapeHtml(seg.label) +
+          " · <strong>" +
+          escapeHtml(String(seg.value)) +
+          "</strong></span>"
+      )
+      .join("");
+
+    const legacyNote =
+      legacy > 0
+        ? '<p class="admin-standard-split-hint">Përfshin ' +
+          escapeHtml(String(legacy)) +
+          " legacy Stripe te abonimi mujor.</p>"
+        : "";
+
     host.innerHTML =
-      '<div class="admin-donut-wrap">' +
-      '<div class="admin-donut admin-donut--dual" role="img" aria-label="Plan mix: Standard and Free"></div>' +
-      '<div class="admin-donut-legend">' +
-      '<span><span class="admin-donut-dot" style="background:linear-gradient(135deg,#38bdf8,#6366f1)"></span>Standard · <strong>' +
-      escapeHtml(String(standard)) +
-      "</strong></span>" +
-      '<span><span class="admin-donut-dot" style="background:linear-gradient(135deg,#64748b,#94a3b8)"></span>Free · <strong>' +
-      escapeHtml(String(free)) +
-      "</strong></span>" +
+      '<div class="admin-donut-wrap admin-donut-wrap--quad">' +
+      '<div class="admin-donut admin-donut--quad" role="img" aria-label="Plan mix"></div>' +
+      '<div class="admin-donut-legend admin-donut-legend--quad">' +
+      legendHtml +
       "</div>" +
-      splitHtml +
+      legacyNote +
       "</div>";
+
     const d = host.querySelector(".admin-donut");
     if (d) {
-      d.style.background =
-        "conic-gradient(rgba(56,189,248,0.88) 0% " +
-        cumStd +
-        "%, rgba(100,116,139,0.6) " +
-        cumStd +
-        "% 100%)";
+      d.style.background = "conic-gradient(" + gradStops.join(", ") + ")";
       d.style.webkitMask =
         "radial-gradient(farthest-side, transparent calc(100% - 14px), #000 calc(100% - 13px))";
       d.style.mask =
@@ -500,11 +527,15 @@
     const total = Number(stats.totalUsers) || 0;
     const online = Number(stats.activeUsers) || 0;
     const today = Number(stats.activeUsersToday) || 0;
-    const standard = Number(stats.standardUsers) || 0;
+    const bd = stats.standardBreakdown && typeof stats.standardBreakdown === "object" ? stats.standardBreakdown : null;
+    const trial = bd && bd.trial != null ? Number(bd.trial) || 0 : Number(stats.standardUsers) || 0;
+    const monthly = bd && bd.monthly != null ? Number(bd.monthly) || 0 : 0;
+    const yearly = bd && bd.yearly != null ? Number(bd.yearly) || 0 : 0;
     host.innerHTML =
       ringSvg("Online", String(online), pctRatio(online, total), "#38bdf8") +
-      ringSvg("Standard", String(standard), pctRatio(standard, total), "#34d399") +
-      ringSvg("Active today", String(today), pctRatio(today, total), "#a78bfa");
+      ringSvg("Trial", String(trial), pctRatio(trial, total), "#34d399") +
+      ringSvg("Mujor", String(monthly), pctRatio(monthly, total), "#2dd4bf") +
+      ringSvg("Vjetor", String(yearly), pctRatio(yearly, total), "#a78bfa");
   }
 
   function renderSignupSparkline(data) {
@@ -568,14 +599,11 @@
     if (src === "trial" || life === "trial") {
       return '<span class="admin-badge admin-badge--standard">Standard · Trial</span>';
     }
-    if (src === "coins") {
+    if (src === "coins" || src === "stripe") {
       const cycle = u && u.billingCycle === "yearly" ? "Vjetor" : "Mujor";
       return (
-        '<span class="admin-badge admin-badge--standard">Standard · Coins ' + escapeHtml(cycle) + "</span>"
+        '<span class="admin-badge admin-badge--standard">Standard · ' + escapeHtml(cycle) + "</span>"
       );
-    }
-    if (src === "stripe") {
-      return '<span class="admin-badge admin-badge--standard">Standard · Legacy</span>';
     }
     return planBadge("standard");
   }

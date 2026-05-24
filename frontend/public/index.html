@@ -437,6 +437,7 @@
             </div>
           </div>
           <div class="notes-list" id="allNotesList"></div>
+          <nav id="allNotesPagination" class="notes-pagination hidden" aria-label="Note list pages"></nav>
         </div>
       </section>
 
@@ -926,7 +927,7 @@
                   </ul>
                   <div class="pricing-lite-cta-stack">
                     <button type="button" id="premiumLiteStandardCta" class="save-button pricing-lite-cta pricing-lite-cta--primary" onclick="event.stopPropagation(); premiumPlanCoinsActivate('standard', 'monthly')" data-t="premiumLiteRedeemMonthly">🪙 1,500 — Standard 30 days</button>
-                    <button type="button" id="premiumLiteStandardCtaAlt" class="save-button pricing-lite-cta pricing-lite-cta--primary pricing-lite-cta--yearly hidden" onclick="event.stopPropagation(); premiumPlanCoinsActivate('standard', 'yearly')" data-t="premiumLiteCtaStandardYearly">🪙 14,400 — Fillo planin vjetor</button>
+                    <button type="button" id="premiumLiteStandardCtaAlt" class="save-button pricing-lite-cta pricing-lite-cta--primary pricing-lite-cta--yearly hidden" onclick="event.stopPropagation(); premiumPlanCoinsActivate('standard', 'yearly')" data-t="premiumLiteRedeemYearly">🪙 14,400 — Standard 365 days</button>
                   </div>
                 </article>
               </div>
@@ -962,7 +963,7 @@
             </footer>
             <div id="premiumLiteStickyCtaWrap" class="pricing-lite-sticky-cta-wrap">
               <button type="button" id="premiumLiteStickyCtaMonthly" class="save-button pricing-lite-sticky-cta" onclick="premiumPlanCoinsActivate('standard', 'monthly')" data-t="premiumLiteRedeemMonthly">🪙 1,500 — 30 days</button>
-              <button type="button" id="premiumLiteStickyCtaYearly" class="save-button pricing-lite-sticky-cta pricing-lite-sticky-cta--yearly hidden" onclick="premiumPlanCoinsActivate('standard', 'yearly')" data-t="premiumLiteCtaStandardYearly">🪙 14,400 — Fillo planin vjetor</button>
+              <button type="button" id="premiumLiteStickyCtaYearly" class="save-button pricing-lite-sticky-cta pricing-lite-sticky-cta--yearly hidden" onclick="premiumPlanCoinsActivate('standard', 'yearly')" data-t="premiumLiteRedeemYearly">🪙 14,400 — Standard 365 days</button>
             </div>
           </div>
         </div>
@@ -1391,23 +1392,21 @@
                 <span id="settingsPlanBadge" class="settings-plan-badge">Free</span>
               </div>
               <div class="settings-billing-panel">
-                <p id="settingsPremiumActiveBadge" class="settings-premium-active-badge hidden" data-t="settingsStandardActiveBadge">Standard Active ✅</p>
-                <div class="settings-billing-grid">
-                  <div class="info-item">
-                    <label>Plan</label>
-                    <p id="settingsBillingPlan">free</p>
+                <div class="settings-plan-summary">
+                  <div class="settings-plan-summary__main">
+                    <p class="settings-plan-summary__eyebrow" data-t="settingsPlanYourPlanLabel">Your plan</p>
+                    <p id="settingsPlanKindLabel" class="settings-plan-summary__kind" data-t="settingsPlanKindFree">Free plan</p>
                   </div>
-                  <div class="info-item">
-                    <label>Status</label>
-                    <p id="settingsBillingStatus">—</p>
+                  <p id="settingsPremiumActiveBadge" class="settings-premium-active-badge hidden" data-t="settingsStandardActiveBadge">Standard Active ✅</p>
+                </div>
+                <div class="settings-plan-facts">
+                  <div class="settings-plan-fact">
+                    <span class="settings-plan-fact__label" data-t="settingsPlanStatusLabel">Status</span>
+                    <span id="settingsPlanStatusValue" class="settings-plan-fact__value">—</span>
                   </div>
-                  <div class="info-item">
-                    <label>Cancel at period end</label>
-                    <p id="settingsBillingCancelAtPeriodEnd">No</p>
-                  </div>
-                  <div class="info-item">
-                    <label>Current period end</label>
-                    <p id="settingsBillingCurrentPeriodEnd">—</p>
+                  <div id="settingsPlanValidUntilRow" class="settings-plan-fact hidden">
+                    <span id="settingsPlanValidUntilLabel" class="settings-plan-fact__label" data-t="settingsPlanValidUntilLabel">Valid until</span>
+                    <span id="settingsPlanValidUntil" class="settings-plan-fact__value">—</span>
                   </div>
                 </div>
               </div>
@@ -1416,7 +1415,7 @@
                 <button type="button" id="settingsRedeemYearlyBtn" class="save-button secondary settings-redeem-btn" onclick="premiumPlanCoinsActivate('standard', 'yearly')" data-t="settingsRedeemYearly">🪙 14,400 — Standard 365 days</button>
               </div>
               <button type="button" id="settingsPremiumUpgradeBtn" class="save-button settings-upgrade-btn" onclick="openBot()">
-                <span data-t="settingsManageSubscriptionBtn">Manage subscription</span>
+                <span data-t="settingsUpgradeCta">View plans & upgrade</span>
               </button>
               <button type="button" id="settingsCancelSubscriptionBtn" class="save-button secondary hidden" onclick="cancelSubscriptionFromSettings()">
                 Cancel Subscription
@@ -1920,9 +1919,9 @@
   <script defer src="/js/config/platform-native.js?v=apk-emb-260508-v1"></script>
   <script defer src="/js/config/constants.js?v=apk-emb-260508-v1"></script>
   <script defer src="/js/config/api-base.js?v=invite-public-url-v1"></script>
-  <script defer src="/js/features/premium.js?v=trial-sync-v1"></script>
-  <script defer src="/translations.js?v=share-whatsapp-v1"></script>
+  <script defer src="/js/features/premium.js?v=settings-plan-clean-v1"></script>
+  <script defer src="/translations.js?v=settings-plan-clean-v1"></script>
   <script defer src="/js/components/toast.js?v=toast-balance-v1"></script>
-  <script defer src="/js/app.js?v=pricing-lite-vivid-v1"></script>
+  <script defer src="/js/app.js?v=scan-cam-perf-v2"></script>
 </body>
 </html>

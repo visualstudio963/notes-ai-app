@@ -262,7 +262,7 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
         User.countDocuments(breakdownQ.standardLegacyStripeUsers),
         User.countDocuments({ lastActive: { $gte: since } })
       ]);
-      const freeUsers = Math.max(0, totalUsers - premiumUsers - standardUsers);
+      const freeUsers = Math.max(0, totalUsers - standardUsers);
 
       res.json({
         totalUsers,
@@ -340,7 +340,7 @@ function createAdminRouter({ User, Note, Reminder, ContactMessage, AppConfig, Co
         Reminder.countDocuments({ sent: true })
       ]);
 
-      const freeUsers = Math.max(0, totalUsers - premiumUsers - standardUsers);
+      const freeUsers = Math.max(0, totalUsers - standardUsers);
 
       const stats = {
         totalUsers,

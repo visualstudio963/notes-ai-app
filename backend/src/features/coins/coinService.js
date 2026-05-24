@@ -16,6 +16,7 @@ const {
 const {
   getUserLifecycle,
   getUserPlan,
+  getStandardPlanKind,
   hasStandardAccess,
   resolveStandardExpiresAt,
   grantStandardAccess
@@ -515,6 +516,8 @@ function buildCoinsStatusPayload(userLean) {
     standardYearlyDays: 365,
     lifecycle,
     tier: getUserPlan(userLean),
+    planKind: getStandardPlanKind(userLean),
+    billingCycle: userLean.billingCycle === "yearly" ? "yearly" : "monthly",
     trialEndsAt: userLean.trialEndsAt ? new Date(userLean.trialEndsAt).toISOString() : null,
     trialDaysTotal: 14,
     standardActive: hasStandardAccess(userLean),

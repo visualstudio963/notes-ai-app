@@ -258,6 +258,68 @@
   margin: 8px 0 12px;
 }
 
+.settings-plan-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 14px;
+  margin-bottom: 12px;
+}
+
+.settings-plan-summary__eyebrow {
+  margin: 0 0 4px;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  font-weight: 700;
+}
+
+.settings-plan-summary__kind {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.25;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.settings-plan-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.settings-plan-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.settings-plan-fact__label {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  font-weight: 700;
+}
+
+.settings-plan-fact__value {
+  font-size: 0.95rem;
+  font-weight: 650;
+  color: #e2e8f0;
+}
+
+.settings-plan-badge--trial {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.28), rgba(99, 102, 241, 0.18));
+  border-color: rgba(147, 197, 253, 0.35);
+  color: #dbeafe;
+}
+
 .settings-billing-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));

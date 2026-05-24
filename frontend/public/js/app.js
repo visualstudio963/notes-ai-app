@@ -14,16 +14,20 @@ let lastCategoryNotesRenderKey = "";
 let lastAllNotesRenderKey = "";
 const HISTORY_COLUMN_LIMIT = 5;
 const LIST_RENDER_BATCH = 20;
-const LIST_RENDER_BATCH_SCAN_CAM = 4;
+const LIST_RENDER_BATCH_SCAN_CAM = 6;
 const LIST_VIRTUALIZE_THRESHOLD = 32;
-const LIST_VIRTUALIZE_THRESHOLD_SCAN_CAM = 1;
+const LIST_VIRTUALIZE_THRESHOLD_SCAN_CAM = 12;
 const SCAN_CAM_LIST_PREVIEW_MAX = 220;
+const SCAN_CAM_LIST_TEXT_MAX = 720;
 const SCAN_CAM_LIST_STRIP_HEAD = 2400;
 let listScrollBlockedUntil = 0;
 let listScrollIdleTimer = 0;
 const WEB_CHAT_DOM_MAX_ROWS = 44;
 let historyPruneInFlight = false;
 let allNotesSortMode = "newest";
+let allNotesPage = 1;
+let lastAllNotesFilterSignature = "";
+const ALL_NOTES_PAGE_SIZE = 10;
 let currentUser = getStoredUser();
 let accessToken = getStoredAccessToken();
 let refreshToken = getStoredRefreshToken();
@@ -2466,7 +2470,7 @@ function isScanCamCategoryActive() {
 function isScanCamListNote(note) {
   if (!note) return isScanCamCategoryActive();
   if (note.category === "scan_cam") return true;
-  if (note.scanCamImageDataUrl) return true;
+  if (note.scanCamImageDataUrl || note.hasScanCamPhoto) return true;
   const raw = note.text != null ? String(note.text) : "";
   if (raw.length > 12000 && /scan|ocr|data:image/i.test(raw.slice(0, 400))) return true;
   return isScanCamCategoryActive();
@@ -2482,7 +2486,7 @@ function noteStoredPlainPreviewForList(note, maxLen) {
     plain = noteStoredPlainPreview(raw, limit);
     plain = plain.replace(/data:[^\s]+;base64,[A-Za-z0-9+/=\s]+/gi, " ").replace(/\s+/g, " ").trim();
   }
-  if (note && note.scanCamImageDataUrl) {
+  if (note && (note.scanCamImageDataUrl || note.hasScanCamPhoto)) {
     const tag = "📷";
     plain = plain ? `${tag} ${plain}` : tag;
   }
@@ -2790,14 +2794,46 @@ function readScanCamLocalNotes() {
     const raw = localStorage.getItem(SCAN_CAM_LOCAL_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    let migrated = false;
+    const cleaned = parsed.map((n) => {
+      const next = scanCamSanitizeNoteForStorage(n);
+      if (next !== n) migrated = true;
+      return next;
+    });
+    if (migrated) writeScanCamLocalNotes(cleaned);
+    return cleaned;
   } catch {
     return [];
   }
 }
 
+function scanCamSanitizeNoteForStorage(note) {
+  if (!note || typeof note !== "object") return note;
+  if (!note.scanCamImageDataUrl) return note;
+  const next = { ...note, hasScanCamPhoto: true };
+  delete next.scanCamImageDataUrl;
+  return next;
+}
+
+function readScanCamLocalNotesForList() {
+  return readScanCamLocalNotes().map((n) => {
+    if (!n) return n;
+    const lite = { ...n };
+    delete lite.scanCamImageDataUrl;
+    if (lite.text != null && String(lite.text).length > SCAN_CAM_LIST_TEXT_MAX) {
+      lite.text = scanCamNoteListPreviewText(lite.text, SCAN_CAM_LIST_TEXT_MAX);
+      lite.textPreviewOnly = true;
+    }
+    return lite;
+  });
+}
+
 function writeScanCamLocalNotes(notes) {
-  localStorage.setItem(SCAN_CAM_LOCAL_STORAGE_KEY, JSON.stringify(notes.slice(0, 200)));
+  localStorage.setItem(
+    SCAN_CAM_LOCAL_STORAGE_KEY,
+    JSON.stringify((notes || []).slice(0, 200).map(scanCamSanitizeNoteForStorage))
+  );
 }
 
 function appendScanCamLocalNote(note) {
@@ -2828,13 +2864,13 @@ function scanCamNotesForListDisplay(notes) {
     if (!n || !isScanCamListNote(n)) return n;
     if (n.textPreviewOnly) return n;
     const raw = n.text != null ? String(n.text) : "";
-    if (raw.length <= 720) return n;
-    return { ...n, text: scanCamNoteListPreviewText(raw, 720) };
+    if (raw.length <= SCAN_CAM_LIST_TEXT_MAX) return n;
+    return { ...n, text: scanCamNoteListPreviewText(raw, SCAN_CAM_LIST_TEXT_MAX) };
   });
 }
 
 function mergeNotesWithScanCamLocal(serverNotes) {
-  const local = readScanCamLocalNotes();
+  const local = readScanCamLocalNotesForList();
   const byId = new Map();
   for (const n of [...local, ...(serverNotes || [])]) {
     if (n && n._id != null) byId.set(String(n._id), n);
@@ -2851,9 +2887,7 @@ function persistScanCamNoteLocally(text, title, imageDataUrl) {
     text,
     title,
     createdAt: new Date().toISOString(),
-    ...(imageDataUrl && String(imageDataUrl).startsWith("data:")
-      ? { scanCamImageDataUrl: imageDataUrl }
-      : {})
+    ...(imageDataUrl && String(imageDataUrl).startsWith("data:") ? { hasScanCamPhoto: true } : {})
   };
   appendScanCamLocalNote(note);
   const id = String(note._id);
@@ -3339,6 +3373,18 @@ function mergePremiumStatusIntoCurrentUser(data) {
       : data.lifecycle != null
         ? data.lifecycle
         : currentUser.lifecycle || "free",
+    planKind:
+      serverInactive
+        ? "free"
+        : data.planKind != null
+          ? data.planKind
+          : currentUser.planKind || "free",
+    billingCycle:
+      data.billingCycle === "yearly"
+        ? "yearly"
+        : data.billingCycle === "monthly"
+          ? "monthly"
+          : currentUser.billingCycle || "monthly",
     trialEndsAt: pickExpiry("trialEndsAt"),
     standardCoinExpiresAt: pickExpiry("standardCoinExpiresAt"),
     coinBalance: data.coinBalance != null ? data.coinBalance : currentUser.coinBalance ?? 0,
@@ -3372,6 +3418,8 @@ async function tryQuietCoinsBootstrap() {
       if (coins.standardActive != null) currentUser.standardActive = Boolean(coins.standardActive);
       if (coins.standardExpiresAt != null) currentUser.standardExpiresAt = coins.standardExpiresAt;
       if (coins.standardSource != null) currentUser.standardSource = coins.standardSource;
+      if (coins.planKind != null) currentUser.planKind = coins.planKind;
+      if (coins.billingCycle != null) currentUser.billingCycle = coins.billingCycle;
       if (coins.tier != null) {
         currentUser.tier = coins.tier;
         currentUser.plan = coins.tier;
@@ -4774,6 +4822,8 @@ function openMyNotes() {
   setBodyHomePage(false);
   activateMenu("menuNotes");
   lastAllNotesRenderKey = "";
+  allNotesPage = 1;
+  lastAllNotesFilterSignature = "";
   const notesSearch = document.getElementById("notesSearchInput");
   if (notesSearch) notesSearch.value = "";
   const notesCategoryFilter = document.getElementById("notesCategoryFilter");
@@ -4826,12 +4876,8 @@ function openCategory(cat) {
   }
 
   if (currentUser) {
-    const runLoad = () => void loadNotes();
-    if (cat === "scan_cam") {
-      requestAnimationFrame(() => requestAnimationFrame(runLoad));
-    } else {
-      requestAnimationFrame(runLoad);
-    }
+    if (cat === "scan_cam") showScanCamNotesLoadingSkeleton();
+    requestAnimationFrame(() => void loadNotes());
   } else {
     requestAnimationFrame(() => renderNotes(getPublicNotes()));
   }
@@ -6218,6 +6264,11 @@ function webChatRenderRecentCommands() {
 
 function tryOpenScanCamCategory() {
   if (!requireAuth("use Scan Cam")) return;
+  if (typeof userHasScanCamAccess === "function" && userHasScanCamAccess(currentUser)) {
+    openCategory("scan_cam");
+    void mergePremiumFromServer();
+    return;
+  }
   void mergePremiumFromServer().then(() => {
     if (typeof userHasScanCamAccess === "function" && userHasScanCamAccess(currentUser)) {
       openCategory("scan_cam");
@@ -6251,30 +6302,30 @@ function scanCamMaybeShowOnboarding() {
 
 function openScanCamPage() {
   if (!requireAuth("use Scan Cam")) return;
-  void mergePremiumFromServer().then(() => {
-    setBodyHomePage(false);
-    activateMenu("menuScanCam");
-    document.getElementById("home").classList.add("hidden");
-    document.getElementById("category").classList.add("hidden");
-    document.getElementById("notes-all").classList.add("hidden");
-    document.getElementById("bot").classList.add("hidden");
-    closeWebChatDrawer();
-    document.getElementById("reminder-history").classList.add("hidden");
-    document.getElementById("settings").classList.add("hidden");
-    hideCoinsHubPage();
-    const scan = document.getElementById("scan-cam");
-    if (scan) scan.classList.remove("hidden");
-    scanCamEnsureUploadInputsPortaled();
-    applyTranslations();
+  setBodyHomePage(false);
+  activateMenu("menuScanCam");
+  document.getElementById("home").classList.add("hidden");
+  document.getElementById("category").classList.add("hidden");
+  document.getElementById("notes-all").classList.add("hidden");
+  document.getElementById("bot").classList.add("hidden");
+  closeWebChatDrawer();
+  document.getElementById("reminder-history").classList.add("hidden");
+  document.getElementById("settings").classList.add("hidden");
+  hideCoinsHubPage();
+  const scan = document.getElementById("scan-cam");
+  if (scan) scan.classList.remove("hidden");
+  scanCamEnsureUploadInputsPortaled();
+  applyTranslations();
 
-    const st = document.getElementById("scanCamStatus");
-    if (st) st.textContent = "";
-    scanCamResetWorkflowUi();
-    scanCamMaybeShowOnboarding();
-    if (typeof userHasScanCamAccess === "function" && userHasScanCamAccess(currentUser)) {
-      void scanCamEnsureJsPdfReady().catch(() => {});
-    }
-  });
+  const st = document.getElementById("scanCamStatus");
+  if (st) st.textContent = "";
+  scanCamResetWorkflowUi();
+  scanCamMaybeShowOnboarding();
+
+  void mergePremiumFromServer();
+  if (typeof userHasScanCamAccess === "function" && userHasScanCamAccess(currentUser)) {
+    void scanCamEnsureJsPdfReady().catch(() => {});
+  }
 }
 
 function scanCamEnsureConvertAccess() {
@@ -9248,6 +9299,7 @@ async function loadNotes() {
 
 async function loadNotesInner(category) {
   try {
+    if (category === "scan_cam") showScanCamNotesLoadingSkeleton();
     const data = await apiFetch(`/api/notes/${category}`);
     let list = data.notes || [];
     if (category === "scan_cam") {
@@ -9277,6 +9329,29 @@ async function loadNotesInner(category) {
     currentNotes = [];
     renderNotes([]);
     syncOfflineIndicatorUi();
+  }
+}
+
+function showScanCamNotesLoadingSkeleton() {
+  const container = document.getElementById("notes");
+  const noteCount = document.getElementById("noteCount");
+  if (!container || !noteCount || currentCategory !== "scan_cam") return;
+  noteCount.textContent = "…";
+  container.className = "notes-list notes-list--scan-loading";
+  container.replaceChildren();
+  for (let i = 0; i < 2; i += 1) {
+    const card = document.createElement("div");
+    card.className = "note-card note-card--scan-list note-card--skeleton";
+    card.setAttribute("aria-hidden", "true");
+    const content = document.createElement("div");
+    content.className = "note-content";
+    ["note-skeleton-line--title", "", "note-skeleton-line--short"].forEach((extra) => {
+      const line = document.createElement("div");
+      line.className = extra ? `note-skeleton-line ${extra}` : "note-skeleton-line";
+      content.appendChild(line);
+    });
+    card.appendChild(content);
+    container.appendChild(card);
   }
 }
 
@@ -9952,20 +10027,100 @@ function getFilteredAndSortedAllNotes() {
   return filtered;
 }
 
+function allNotesFilterSignature() {
+  const q = (document.getElementById("notesSearchInput")?.value || "").trim().toLowerCase();
+  const catFilter = document.getElementById("notesCategoryFilter")?.value || "all";
+  return `${q}|${catFilter}|${allNotesSortMode}`;
+}
+
+function setAllNotesPage(page) {
+  const filtered = getFilteredAndSortedAllNotes();
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ALL_NOTES_PAGE_SIZE));
+  const next = Math.min(Math.max(1, Number(page) || 1), totalPages);
+  if (next === allNotesPage) return;
+  allNotesPage = next;
+  lastAllNotesRenderKey = "";
+  filterAllNotesList();
+  const list = document.getElementById("allNotesList");
+  if (list) list.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function renderAllNotesPagination(totalCount, totalPages) {
+  const el = document.getElementById("allNotesPagination");
+  if (!el) return;
+
+  if (totalPages <= 1 || totalCount <= ALL_NOTES_PAGE_SIZE) {
+    el.innerHTML = "";
+    el.classList.add("hidden");
+    el.setAttribute("aria-hidden", "true");
+    return;
+  }
+
+  el.classList.remove("hidden");
+  el.setAttribute("aria-hidden", "false");
+
+  const pageButtons = [];
+  for (let p = 1; p <= totalPages; p += 1) {
+    const active = p === allNotesPage;
+    pageButtons.push(
+      `<button type="button" class="notes-pagination-btn${active ? " is-active" : ""}"` +
+        ` onclick="setAllNotesPage(${p})"` +
+        (active ? ' aria-current="page"' : "") +
+        ` aria-label="${escapeHtml(typeof t === "function" ? t("notesPaginationPage").replace("{page}", String(p)) : `Page ${p}`)}">${p}</button>`
+    );
+  }
+
+  el.innerHTML =
+    `<div class="notes-pagination-inner">` +
+    `<button type="button" class="notes-pagination-btn notes-pagination-btn--nav"` +
+    ` onclick="setAllNotesPage(${allNotesPage - 1})"` +
+    (allNotesPage <= 1 ? " disabled" : "") +
+    ` aria-label="${escapeHtml(typeof t === "function" ? t("notesPaginationPrev") : "Previous")}">‹</button>` +
+    `<div class="notes-pagination-pages" role="group" aria-label="${escapeHtml(typeof t === "function" ? t("notesPaginationAria") : "Note list pages")}">` +
+    pageButtons.join("") +
+    `</div>` +
+    `<button type="button" class="notes-pagination-btn notes-pagination-btn--nav"` +
+    ` onclick="setAllNotesPage(${allNotesPage + 1})"` +
+    (allNotesPage >= totalPages ? " disabled" : "") +
+    ` aria-label="${escapeHtml(typeof t === "function" ? t("notesPaginationNext") : "Next")}">›</button>` +
+    `<span class="notes-pagination-meta">${escapeHtml(
+      typeof t === "function"
+        ? t("notesPaginationStatus")
+            .replace("{page}", String(allNotesPage))
+            .replace("{pages}", String(totalPages))
+        : `Page ${allNotesPage} / ${totalPages}`
+    )}</span>` +
+    `</div>`;
+}
+
 function filterAllNotesList() {
+  const sig = allNotesFilterSignature();
+  if (sig !== lastAllNotesFilterSignature) {
+    allNotesPage = 1;
+    lastAllNotesFilterSignature = sig;
+  }
+
   const filtered = getFilteredAndSortedAllNotes();
   const q = (document.getElementById("notesSearchInput")?.value || "").trim().toLowerCase();
   const catFilter = document.getElementById("notesCategoryFilter")?.value || "all";
-  const renderKey = notesListRenderKey(filtered, `${q}|${catFilter}|${allNotesSortMode}`);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ALL_NOTES_PAGE_SIZE));
+  if (allNotesPage > totalPages) allNotesPage = totalPages;
+  if (allNotesPage < 1) allNotesPage = 1;
+
+  const start = (allNotesPage - 1) * ALL_NOTES_PAGE_SIZE;
+  const pageNotes = filtered.slice(start, start + ALL_NOTES_PAGE_SIZE);
+  const renderKey = notesListRenderKey(filtered, `${q}|${catFilter}|${allNotesSortMode}|p${allNotesPage}`);
   const container = document.getElementById("allNotesList");
   const countEl = document.getElementById("allNotesCount");
   if (renderKey === lastAllNotesRenderKey && container && container.children.length > 0) {
     if (countEl) countEl.textContent = `${filtered.length} ${t("notes")}`;
+    renderAllNotesPagination(filtered.length, totalPages);
     return;
   }
   lastAllNotesRenderKey = renderKey;
   if (countEl) countEl.textContent = `${filtered.length} ${t("notes")}`;
-  renderAllNotesList(filtered);
+  renderAllNotesList(pageNotes);
+  renderAllNotesPagination(filtered.length, totalPages);
 }
 
 async function loadMyNotes() {
@@ -9976,6 +10131,11 @@ async function loadMyNotes() {
   if (!currentUser) {
     container.className = "notes-list";
     countEl.textContent = `0 ${t("notes")}`;
+    const pag = document.getElementById("allNotesPagination");
+    if (pag) {
+      pag.innerHTML = "";
+      pag.classList.add("hidden");
+    }
     container.innerHTML = `
       <div class="note-card">
         <div class="note-content">
@@ -10028,6 +10188,11 @@ async function loadMyNotesInner() {
     }
     showToast(err.message);
     countEl.textContent = `0 ${t("notes")}`;
+    const pag = document.getElementById("allNotesPagination");
+    if (pag) {
+      pag.innerHTML = "";
+      pag.classList.add("hidden");
+    }
     container.className = "notes-list";
     container.innerHTML = `<div class="note-card"><div class="note-content"><p>${escapeHtml(err.message)}</p></div></div>`;
     refreshDepthRevealObservers();
@@ -10590,6 +10755,47 @@ function syncSettingsUsernameFieldState(formOpen) {
   }
 }
 
+function resolveSettingsPlanExpiryIso(user) {
+  if (!user) return null;
+  const keys = [
+    "currentPeriodEnd",
+    "standardExpiresAt",
+    "premiumExpiresAt",
+    "trialEndsAt",
+    "standardCoinExpiresAt",
+    "premiumExpires"
+  ];
+  for (let i = 0; i < keys.length; i += 1) {
+    const raw = user[keys[i]];
+    if (!raw) continue;
+    const tms = new Date(String(raw)).getTime();
+    if (Number.isFinite(tms)) return new Date(tms).toISOString();
+  }
+  return null;
+}
+
+function settingsPlanKindLabel(kind) {
+  const map = {
+    free: "settingsPlanKindFree",
+    standard_trial: "settingsPlanKindTrial",
+    standard_monthly: "settingsPlanKindMonthly",
+    standard_yearly: "settingsPlanKindYearly"
+  };
+  const key = map[kind] || map.free;
+  return typeof t === "function" ? t(key) : key;
+}
+
+function settingsPlanBadgeShort(kind) {
+  const map = {
+    free: "settingsPlanBadgeFree",
+    standard_trial: "settingsPlanBadgeTrial",
+    standard_monthly: "settingsPlanBadgeMonthly",
+    standard_yearly: "settingsPlanBadgeYearly"
+  };
+  const key = map[kind] || map.free;
+  return typeof t === "function" ? t(key) : key;
+}
+
 function displayAccountInfo() {
   const fn = document.getElementById("settingsFirstName");
   const ln = document.getElementById("settingsLastName");
@@ -10601,12 +10807,11 @@ function displayAccountInfo() {
   const premiumNote = document.getElementById("settingsPremiumActiveNote");
   const premiumLead = document.getElementById("settingsPremiumLead");
   const premiumActiveBadge = document.getElementById("settingsPremiumActiveBadge");
-  const billingPlan = document.getElementById("settingsBillingPlan");
-  const billingStatus = document.getElementById("settingsBillingStatus");
-  const billingCancelAtPeriodEnd = document.getElementById("settingsBillingCancelAtPeriodEnd");
-  const billingCurrentPeriodEnd = document.getElementById("settingsBillingCurrentPeriodEnd");
-  const cancelBtn = document.getElementById("settingsCancelSubscriptionBtn");
-  const cancelHint = document.getElementById("settingsCancelSubscriptionHint");
+  const planKindLabel = document.getElementById("settingsPlanKindLabel");
+  const planStatusValue = document.getElementById("settingsPlanStatusValue");
+  const planValidUntil = document.getElementById("settingsPlanValidUntil");
+  const planValidUntilRow = document.getElementById("settingsPlanValidUntilRow");
+  const planValidUntilLabel = document.getElementById("settingsPlanValidUntilLabel");
   const editFirst = document.getElementById("settingsEditFirstName");
   const editLast = document.getElementById("settingsEditLastName");
   if (!fn || !ln || !un || !em) return;
@@ -10627,18 +10832,10 @@ function displayAccountInfo() {
       premiumLead.textContent = t("settingsPlanPitch");
     }
     if (premiumActiveBadge) premiumActiveBadge.classList.add("hidden");
-    if (billingPlan) billingPlan.textContent = "free";
-    if (billingStatus) billingStatus.textContent = "inactive";
-    if (billingCancelAtPeriodEnd) billingCancelAtPeriodEnd.textContent = "No";
-    if (billingCurrentPeriodEnd) billingCurrentPeriodEnd.textContent = "—";
-    if (cancelBtn) {
-      cancelBtn.classList.add("hidden");
-      cancelBtn.disabled = true;
-    }
-    if (cancelHint) {
-      cancelHint.classList.add("hidden");
-      cancelHint.textContent = "";
-    }
+    if (planKindLabel) planKindLabel.textContent = typeof t === "function" ? t("settingsPlanKindFree") : "Free plan";
+    if (planStatusValue) planStatusValue.textContent = typeof t === "function" ? t("settingsPlanStatusInactive") : "Not active";
+    if (planValidUntil) planValidUntil.textContent = "—";
+    if (planValidUntilRow) planValidUntilRow.classList.add("hidden");
     if (editFirst) editFirst.value = "";
     if (editLast) editLast.value = "";
     const adminRowGuest = document.getElementById("settingsAdminRow");
@@ -10670,12 +10867,19 @@ function displayAccountInfo() {
 
   const standardActive =
     typeof hasStandardAccess === "function" && hasStandardAccess(currentUser);
-  let planLabel = t("premiumPlanFreeName");
-  if (standardActive) planLabel = t("premiumPlanStandardName");
+  const planKind =
+    typeof resolveStandardPlanKind === "function"
+      ? resolveStandardPlanKind(currentUser)
+      : standardActive
+        ? "standard_monthly"
+        : "free";
+  const planLabel = settingsPlanKindLabel(planKind);
+  const badgeLabel = settingsPlanBadgeShort(planKind);
   if (badge) {
-    badge.textContent = planLabel;
+    badge.textContent = badgeLabel;
     badge.classList.toggle("settings-plan-badge--premium", false);
-    badge.classList.toggle("settings-plan-badge--standard", !!standardActive);
+    badge.classList.toggle("settings-plan-badge--standard", planKind !== "free");
+    badge.classList.toggle("settings-plan-badge--trial", planKind === "standard_trial");
   }
   if (upgradeBtn) upgradeBtn.classList.toggle("hidden", !!standardActive);
   if (premiumNote) premiumNote.classList.toggle("hidden", !standardActive);
@@ -10700,25 +10904,26 @@ function displayAccountInfo() {
     syncSettingsUsernameFieldState(form && !form.classList.contains("hidden"));
   }
 
-  const planText = String(currentUser.plan || currentUser.subscriptionPlan || "free").toLowerCase();
-  const normalizedPlan = planText === "premium" ? "standard" : planText;
-  const statusText = standardActive
-    ? String(currentUser.standardSource || currentUser.lifecycle || "active")
-    : "free";
-  const cancelScheduled = false;
-  const periodEndText = currentUser.currentPeriodEnd
-    ? new Date(currentUser.currentPeriodEnd).toLocaleString()
-    : currentUser.trialEndsAt || currentUser.standardExpiresAt || currentUser.premiumExpiresAt
-      ? new Date(
-          currentUser.trialEndsAt || currentUser.standardExpiresAt || currentUser.premiumExpiresAt
-        ).toLocaleString()
-      : "—";
-  if (billingPlan) billingPlan.textContent = normalizedPlan;
-  if (billingStatus) billingStatus.textContent = statusText;
-  if (billingCancelAtPeriodEnd) billingCancelAtPeriodEnd.textContent = cancelScheduled ? "Yes" : "No";
-  if (billingCurrentPeriodEnd) billingCurrentPeriodEnd.textContent = periodEndText;
-  if (cancelBtn) cancelBtn.classList.add("hidden");
-  if (cancelHint) cancelHint.classList.add("hidden");
+  const expiryIso = resolveSettingsPlanExpiryIso(currentUser);
+  const periodEndText = expiryIso ? new Date(expiryIso).toLocaleString() : "—";
+  if (planKindLabel) planKindLabel.textContent = planLabel;
+  if (planStatusValue) {
+    planStatusValue.textContent =
+      typeof t === "function"
+        ? t(standardActive ? "settingsPlanStatusActive" : "settingsPlanStatusInactive")
+        : standardActive
+          ? "Active"
+          : "Not active";
+  }
+  if (planValidUntilLabel) {
+    const untilKey =
+      planKind === "standard_trial" ? "settingsPlanValidUntilTrialHint" : "settingsPlanValidUntilLabel";
+    planValidUntilLabel.textContent = typeof t === "function" ? t(untilKey) : untilKey;
+  }
+  if (planValidUntil) planValidUntil.textContent = periodEndText;
+  if (planValidUntilRow) {
+    planValidUntilRow.classList.toggle("hidden", !standardActive || !expiryIso);
+  }
 
   const adminRow = document.getElementById("settingsAdminRow");
   if (adminRow) {

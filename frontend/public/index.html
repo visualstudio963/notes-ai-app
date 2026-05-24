@@ -6,21 +6,27 @@
     name="viewport"
     content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
   />
+  <meta name="theme-color" content="#0B1228" />
+  <style>
+    html, body { background-color: #0B1228; }
+  </style>
   <title>Notes AI</title>
   <meta name="notes-ai-build" content="apk-emb-260523-v7" />
   <!-- User-facing app version (bump when you ship a new APK / embedded web build). Single source for Settings footer. -->
   <meta name="notes-ai-app-version" content="1.0" />
   <meta name="notes-ai-api-base" content="https://notes-ai-app.onrender.com" />
+  <meta name="notes-ai-public-url" content="https://notes-ai-app-theta.vercel.app" />
   <script>
     window.__NOTES_AI_BUILD__ = "apk-emb-260523-v7";
     window.__APP_ENV__ = window.__APP_ENV__ || {};
     window.__APP_ENV__.VITE_API_URL = "https://notes-ai-app.onrender.com";
+    window.__APP_ENV__.PUBLIC_APP_URL = "https://notes-ai-app-theta.vercel.app";
   </script>
   <link rel="manifest" href="/manifest.json?v=apk-emb-260508-v1" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="stylesheet" href="/css/style.css?v=footer-balanced-v2" />
-  <link rel="stylesheet" href="/css/settings-theme.css?v=apk-emb-260523-v2" />
-  <link rel="stylesheet" href="/css/mobile-responsive.css?v=audit-safe-v1" />
+  <link rel="stylesheet" href="/css/style.css?v=perf-audit-v1" />
+  <link rel="stylesheet" href="/css/settings-theme.css?v=perf-audit-v1" />
+  <link rel="stylesheet" href="/css/mobile-responsive.css?v=perf-audit-v1" />
   <script defer src="/js/sw-register.js?v=apk-emb-260508-v1"></script>
 </head>
 <body>
@@ -756,6 +762,19 @@
                         <img id="scanCamPhotoPreview" class="scan-cam-stage__media scan-cam-stage__media--img hidden" alt="" />
                         <div id="scanCamPdfWrap" class="scan-cam-stage__media scan-cam-stage__media--pdf hidden">
                           <embed id="scanCamPdfEmbed" class="scan-cam-pdf-embed" type="application/pdf" title="PDF preview" />
+                        </div>
+                        <div id="scanCamDocPreview" class="scan-cam-doc-preview hidden" aria-live="polite">
+                          <img id="scanCamDocThumb" class="scan-cam-doc-preview__thumb hidden" alt="" />
+                          <div class="scan-cam-doc-preview__body">
+                            <span class="scan-cam-doc-preview__icon" aria-hidden="true">📄</span>
+                            <p id="scanCamDocName" class="scan-cam-doc-preview__name">document.pdf</p>
+                            <p id="scanCamDocMeta" class="scan-cam-doc-preview__meta"></p>
+                            <p class="scan-cam-doc-preview__hint" data-t="scanCamDocReadyHint">Ready — tap Convert to text</p>
+                          </div>
+                        </div>
+                        <div id="scanCamStageLoading" class="scan-cam-stage-loading hidden" aria-live="polite" aria-busy="true">
+                          <div class="scan-cam-stage-loading__spinner" aria-hidden="true"></div>
+                          <p id="scanCamStageLoadingText" class="scan-cam-stage-loading__text" data-t="scanCamDocLoading">Loading document…</p>
                         </div>
                         <div id="scanCamScanline" class="scan-cam-scanline hidden" aria-hidden="true"></div>
                       </div>
@@ -1877,16 +1896,16 @@
     </div>
   </div>
 
-  <div class="toast hidden" id="toast"></div>
+  <div class="toast hidden" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
   <div class="reminder-foreground-toast hidden" id="reminderForegroundToast" role="status" aria-live="polite" aria-hidden="true"></div>
   <!-- Heavy modules lazy-loaded from app.js (export, web chat, onboarding, socket.io) -->
   <script defer src="/js/config/platform-native.js?v=apk-emb-260508-v1"></script>
   <script defer src="/js/config/constants.js?v=apk-emb-260508-v1"></script>
-  <script defer src="/js/config/api-base.js?v=apk-emb-260508-v1"></script>
+  <script defer src="/js/config/api-base.js?v=invite-public-url-v1"></script>
   <script defer src="/js/features/premium.js?v=trial-sync-v1"></script>
   <script defer src="/js/services/socket-client.js?v=audit-safe-v1"></script>
-  <script defer src="/translations.js?v=webchat-plan-v1"></script>
-  <script defer src="/js/components/toast.js?v=apk-emb-260508-v1"></script>
-  <script defer src="/js/app.js?v=audit-safe-v1"></script>
+  <script defer src="/translations.js?v=scan-doc-preview-v1"></script>
+  <script defer src="/js/components/toast.js?v=toast-balance-v1"></script>
+  <script defer src="/js/app.js?v=perf-audit-v1"></script>
 </body>
 </html>

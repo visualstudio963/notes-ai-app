@@ -134,6 +134,16 @@ function ensureNoteExportLoaded() {
   return appendNotesAiAppBundle(LAZY_APP_SCRIPTS.noteExport, "note-export");
 }
 
+/** Scan Cam PDF export uses jsPDF from the lazy note-export bundle. */
+function scanCamEnsureJsPdfReady() {
+  return ensureNoteExportLoaded().then(() => {
+    if (typeof window.ensureJsPdfVendorLoaded === "function") {
+      return window.ensureJsPdfVendorLoaded();
+    }
+    return Promise.reject(new Error("export_bundle_missing"));
+  });
+}
+
 function ensureOnboardingTutorialLoaded() {
   return appendNotesAiAppBundle(LAZY_APP_SCRIPTS.onboarding, "onboarding");
 }
@@ -381,6 +391,12 @@ let registerWebPushInFlight = null;
 
 /** Single offline flush interval (avoid duplicate timers if bootstrap is ever duplicated). */
 let offlineNotesFlushIntervalId = null;
+/** Coalesces overlapping GET /api/premium/status during login / navigation bursts. */
+let mergePremiumFromServerInflight = null;
+/** In-flight guards for category / all-notes fetches. */
+let loadNotesInflight = null;
+let loadNotesInflightCategory = "";
+let loadMyNotesInflight = null;
 function getRenderBackendOrigin() {
   try {
     if (typeof window !== "undefined" && window.API_BASE_URL) {
@@ -2380,10 +2396,12 @@ function scanCamUpdateStageVisibility() {
   const vw = document.getElementById("scanCamVideoWrap");
   const img = document.getElementById("scanCamPhotoPreview");
   const pdfWrap = document.getElementById("scanCamPdfWrap");
+  const docPreview = document.getElementById("scanCamDocPreview");
   if (!ph || !vw || !img) return;
   const hasVideo = !vw.classList.contains("hidden");
   const hasImg = !!img.getAttribute("src");
-  const hasPdf = !!(pdfWrap && !pdfWrap.classList.contains("hidden"));
+  const hasDoc = !!(docPreview && !docPreview.classList.contains("hidden"));
+  const hasPdf = hasDoc || !!(pdfWrap && !pdfWrap.classList.contains("hidden"));
   ph.classList.toggle("hidden", !!(hasVideo || hasImg || hasPdf));
 }
 
@@ -2467,6 +2485,7 @@ function scanCamClearPdf() {
   const wrap = document.getElementById("scanCamPdfWrap");
   if (embed) embed.removeAttribute("src");
   if (wrap) wrap.classList.add("hidden");
+  scanCamClearDocPreview();
   if (scanCamPdfObjectUrl) {
     try {
       URL.revokeObjectURL(scanCamPdfObjectUrl);
@@ -2477,12 +2496,128 @@ function scanCamClearPdf() {
   }
 }
 
+function scanCamClearDocPreview() {
+  const card = document.getElementById("scanCamDocPreview");
+  const thumb = document.getElementById("scanCamDocThumb");
+  const nameEl = document.getElementById("scanCamDocName");
+  const metaEl = document.getElementById("scanCamDocMeta");
+  if (thumb) {
+    thumb.removeAttribute("src");
+    thumb.classList.add("hidden");
+  }
+  if (nameEl) nameEl.textContent = "";
+  if (metaEl) metaEl.textContent = "";
+  if (card) card.classList.add("hidden");
+}
+
+function scanCamFormatFileSize(bytes) {
+  const n = Number(bytes) || 0;
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function scanCamShowStageLoading(text) {
+  const overlay = document.getElementById("scanCamStageLoading");
+  const textEl = document.getElementById("scanCamStageLoadingText");
+  const stage = document.querySelector(".scan-cam-stage");
+  if (textEl && text) textEl.textContent = text;
+  if (overlay) overlay.classList.remove("hidden");
+  if (stage) stage.classList.add("scan-cam-stage--busy");
+}
+
+function scanCamHideStageLoading() {
+  const overlay = document.getElementById("scanCamStageLoading");
+  const stage = document.querySelector(".scan-cam-stage");
+  if (overlay) overlay.classList.add("hidden");
+  if (stage) stage.classList.remove("scan-cam-stage--busy");
+}
+
+function scanCamShowDocPreview({ name, size, thumb, pages }) {
+  const card = document.getElementById("scanCamDocPreview");
+  const thumbEl = document.getElementById("scanCamDocThumb");
+  const nameEl = document.getElementById("scanCamDocName");
+  const metaEl = document.getElementById("scanCamDocMeta");
+  const wrap = document.getElementById("scanCamPdfWrap");
+  const embed = document.getElementById("scanCamPdfEmbed");
+  if (wrap) wrap.classList.add("hidden");
+  if (embed) embed.removeAttribute("src");
+  if (!card) return;
+  if (nameEl) nameEl.textContent = name || "document.pdf";
+  const parts = [];
+  if (size != null) parts.push(scanCamFormatFileSize(size));
+  if (pages != null) parts.push(t("scanCamDocPages").replace("{n}", String(pages)));
+  if (metaEl) metaEl.textContent = parts.join(" · ");
+  if (thumb && thumbEl) {
+    thumbEl.src = thumb;
+    thumbEl.classList.remove("hidden");
+  } else if (thumbEl) {
+    thumbEl.removeAttribute("src");
+    thumbEl.classList.add("hidden");
+  }
+  card.classList.remove("hidden");
+}
+
+async function scanCamBuildPdfThumb(pdfUrl) {
+  await scanCamEnsureVendorScriptsLoaded();
+  if (typeof pdfjsLib === "undefined") {
+    throw new Error("MISSING_PDFJS");
+  }
+  if (!scanCamPdfWorkerConfigured) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+    scanCamPdfWorkerConfigured = true;
+  }
+  const pdf = await pdfjsLib.getDocument({ url: pdfUrl, verbosity: 0 }).promise;
+  const page = await pdf.getPage(1);
+  const viewport = page.getViewport({ scale: 1.4 });
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("NO_CANVAS");
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  return { thumb: canvas.toDataURL("image/jpeg", 0.82), pages: pdf.numPages };
+}
+
+async function scanCamRenderPdfPreview(file, url) {
+  const status = document.getElementById("scanCamStatus");
+  scanCamShowStageLoading(t("scanCamDocLoading"));
+  scanCamCloseCameraUi();
+  scanCamCloseResultPanel();
+  const launch = document.getElementById("scanCamLaunch");
+  const stageBlock = document.getElementById("scanCamStageBlock");
+  if (launch) launch.classList.add("hidden");
+  if (stageBlock) stageBlock.classList.remove("hidden");
+  let thumb = null;
+  let pages = null;
+  try {
+    const built = await scanCamBuildPdfThumb(url);
+    thumb = built.thumb;
+    pages = built.pages;
+  } catch (e) {
+    if (notesAiVerboseLogs() && typeof console !== "undefined" && console.warn) {
+      console.warn("[Scan Cam PDF preview]", e);
+    }
+  }
+  scanCamHideStageLoading();
+  scanCamShowDocPreview({
+    name: file.name || "document.pdf",
+    size: file.size,
+    thumb,
+    pages,
+  });
+  if (status) status.textContent = t("scanCamPdfUploaded");
+  scanCamUpdateStageVisibility();
+  scanCamSyncActionUi();
+}
+
 function scanCamHasStillPreview() {
   const img = document.getElementById("scanCamPhotoPreview");
-  const embed = document.getElementById("scanCamPdfEmbed");
-  const wrap = document.getElementById("scanCamPdfWrap");
+  const docPreview = document.getElementById("scanCamDocPreview");
   if (img && img.getAttribute("src")) return true;
-  if (wrap && !wrap.classList.contains("hidden") && embed && embed.getAttribute("src")) return true;
+  if (docPreview && !docPreview.classList.contains("hidden")) return true;
+  if (scanCamPdfObjectUrl) return true;
   return false;
 }
 
@@ -2512,7 +2647,8 @@ function scanCamSyncActionUi() {
 
 function scanCamResetWorkflowUi() {
   const stage = document.querySelector(".scan-cam-stage");
-  if (stage) stage.classList.remove("scan-cam-stage--converting");
+  if (stage) stage.classList.remove("scan-cam-stage--converting", "scan-cam-stage--busy");
+  scanCamHideStageLoading();
   const line = document.getElementById("scanCamScanline");
   if (line) line.classList.add("hidden");
   scanCamCloseResultPanel();
@@ -2779,18 +2915,24 @@ async function tryConsumePendingInviteCode() {
  */
 async function mergePremiumFromServer() {
   if (!currentUser || !accessToken || authInvalidated) return false;
-  try {
-    const data = await apiFetch("/api/premium/status");
-    mergePremiumStatusIntoCurrentUser(data);
-    persistCurrentUserToStorage();
-    updatePremiumUi();
-    await tryConsumePendingInviteCode();
-    await tryQuietCoinsBootstrap();
-    maybeShowTrialGiftWelcome();
-    return true;
-  } catch {
-    return false;
-  }
+  if (mergePremiumFromServerInflight) return mergePremiumFromServerInflight;
+  mergePremiumFromServerInflight = (async () => {
+    try {
+      const data = await apiFetch("/api/premium/status");
+      mergePremiumStatusIntoCurrentUser(data);
+      persistCurrentUserToStorage();
+      updatePremiumUi();
+      await tryConsumePendingInviteCode();
+      await tryQuietCoinsBootstrap();
+      maybeShowTrialGiftWelcome();
+      return true;
+    } catch {
+      return false;
+    } finally {
+      mergePremiumFromServerInflight = null;
+    }
+  })();
+  return mergePremiumFromServerInflight;
 }
 
 const TRIAL_GIFT_DISMISS_STORAGE = "aiNotesTrialGiftDismissed";
@@ -2964,8 +3106,9 @@ function webChatShowPremiumTabTooltip(anchor) {
   left = Math.max(margin, Math.min(left, vw - w - margin));
   let top = rect.top - h - gap;
   if (top < margin) top = rect.bottom + gap;
-  tip.style.left = `${left}px`;
-  tip.style.top = `${top}px`;
+  tip.style.left = "0";
+  tip.style.top = "0";
+  tip.style.transform = `translate3d(${left}px, ${top}px, 0)`;
   requestAnimationFrame(() => tip.classList.add("is-visible"));
   window.__webChatPremiumTabTooltipHideTimer = window.setTimeout(webChatDismissPremiumTabTooltip, 2600);
 }
@@ -3848,6 +3991,10 @@ function authPostLoginShellSuccess(data, rememberMe) {
     void updateHomeDashboardStats();
   });
   startWebNotificationScheduler();
+  ensureOfflineNotesFlushInterval();
+  scheduleDailyPlannerMidnightReset();
+  scheduleDailyPlannerNotificationLoop();
+  scheduleWebChatFabPromptCycle();
   if (typeof scheduleOnboardingTutorialAfterAuth === "function") scheduleOnboardingTutorialAfterAuth();
 }
 
@@ -4206,7 +4353,13 @@ function coinsHubBuildInviteUrl(codeRaw) {
           .replace(/[^A-Z0-9]/g, "")
       : "";
   if (!code || code.length < 4) return "";
-  return `${window.location.origin}/invite/${encodeURIComponent(code)}`;
+  const base =
+    typeof getPublicAppOrigin === "function"
+      ? getPublicAppOrigin()
+      : typeof PUBLIC_APP_ORIGIN === "string" && PUBLIC_APP_ORIGIN
+        ? PUBLIC_APP_ORIGIN
+        : window.location.origin.replace(/\/+$/, "");
+  return `${base}/invite/${encodeURIComponent(code)}`;
 }
 
 function coinsHubApplyStreakUi(coins) {
@@ -4754,11 +4907,20 @@ function showWebChatFabTip() {
   }, 4400);
 }
 
+function pauseWebChatFabPromptCycle() {
+  if (webChatFabPromptCycleTimer) {
+    window.clearInterval(webChatFabPromptCycleTimer);
+    webChatFabPromptCycleTimer = null;
+  }
+}
+
 function scheduleWebChatFabPromptCycle() {
-  if (webChatFabPromptCycleTimer) window.clearInterval(webChatFabPromptCycleTimer);
+  pauseWebChatFabPromptCycle();
   if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+  if (webChatDrawerIsOpen() || webChatQuickPanelOpen()) return;
   webChatFabPromptCycleTimer = window.setInterval(() => {
     if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+    if (webChatDrawerIsOpen() || webChatQuickPanelOpen()) return;
     showWebChatFabTip();
   }, 19000);
 }
@@ -5332,6 +5494,7 @@ function closeWebChatDrawer() {
   window.setTimeout(() => {
     if (!el.classList.contains("web-chat-drawer--active")) el.classList.add("hidden");
     document.body.classList.remove("web-chat-drawer-open");
+    scheduleWebChatFabPromptCycle();
   }, 260);
 }
 
@@ -5357,6 +5520,7 @@ async function openWebChat() {
   drawer.classList.add("web-chat-drawer--opening");
   window.setTimeout(() => drawer.classList.remove("web-chat-drawer--opening"), 300);
   document.body.classList.add("web-chat-drawer-open");
+  pauseWebChatFabPromptCycle();
   webChatSetUnread(0);
   closeWebChatQuickActions();
   if (typeof applyTranslations === "function") applyTranslations();
@@ -5550,6 +5714,9 @@ function openScanCamPage() {
     if (st) st.textContent = "";
     scanCamResetWorkflowUi();
     scanCamMaybeShowOnboarding();
+    if (typeof userHasScanCamAccess === "function" && userHasScanCamAccess(currentUser)) {
+      void scanCamEnsureJsPdfReady().catch(() => {});
+    }
   });
 }
 
@@ -5964,19 +6131,8 @@ function scanCamHandleDocumentUpload(inputEl) {
     }
     const url = URL.createObjectURL(file);
     scanCamPdfObjectUrl = url;
-    const embed = document.getElementById("scanCamPdfEmbed");
-    const wrap = document.getElementById("scanCamPdfWrap");
-    const status = document.getElementById("scanCamStatus");
-    if (embed && wrap) {
-      embed.src = url;
-      wrap.classList.remove("hidden");
-    }
-    scanCamCloseCameraUi();
-    scanCamCloseResultPanel();
-    if (status) status.textContent = t("scanCamPdfUploaded");
-    scanCamUpdateStageVisibility();
-    scanCamSyncActionUi();
     inputEl.value = "";
+    void scanCamRenderPdfPreview(file, url);
     return;
   }
   showToast(t("scanCamInvalidDocument"));
@@ -6028,9 +6184,7 @@ function scanCamDownloadPdf() {
   }
   void (async () => {
     try {
-      if (typeof window.ensureJsPdfVendorLoaded === "function") {
-        await window.ensureJsPdfVendorLoaded();
-      }
+      await scanCamEnsureJsPdfReady();
     } catch {
       showToast(
         typeof t === "function" ? t("noteExportToolsLoading") : "Export tools could not load. Try again."
@@ -6099,6 +6253,7 @@ function scanCamDownloadImage() {
   }
   void (async () => {
     try {
+      await ensureNoteExportLoaded();
       const res = await fetch(src);
       const blob = await res.blob();
       if (typeof window.saveOrDownloadBlob === "function") {
@@ -6331,7 +6486,7 @@ async function scanCamEnsureTesseractWorker() {
   }
 }
 
-async function scanCamRecognizeFromPdfUrl(pdfUrl) {
+async function scanCamRecognizeFromPdfUrl(pdfUrl, onProgress) {
   await scanCamEnsureVendorScriptsLoaded();
   if (typeof pdfjsLib === "undefined") {
     throw new Error("MISSING_PDFJS");
@@ -6350,6 +6505,7 @@ async function scanCamRecognizeFromPdfUrl(pdfUrl) {
   const parts = [];
   const n = Math.min(pdf.numPages, SCAN_CAM_PDF_OCR_MAX_PAGES);
   for (let p = 1; p <= n; p += 1) {
+    if (typeof onProgress === "function") onProgress(p, n);
     const page = await pdf.getPage(p);
     const viewport = page.getViewport({ scale: 2 });
     canvas.width = viewport.width;
@@ -6381,19 +6537,14 @@ async function scanCamRunOcr() {
   }
   if (!scanCamEnsureConvertAccess()) return;
   if (convertBtn) convertBtn.disabled = true;
-  if (line) line.classList.remove("hidden");
+  const preview = document.getElementById("scanCamPhotoPreview");
+  const hasImg = !!(preview && preview.getAttribute("src") && !preview.classList.contains("hidden"));
+  const hasPdf = !!scanCamPdfObjectUrl && !hasImg;
+  if (line) line.classList.toggle("hidden", hasPdf);
   if (stage) stage.classList.add("scan-cam-stage--converting");
+  scanCamShowStageLoading(t("scanCamProcessing"));
   if (status) status.textContent = t("scanCamProcessing");
   try {
-    const preview = document.getElementById("scanCamPhotoPreview");
-    const pdfWrap = document.getElementById("scanCamPdfWrap");
-    const hasImg = !!(preview && preview.getAttribute("src") && !preview.classList.contains("hidden"));
-    const hasPdf = !!(
-      pdfWrap &&
-      !pdfWrap.classList.contains("hidden") &&
-      scanCamPdfObjectUrl
-    );
-
     let text = "";
 
     if (hasImg) {
@@ -6423,7 +6574,13 @@ async function scanCamRunOcr() {
         showToast(t("scanCamPdfJsMissing"));
         return;
       }
-      text = await scanCamRecognizeFromPdfUrl(scanCamPdfObjectUrl);
+      text = await scanCamRecognizeFromPdfUrl(scanCamPdfObjectUrl, (current, total) => {
+        scanCamShowStageLoading(
+          t("scanCamOcrPageProgress")
+            .replace("{current}", String(current))
+            .replace("{total}", String(total))
+        );
+      });
     } else {
       if (status) status.textContent = t("scanCamNeedPhotoFirst");
       return;
@@ -6451,6 +6608,7 @@ async function scanCamRunOcr() {
     showToast(msg);
     if (status) status.textContent = msg;
   } finally {
+    scanCamHideStageLoading();
     if (line) line.classList.add("hidden");
     if (stage) stage.classList.remove("scan-cam-stage--converting");
     if (convertBtn) convertBtn.disabled = !scanCamHasStillPreview();
@@ -8491,24 +8649,35 @@ function getPublicNotes() {
 }
 
 async function loadNotes() {
+  const category = currentCategory;
+  if (loadNotesInflight && loadNotesInflightCategory === category) return loadNotesInflight;
+  loadNotesInflightCategory = category;
+  loadNotesInflight = loadNotesInner(category).finally(() => {
+    if (loadNotesInflightCategory === category) {
+      loadNotesInflight = null;
+      loadNotesInflightCategory = "";
+    }
+  });
+  return loadNotesInflight;
+}
+
+async function loadNotesInner(category) {
   try {
-    const data = await apiFetch(`/api/notes/${currentCategory}`);
+    const data = await apiFetch(`/api/notes/${category}`);
     let list = data.notes || [];
-    if (currentCategory === "scan_cam") {
+    if (category === "scan_cam") {
       list = mergeNotesWithScanCamLocal(list);
     }
     currentNotes = list;
-    offlineNotesRecordSuccessfulCategoryLoad(currentCategory, list);
+    offlineNotesRecordSuccessfulCategoryLoad(category, list);
     renderNotes(currentNotes);
     syncOfflineIndicatorUi();
   } catch (err) {
     const fallback =
-      currentUser && currentCategory
-        ? offlineNotesPickCategoryList(currentCategory)
-        : null;
+      currentUser && category ? offlineNotesPickCategoryList(category) : null;
     if (fallback != null && Array.isArray(fallback)) {
       let list = fallback;
-      if (currentCategory === "scan_cam") {
+      if (category === "scan_cam") {
         list = mergeNotesWithScanCamLocal(list);
       }
       currentNotes = list;
@@ -8561,6 +8730,7 @@ function renderNotes(notes) {
     return;
   }
 
+  const fragment = document.createDocumentFragment();
   notes.forEach((note) => {
     const noteCard = document.createElement("div");
     noteCard.className = "note-card";
@@ -8586,8 +8756,9 @@ function renderNotes(notes) {
       openNoteViewModal(note, "category");
     });
     noteCard.appendChild(inner);
-    container.appendChild(noteCard);
+    fragment.appendChild(noteCard);
   });
+  container.appendChild(fragment);
   refreshDepthRevealObservers();
 }
 
@@ -9257,6 +9428,18 @@ async function loadMyNotes() {
     return;
   }
 
+  if (loadMyNotesInflight) return loadMyNotesInflight;
+  loadMyNotesInflight = loadMyNotesInner().finally(() => {
+    loadMyNotesInflight = null;
+  });
+  return loadMyNotesInflight;
+}
+
+async function loadMyNotesInner() {
+  const container = document.getElementById("allNotesList");
+  const countEl = document.getElementById("allNotesCount");
+  if (!container || !countEl) return;
+
   try {
     const data = await apiFetch("/api/notes");
     const notes = data.notes || [];
@@ -9379,7 +9562,9 @@ function renderAllNotesList(notes) {
   }
 
   container.className = "notes-list notes-list--grid";
-  notes.forEach((note) => appendMyNoteCard(container, note));
+  const fragment = document.createDocumentFragment();
+  notes.forEach((note) => appendMyNoteCard(fragment, note));
+  container.appendChild(fragment);
   refreshDepthRevealObservers();
 }
 
@@ -9684,9 +9869,42 @@ function getOrCreateDeviceId() {
   }
 }
 
+function clearAppLifecycleTimers() {
+  if (dailyPlannerNotifyTimer) {
+    window.clearInterval(dailyPlannerNotifyTimer);
+    dailyPlannerNotifyTimer = null;
+  }
+  dailyPlannerNotifyLoopRegistered = false;
+  if (dailyPlannerMidnightTimer) {
+    window.clearTimeout(dailyPlannerMidnightTimer);
+    dailyPlannerMidnightTimer = null;
+  }
+  if (offlineNotesFlushIntervalId != null) {
+    window.clearInterval(offlineNotesFlushIntervalId);
+    offlineNotesFlushIntervalId = null;
+  }
+  pauseWebChatFabPromptCycle();
+  if (webChatFabTipTimer) {
+    window.clearTimeout(webChatFabTipTimer);
+    webChatFabTipTimer = null;
+  }
+  mergePremiumFromServerInflight = null;
+  loadNotesInflight = null;
+  loadNotesInflightCategory = "";
+  loadMyNotesInflight = null;
+}
+
+function ensureOfflineNotesFlushInterval() {
+  if (offlineNotesFlushIntervalId != null) return;
+  offlineNotesFlushIntervalId = window.setInterval(() => {
+    if (isBrowserOnline() && offlineNotesReadQueue().length) void offlineNotesFlushQueue();
+  }, 45000);
+}
+
 function logoutUser() {
   nativeOAuthDeepLinkHandled = false;
   stopWebReminderPollingScheduler();
+  clearAppLifecycleTimers();
   webRemindersListFetchPromise = null;
   homeDashboardStatsInFlight = null;
   webChatSessionTurns = [];
@@ -10543,9 +10761,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   if (offlineNotesFlushIntervalId != null) {
     window.clearInterval(offlineNotesFlushIntervalId);
   }
-  offlineNotesFlushIntervalId = window.setInterval(() => {
-    if (isBrowserOnline() && offlineNotesReadQueue().length) void offlineNotesFlushQueue();
-  }, 45000);
+  ensureOfflineNotesFlushInterval();
   syncOfflineIndicatorUi();
 
   initDepthRevealSystem();
@@ -10572,10 +10788,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       "visibilitychange",
       () => {
         if (document.visibilityState === "hidden") {
-          if (webChatFabPromptCycleTimer) {
-            window.clearInterval(webChatFabPromptCycleTimer);
-            webChatFabPromptCycleTimer = null;
-          }
+          pauseWebChatFabPromptCycle();
           return;
         }
         scheduleWebChatFabPromptCycle();
@@ -10664,6 +10877,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   };
   const useAutoHideTopbar = () =>
     isMobileViewport() || (typeof isNativeApp === "function" && isNativeApp());
+  const skipFloatingScrollFx = () =>
+    isMobileViewport() || (typeof isNativeApp === "function" && isNativeApp());
   const syncTopbarAutoHide = (y) => {
     if (!useAutoHideTopbar()) {
       if (topbarAutoHidden) {
@@ -10728,7 +10943,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         lastMobileScrolledState = false;
         document.body.classList.remove("mobile-scrolled");
       }
-      if (lastFloatingScrolledState !== scrolled) {
+      if (!skipFloatingScrollFx() && lastFloatingScrolledState !== scrolled) {
         lastFloatingScrolledState = scrolled;
         document.body.classList.toggle("floating-scrolled", scrolled);
       }
@@ -10739,7 +10954,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       lastMobileScrolledState = false;
       document.body.classList.remove("mobile-scrolled");
     }
-    if (lastFloatingScrolledState !== scrolled) {
+    if (!skipFloatingScrollFx() && lastFloatingScrolledState !== scrolled) {
       lastFloatingScrolledState = scrolled;
       document.body.classList.toggle("floating-scrolled", scrolled);
     }

@@ -34,26 +34,49 @@
   --notes-fab-size-planner: var(--notes-fab-size);
   --notes-fab-stack-gap: clamp(6px, 1.8vw, 8px);
   --notes-fab-planner-offset: 0px;
-  --notes-fab-nav-gap: 12px;
+  --notes-fab-nav-gap: 14px;
   --notes-fab-stack-total: calc(
     var(--notes-fab-size) + var(--notes-fab-stack-gap) + var(--notes-fab-size)
   );
-  /* FABs sit above footer content + small gap; safe-area lives in footer padding */
-  --notes-fab-bottom-base: calc(
-    var(--notes-footer-content-h) + var(--notes-fab-nav-gap) + var(--notes-safe-bottom)
-  );
+  /* Anchor FABs just above the phone nav / gesture bar — not footer document height */
+  --notes-fab-bottom-base: calc(var(--notes-fab-nav-gap) + var(--notes-safe-bottom));
   --notes-main-bottom-pad: var(--notes-footer-block-gap);
   --notes-scroll-bottom-pad: max(
     var(--notes-main-bottom-pad),
     calc(var(--notes-fab-bottom-base) + var(--notes-fab-size) + 8px)
   );
   --notes-fab-clearance: var(--notes-scroll-bottom-pad);
+  --notes-toast-gap: 10px;
+  --notes-toast-bottom: calc(
+    var(--notes-fab-nav-gap) + var(--notes-safe-bottom) + var(--notes-fab-stack-total) + var(--notes-toast-gap)
+  );
+
+  /* Cross-device type scale — px caps beat vw + system font scaling drift */
+  --notes-type-2xs: 10px;
+  --notes-type-xs: 11px;
+  --notes-type-sm: 12px;
+  --notes-type-base: 13px;
+  --notes-type-md: 14px;
+  --notes-type-lg: 16px;
+  --notes-type-xl: 18px;
+  --notes-type-2xl: 20px;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 html.capacitor-native {
-  /* Modest fallback when WebView reports 0 safe-area */
-  --notes-safe-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
+  font-size: 16px;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+  /* Modest fallback when WebView reports 0 safe-area (3-button nav / gesture bar) */
+  --notes-safe-bottom: max(env(safe-area-inset-bottom, 0px), 20px);
   --notes-footer-pad-bottom: max(8px, var(--notes-safe-bottom));
+  --notes-fab-nav-gap: 12px;
+  --notes-fab-bottom-base: calc(var(--notes-fab-nav-gap) + var(--notes-safe-bottom));
 }
 
 html {
@@ -159,7 +182,7 @@ code,
 .modal-header h3 {
   min-width: 0;
   flex: 1 1 auto;
-  font-size: clamp(1.05rem, 4.5vw, 1.35rem);
+  font-size: var(--notes-type-lg);
   line-height: 1.25;
 }
 
@@ -190,27 +213,27 @@ select {
 
 .page-header h2,
 .page-header h1 {
-  font-size: clamp(1.2rem, 5vw, 1.65rem);
+  font-size: var(--notes-type-xl);
   line-height: 1.2;
   min-width: 0;
 }
 
 .topbar-heading {
-  font-size: clamp(1.25rem, 5.2vw, 1.85rem);
+  font-size: var(--notes-type-lg);
 }
 
 .eyebrow {
-  font-size: clamp(0.72rem, 2.8vw, 0.85rem);
+  font-size: var(--notes-type-xs);
 }
 
 .home-hero-title {
-  font-size: clamp(1.2rem, 5.4vw, 1.75rem);
+  font-size: var(--notes-type-lg);
 }
 
 .home-copy,
 .card-subtitle,
 .note-card-text {
-  font-size: clamp(0.84rem, 3.6vw, 0.95rem);
+  font-size: var(--notes-type-sm);
 }
 
 /* Buttons: fluid width, no rigid px columns on narrow screens */
@@ -537,6 +560,8 @@ select {
   #webChatFab,
   .daily-planner-fab,
   #dailyPlannerFab {
+    position: fixed !important;
+    top: auto !important;
     right: max(14px, calc(var(--notes-safe-right) + 10px)) !important;
     width: var(--notes-fab-size) !important;
     height: var(--notes-fab-size) !important;
@@ -547,32 +572,43 @@ select {
 
   .web-chat-fab,
   #webChatFab {
-    bottom: var(--notes-fab-bottom-base) !important;
+    bottom: calc(var(--notes-fab-nav-gap) + var(--notes-safe-bottom)) !important;
     z-index: 1301;
   }
 
   .daily-planner-fab,
   #dailyPlannerFab {
     bottom: calc(
-      var(--notes-fab-bottom-base) + var(--notes-fab-size) + var(--notes-fab-stack-gap)
+      var(--notes-fab-nav-gap) + var(--notes-safe-bottom) + var(--notes-fab-size) + var(--notes-fab-stack-gap)
     ) !important;
     z-index: 1300;
   }
 
+  .web-chat-fab-tip,
+  #webChatFabTip {
+    position: fixed !important;
+    top: auto !important;
+    right: max(72px, calc(var(--notes-safe-right) + 66px)) !important;
+    bottom: calc(
+      var(--notes-fab-nav-gap) + var(--notes-safe-bottom) + var(--notes-fab-size) + 6px
+    ) !important;
+    z-index: 1301;
+  }
+
   .discord-fab {
     left: max(14px, calc(var(--notes-safe-left) + 10px));
-    bottom: var(--notes-fab-bottom-base);
+    bottom: calc(var(--notes-fab-nav-gap) + var(--notes-safe-bottom));
   }
 
   body:has(#webChat:not(.hidden)) .web-chat-fab,
   body:has(#webChat:not(.hidden)) #webChatFab {
-    bottom: var(--notes-fab-bottom-base) !important;
+    bottom: calc(var(--notes-fab-nav-gap) + var(--notes-safe-bottom)) !important;
   }
 
   body:has(#webChat:not(.hidden)) .daily-planner-fab,
   body:has(#webChat:not(.hidden)) #dailyPlannerFab {
     bottom: calc(
-      var(--notes-fab-bottom-base) + var(--notes-fab-size) + var(--notes-fab-stack-gap)
+      var(--notes-fab-nav-gap) + var(--notes-safe-bottom) + var(--notes-fab-size) + var(--notes-fab-stack-gap)
     ) !important;
   }
 }
@@ -588,10 +624,10 @@ select {
   }
 
   #home .home-categories-grid .hex-card {
-    min-height: clamp(168px, 48vw, 196px) !important;
+    min-height: 152px !important;
     width: auto !important;
     max-width: none !important;
-    border-radius: clamp(12px, 3.5vw, 16px) !important;
+    border-radius: 12px !important;
   }
 
   #home .home-categories-grid .hex-card-main {
@@ -601,29 +637,29 @@ select {
     justify-content: flex-start !important;
     text-align: center !important;
     grid-template-columns: unset !important;
-    padding: clamp(8px, 2.5vw, 12px) clamp(6px, 2vw, 10px) clamp(6px, 2vw, 8px) !important;
-    gap: clamp(4px, 1.5vw, 7px) !important;
+    padding: 8px 6px 6px !important;
+    gap: 4px !important;
   }
 
   #home .home-categories-grid .category-icon,
   #home .home-categories-grid .hex-icon {
-    width: clamp(36px, 11vw, 46px) !important;
-    height: clamp(36px, 11vw, 46px) !important;
-    min-width: clamp(36px, 11vw, 46px) !important;
-    font-size: clamp(1rem, 4vw, 1.28rem) !important;
-    border-radius: clamp(10px, 3vw, 12px) !important;
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    font-size: 18px !important;
+    border-radius: 10px !important;
     margin: 0 !important;
     flex-shrink: 0;
   }
 
   #home .home-categories-grid .hex-card-main strong {
-    font-size: clamp(0.82rem, 3.2vw, 1.02rem) !important;
+    font-size: var(--notes-type-sm) !important;
     line-height: 1.15 !important;
   }
 
   #home .home-categories-grid .card-subtitle {
-    font-size: clamp(0.62rem, 2.6vw, 0.78rem) !important;
-    line-height: 1.28 !important;
+    font-size: var(--notes-type-2xs) !important;
+    line-height: 1.3 !important;
     max-width: 100% !important;
     margin: 0 auto !important;
     display: -webkit-box;
@@ -633,9 +669,9 @@ select {
   }
 
   #home .home-categories-grid .hex-card-add {
-    min-height: clamp(28px, 8vw, 34px) !important;
-    padding: clamp(5px, 1.5vw, 7px) clamp(4px, 1.2vw, 8px) !important;
-    font-size: clamp(0.62rem, 2.4vw, 0.76rem) !important;
+    min-height: 28px !important;
+    padding: 5px 6px !important;
+    font-size: var(--notes-type-2xs) !important;
     margin-top: auto;
     width: 100%;
     max-width: 100%;
@@ -837,15 +873,52 @@ html.capacitor-native body.topbar-auto-hidden .notes-toolbar {
     transition: none !important;
   }
 
+  #notesList,
+  #remindersList,
+  #allNotesList,
+  .admin-subs-cards,
+  .admin-user-cards {
+    content-visibility: auto;
+    contain-intrinsic-size: 480px;
+  }
+
   .web-chat-fab,
   #webChatFab,
   .daily-planner-fab,
   #dailyPlannerFab,
   .discord-fab {
-    will-change: opacity, transform;
+    will-change: auto;
     transform: translate3d(0, 0, 0);
     contain: layout style paint;
     transition: opacity 0.2s ease, transform 0.2s ease !important;
+  }
+
+  .web-chat-fab,
+  #webChatFab {
+    animation: none !important;
+  }
+
+  .web-chat-fab::before,
+  .web-chat-fab__active-dot::after {
+    animation: none !important;
+  }
+
+  .web-chat-fab__active-dot {
+    animation: none !important;
+  }
+
+  .scan-cam-camera-glow {
+    animation: none !important;
+  }
+
+  .scan-cam-camera-glow::after,
+  .scan-cam-camera-glow::before {
+    animation: none !important;
+  }
+
+  .daily-planner-item {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 
   body.floating-scrolled .web-chat-fab,
@@ -866,14 +939,6 @@ html.capacitor-native body.topbar-auto-hidden .notes-toolbar {
   .hex-card:hover,
   .home-stats-panel:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16) !important;
-  }
-
-  #notesList,
-  #remindersList,
-  .admin-subs-cards,
-  .admin-user-cards {
-    content-visibility: auto;
-    contain-intrinsic-size: 480px;
   }
 }
 
@@ -900,4 +965,208 @@ html.capacitor-native .modal-content,
 html.capacitor-native #webChat.web-chat-drawer .web-chat-messenger {
   backdrop-filter: blur(6px) saturate(110%) !important;
   -webkit-backdrop-filter: blur(6px) saturate(110%) !important;
+}
+
+/* APK: always pin FAB stack just above system nav — immune to style.css mobile overrides */
+html.capacitor-native #webChatFab,
+html.capacitor-native .web-chat-fab,
+html.capacitor-native #dailyPlannerFab,
+html.capacitor-native .daily-planner-fab {
+  position: fixed !important;
+  top: auto !important;
+  margin: 0 !important;
+}
+
+html.capacitor-native #webChatFab,
+html.capacitor-native .web-chat-fab {
+  bottom: calc(12px + max(env(safe-area-inset-bottom, 0px), 20px)) !important;
+}
+
+html.capacitor-native #dailyPlannerFab,
+html.capacitor-native .daily-planner-fab {
+  bottom: calc(12px + max(env(safe-area-inset-bottom, 0px), 20px) + var(--notes-fab-size) + var(--notes-fab-stack-gap)) !important;
+}
+
+html.capacitor-native #webChatFabTip,
+html.capacitor-native .web-chat-fab-tip {
+  bottom: calc(12px + max(env(safe-area-inset-bottom, 0px), 20px) + var(--notes-fab-size) + 6px) !important;
+}
+
+html.capacitor-native .toast,
+html.capacitor-native #toast {
+  contain: layout style paint;
+  bottom: calc(
+    12px + max(env(safe-area-inset-bottom, 0px), 20px) + var(--notes-fab-stack-total) + 10px
+  ) !important;
+}
+
+/* APK: static FABs + lighter infinite motion — main-thread scroll budget */
+html.capacitor-native .web-chat-fab,
+html.capacitor-native #webChatFab,
+html.capacitor-native .daily-planner-fab,
+html.capacitor-native #dailyPlannerFab {
+  animation: none !important;
+  will-change: auto !important;
+}
+
+html.capacitor-native .web-chat-fab::before,
+html.capacitor-native .web-chat-fab__active-dot,
+html.capacitor-native .web-chat-fab__active-dot::after {
+  animation: none !important;
+}
+
+html.capacitor-native .scan-cam-camera-glow,
+html.capacitor-native .scan-cam-camera-glow::before,
+html.capacitor-native .scan-cam-camera-glow::after {
+  animation: none !important;
+}
+
+html.capacitor-native .background-canvas {
+  transform: none !important;
+  will-change: auto !important;
+}
+
+html.capacitor-native #allNotesList,
+html.capacitor-native #notesList,
+html.capacitor-native #remindersList {
+  content-visibility: auto;
+  contain-intrinsic-size: 420px;
+}
+
+/* ========== Cross-device UI scale (modals, home, stats) ========== */
+@media (max-width: 840px), (pointer: coarse) {
+  #home .home-hero-title {
+    font-size: var(--notes-type-lg) !important;
+    line-height: 1.15 !important;
+    max-width: none !important;
+  }
+
+  #home .home-welcome-line {
+    font-size: var(--notes-type-base) !important;
+  }
+
+  #home .home-stats-eyebrow,
+  #home .home-intro .eyebrow {
+    font-size: var(--notes-type-2xs) !important;
+  }
+
+  #home .home-stat-value {
+    font-size: var(--notes-type-lg) !important;
+  }
+
+  #home .home-stat-label {
+    font-size: var(--notes-type-2xs) !important;
+  }
+
+  #home .home-stats-cta {
+    font-size: var(--notes-type-sm) !important;
+    min-height: 36px !important;
+  }
+
+  #home .home-bottom-info-bar__title {
+    font-size: var(--notes-type-md) !important;
+  }
+
+  #home .home-bottom-info-bar__sub {
+    font-size: var(--notes-type-sm) !important;
+  }
+
+  .welcome-sheet {
+    width: min(100%, calc(100vw - 24px - var(--notes-safe-left) - var(--notes-safe-right))) !important;
+    max-height: calc(100dvh - var(--notes-safe-top) - var(--notes-safe-bottom) - 20px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding: 12px 14px 10px !important;
+  }
+
+  .welcome-sheet__title {
+    font-size: var(--notes-type-md) !important;
+    line-height: 1.25 !important;
+  }
+
+  .welcome-sheet__subtitle {
+    font-size: var(--notes-type-2xs) !important;
+    margin-bottom: 8px !important;
+  }
+
+  .welcome-sheet__bullets {
+    font-size: var(--notes-type-sm) !important;
+    line-height: 1.45 !important;
+    padding-left: 1rem !important;
+  }
+
+  .welcome-sheet__trial {
+    padding: 8px 10px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .welcome-sheet__trial-heading {
+    font-size: var(--notes-type-base) !important;
+  }
+
+  .welcome-sheet__trial-lead,
+  .welcome-sheet__trial-bullets {
+    font-size: var(--notes-type-xs) !important;
+    line-height: 1.42 !important;
+  }
+
+  .welcome-sheet__trial-note {
+    font-size: var(--notes-type-xs) !important;
+  }
+
+  .welcome-sheet__cta.save-button {
+    min-height: 40px !important;
+    font-size: var(--notes-type-base) !important;
+  }
+
+  .trial-gift-modal__dialog {
+    max-height: calc(100dvh - var(--notes-safe-top) - var(--notes-safe-bottom) - 24px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding: 14px 14px 12px !important;
+  }
+
+  .trial-gift-modal__title {
+    font-size: var(--notes-type-lg) !important;
+  }
+
+  .trial-gift-modal__lead {
+    font-size: var(--notes-type-sm) !important;
+  }
+
+  .trial-gift-modal__list {
+    font-size: var(--notes-type-sm) !important;
+    line-height: 1.45 !important;
+    padding-left: 1.1rem !important;
+  }
+
+  .trial-gift-modal__note {
+    font-size: var(--notes-type-xs) !important;
+  }
+
+  .trial-gift-modal__cta,
+  .trial-gift-modal__later {
+    font-size: var(--notes-type-base) !important;
+    min-height: 40px !important;
+  }
+
+  .toast,
+  #toast {
+    bottom: var(--notes-toast-bottom) !important;
+    max-width: min(calc(100vw - 24px - var(--notes-safe-left) - var(--notes-safe-right)), 340px) !important;
+    padding: 10px 14px !important;
+    font-size: var(--notes-type-sm) !important;
+    line-height: 1.42 !important;
+    border-radius: 12px !important;
+    z-index: 1310 !important;
+  }
+
+  .reminder-foreground-toast,
+  #reminderForegroundToast {
+    top: max(10px, calc(var(--notes-safe-top) + 8px)) !important;
+    max-width: min(calc(100vw - 24px - var(--notes-safe-left) - var(--notes-safe-right)), 340px) !important;
+    padding: 10px 14px !important;
+    font-size: var(--notes-type-sm) !important;
+    z-index: 1310 !important;
+  }
 }

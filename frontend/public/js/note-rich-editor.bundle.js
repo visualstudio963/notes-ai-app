@@ -23395,21 +23395,38 @@ ${prefix}
     teardownEditorViewportLock();
     if (!screen || typeof window.visualViewport === "undefined" || !window.visualViewport) return;
     const vv = window.visualViewport;
-    const sync = () => {
+    let viewportLockRaf = 0;
+    let lastLockTop = -1;
+    let lastLockH = -1;
+    const syncOnce = () => {
       const h2 = Math.max(180, Math.round(vv.height));
       const y = Math.max(0, Math.round(vv.offsetTop));
-      screen.style.top = `${y}px`;
-      screen.style.left = "0";
-      screen.style.right = "0";
-      screen.style.width = "100%";
-      screen.style.height = `${h2}px`;
-      screen.style.bottom = "auto";
-      screen.style.maxHeight = `${h2}px`;
+      if (y !== lastLockTop) {
+        lastLockTop = y;
+        screen.style.top = `${y}px`;
+      }
+      if (h2 !== lastLockH) {
+        lastLockH = h2;
+        screen.style.height = `${h2}px`;
+        screen.style.maxHeight = `${h2}px`;
+      }
     };
+    const sync = () => {
+      if (viewportLockRaf) return;
+      viewportLockRaf = requestAnimationFrame(() => {
+        viewportLockRaf = 0;
+        syncOnce();
+      });
+    };
+    screen.style.left = "0";
+    screen.style.right = "0";
+    screen.style.width = "100%";
+    screen.style.bottom = "auto";
     vv.addEventListener("resize", sync);
     vv.addEventListener("scroll", sync);
-    sync();
+    syncOnce();
     viewportLockCleanup = () => {
+      if (viewportLockRaf) cancelAnimationFrame(viewportLockRaf);
       vv.removeEventListener("resize", sync);
       vv.removeEventListener("scroll", sync);
       ["top", "left", "right", "width", "height", "bottom", "maxHeight"].forEach((prop) => screen.style.removeProperty(prop));

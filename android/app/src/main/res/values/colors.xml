@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#6366F1</color>
+    <color name="colorPrimaryDark">#0F172A</color>
+    <color name="colorAccent">#22D3EE</color>
+    <!-- Splash + WebView preload — same tone avoids black/white flash -->
+    <color name="splash_screen_background">#0B1228</color>
+</resources>

@@ -8,8 +8,8 @@ const config: CapacitorConfig = {
   appName: "Notes AI",
   webDir: "frontend/public",
   bundledWebRuntime: false,
-  /** Matches default auth shell / splash tone; avoids brief white flash on cold start */
-  backgroundColor: "#050814",
+  /** Matches native splash — avoids flash between splash dismiss and WebView paint */
+  backgroundColor: "#0B1228",
   android: {
     allowMixedContent: false
   },
@@ -35,6 +35,15 @@ const config: CapacitorConfig = {
     LocalNotifications: {
       smallIcon: "ic_stat_notes_ai",
       iconColor: "#22D3EE"
+    },
+    SplashScreen: {
+      launchShowDuration: 1500,
+      launchAutoHide: true,
+      launchFadeOutDuration: 350,
+      backgroundColor: "#0B1228",
+      androidSplashResourceName: "splash",
+      showSpinner: false,
+      androidScaleType: "CENTER_CROP"
     }
   }
 };

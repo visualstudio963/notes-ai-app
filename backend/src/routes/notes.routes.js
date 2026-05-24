@@ -8,6 +8,58 @@ const {
 } = require("../features/premium/subscriptionService");
 
 const ALLOWED_NOTE_CATEGORIES = ["shtepia", "puna", "shkolla", "scan_cam"];
+const SCAN_CAM_LIST_TEXT_MAX = 720;
+
+function scanCamStripForListPreview(raw, maxLen) {
+  const max = Math.max(80, Number(maxLen) || SCAN_CAM_LIST_TEXT_MAX);
+  let s = String(raw || "");
+  s = s.replace(/data:[^\s"'\\]+;base64,[A-Za-z0-9+/=\s]+/gi, " ");
+  s = s.replace(/\s+/g, " ").trim();
+  if (s.length <= max) return s;
+  return `${s.slice(0, max - 1)}…`;
+}
+
+/**
+ * @param {import("mongoose").Document | Record<string, unknown> | null | undefined} n
+ * @param {string} [listCategory]
+ */
+function serializeNote(n, listCategory) {
+  const o = n && typeof n.toObject === "function" ? n.toObject() : n;
+  if (!o) return null;
+  const raw = o.title;
+  const title = raw != null && raw !== undefined ? String(raw).trim() : "";
+  const tags = Array.isArray(o.tags) ? o.tags : [];
+  let noteDateOut = null;
+  if (o.noteDate) {
+    try {
+      noteDateOut = new Date(o.noteDate).toISOString().slice(0, 10);
+    } catch {
+      noteDateOut = null;
+    }
+  }
+
+  let text = o.text;
+  let textPreviewOnly = false;
+  const catKey = listCategory || (o.category != null ? String(o.category).toLowerCase() : "");
+  const textStr = text != null ? String(text) : "";
+  if (catKey === "scan_cam" && textStr.length > SCAN_CAM_LIST_TEXT_MAX) {
+    text = scanCamStripForListPreview(textStr, SCAN_CAM_LIST_TEXT_MAX);
+    textPreviewOnly = true;
+  }
+
+  const out = {
+    _id: o._id,
+    userId: o.userId,
+    category: o.category,
+    text,
+    title,
+    tags,
+    noteDate: noteDateOut,
+    createdAt: o.createdAt
+  };
+  if (textPreviewOnly) out.textPreviewOnly = true;
+  return out;
+}
 
 /**
  * @param {object | null | undefined} body
@@ -61,45 +113,32 @@ function pickNoteDateFromBody(body) {
   return d;
 }
 
-/**
- * Stable JSON shape for clients (always includes `title` string).
- * @param {import("mongoose").Document | Record<string, unknown> | null | undefined} n
- */
-function serializeNote(n) {
-  const o = n && typeof n.toObject === "function" ? n.toObject() : n;
-  if (!o) return null;
-  const raw = o.title;
-  const title = raw != null && raw !== undefined ? String(raw).trim() : "";
-  const tags = Array.isArray(o.tags) ? o.tags : [];
-  let noteDateOut = null;
-  if (o.noteDate) {
-    try {
-      noteDateOut = new Date(o.noteDate).toISOString().slice(0, 10);
-    } catch {
-      noteDateOut = null;
-    }
-  }
-
-  return {
-    _id: o._id,
-    userId: o.userId,
-    category: o.category,
-    text: o.text,
-    title,
-    tags,
-    noteDate: noteDateOut,
-    createdAt: o.createdAt
-  };
-}
-
 function createNotesRouter({ User, Note, authMiddleware, getIo }) {
   const router = express.Router();
+
+  router.get("/notes/detail/:id", authMiddleware, async (req, res) => {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: "Invalid note id" });
+    }
+    try {
+      const note = await Note.findOne({ _id: req.params.id, userId: req.userId }).lean();
+      if (!note) {
+        return res.status(404).json({ error: "Note not found" });
+      }
+      res.json({ note: serializeNote(note) });
+    } catch {
+      res.status(500).json({ error: "Failed to load note" });
+    }
+  });
 
   router.get("/notes/:category", authMiddleware, async (req, res) => {
     try {
       const category = req.params.category.toLowerCase();
+      if (category === "detail") {
+        return res.status(404).json({ error: "Unknown category" });
+      }
       const notes = await Note.find({ userId: req.userId, category }).sort({ createdAt: -1 }).lean();
-      res.json({ notes: notes.map((doc) => serializeNote(doc)) });
+      res.json({ notes: notes.map((doc) => serializeNote(doc, category)) });
     } catch {
       res.status(500).json({ error: "Failed to load notes" });
     }
@@ -112,7 +151,12 @@ function createNotesRouter({ User, Note, authMiddleware, getIo }) {
         return res.json({ count });
       }
       const notes = await Note.find({ userId: req.userId }).sort({ category: 1, createdAt: -1 }).lean();
-      res.json({ notes: notes.map((doc) => serializeNote(doc)) });
+      res.json({
+        notes: notes.map((doc) => {
+          const cat = doc.category != null ? String(doc.category).toLowerCase() : "";
+          return serializeNote(doc, cat);
+        })
+      });
     } catch {
       res.status(500).json({ error: "Failed to load notes" });
     }

@@ -1082,6 +1082,11 @@ html.capacitor-native body.topbar-auto-hidden .notes-toolbar {
     contain-intrinsic-size: 1px 480px;
   }
 
+  #category[data-active-category="scan_cam"],
+  #category[data-active-category="scan_cam"] #notes {
+    content-visibility: visible;
+  }
+
   .list-load-sentinel {
     display: block;
     width: 100%;

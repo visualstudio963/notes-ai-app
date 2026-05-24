@@ -1,7 +1,7 @@
 /**
  * Client-side plan helpers: Free vs Standard.
  * Server is authoritative; mirrors `/api/premium/status` and `publicUser`.
- * Access gate matches backend {@link hasStandardAccess}: trial, coins, Stripe share one rule.
+ * Access gate matches backend {@link hasStandardAccess}: trial and coins unlock Standard (legacy Stripe rows still count if present).
  */
 
 /**

@@ -67,21 +67,10 @@ const vapidPublicKey = envTrim("VAPID_PUBLIC_KEY");
 const vapidPrivateKey = envTrim("VAPID_PRIVATE_KEY");
 const vapidSubject = envTrim("VAPID_SUBJECT");
 
-const stripeConfigured =
-  stripeSecretKey && stripeWebhookSecret && stripePublishableKey && stripeStandardMonthlyLookupKey;
-
-if (!stripeSecretKey && !stripeWebhookSecret && !stripePublishableKey && !stripeStandardMonthlyLookupKey) {
-  // All Stripe vars empty — skip billing warnings (typical local dev without checkout).
-} else if (!stripeConfigured) {
-  const missing = [];
-  if (!stripeSecretKey) missing.push("STRIPE_SECRET_KEY");
-  if (!stripeWebhookSecret) missing.push("STRIPE_WEBHOOK_SECRET");
-  if (!stripePublishableKey) missing.push("STRIPE_PUBLISHABLE_KEY");
-  if (!stripeStandardMonthlyLookupKey) missing.push("STRIPE_STANDARD_MONTHLY");
-  console.warn(`[config] Stripe billing incomplete — set: ${missing.join(", ")}`);
-}
-if (stripeConfigured && !stripeStandardYearlyLookupKey) {
-  console.warn("[config] STRIPE_STANDARD_YEARLY not set — yearly checkout stays disabled.");
+if (stripeSecretKey || stripeWebhookSecret || stripePublishableKey || stripeStandardMonthlyLookupKey) {
+  console.warn(
+    "[config] Stripe env vars are set but billing is disabled — Standard unlock uses coins only (see coins routes)."
+  );
 }
 
 if (!googleClientId) {

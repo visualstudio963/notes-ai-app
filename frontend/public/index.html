@@ -15,12 +15,12 @@
   <!-- User-facing app version (bump when you ship a new APK / embedded web build). Single source for Settings footer. -->
   <meta name="notes-ai-app-version" content="1.0" />
   <meta name="notes-ai-api-base" content="https://notes-ai-app.onrender.com" />
-  <meta name="notes-ai-public-url" content="__PUBLIC_APP_URL__" />
+  <meta name="notes-ai-public-url" content="https://notesai.space" />
   <script>
     window.__NOTES_AI_BUILD__ = "apk-emb-260523-v7";
     window.__APP_ENV__ = window.__APP_ENV__ || {};
     window.__APP_ENV__.VITE_API_URL = "https://notes-ai-app.onrender.com";
-    window.__APP_ENV__.PUBLIC_APP_URL = "__PUBLIC_APP_URL__";
+    window.__APP_ENV__.PUBLIC_APP_URL = "https://notesai.space";
   </script>
   <link rel="manifest" href="/manifest.json?v=apk-emb-260508-v1" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -867,7 +867,7 @@
           </div>
         </div>
 
-        <p id="botGuestStrip" class="home-copy bot-context-strip hidden" data-t="botPageGuestHint">Log in to sync notes and unlock paid tiers when billing is ready.</p>
+        <p id="botGuestStrip" class="home-copy bot-context-strip hidden" data-t="botPageGuestHint">Log in to sync notes and unlock Standard with coins or your free trial.</p>
 
         <div id="premiumMarketingPanel" class="premium-marketing hidden">
           <div class="premium-marketing-inner">
@@ -876,7 +876,7 @@
               <p class="premium-hero-lead" data-t="premiumLiteHeroLead">Smarter reminders. Faster AI. More control.</p>
               <div class="pricing-lite-billing-switch" role="group" aria-label="Billing period">
                 <button type="button" class="pricing-lite-billing-btn is-active" data-billing="monthly" onclick="premiumLiteBillingToggle('monthly')" data-t="premiumLiteMonthly">Monthly</button>
-                <button type="button" class="pricing-lite-billing-btn" data-billing="yearly" onclick="premiumLiteBillingToggle('yearly')" data-t="premiumLiteYearlySoon">Yearly (Coming soon -20%)</button>
+                <button type="button" class="pricing-lite-billing-btn" data-billing="yearly" onclick="premiumLiteBillingToggle('yearly')" data-t="premiumLiteYearlySoon">Yearly</button>
               </div>
             </header>
 
@@ -891,7 +891,7 @@
                     <h3 data-t="premiumPlanFreeName">Free</h3>
                     <span class="pricing-lite-badge" data-t="premiumLiteBadgeStarter">🆓 Starter</span>
                   </div>
-                  <p class="pricing-lite-price">€0 <span>/month</span></p>
+                  <p class="pricing-lite-price" data-t="premiumLiteFreePrice">Free <span>/ forever</span></p>
                   <ul class="pricing-lite-benefits pricing-lite-benefits--compact">
                     <li data-t="premiumLiteFree1">Category notes — synced while signed in</li>
                     <li data-t="premiumLiteFree2">Manual reminders on Home (you pick date &amp; time)</li>
@@ -903,7 +903,7 @@
                     <h3 data-t="premiumPlanStandardName">Standard</h3>
                     <span class="pricing-lite-badge" data-t="premiumLiteBadgeValue">⚖️ Best value</span>
                   </div>
-                  <p class="pricing-lite-price"><span id="premiumLiteStandardPriceMain">€2.99</span> <span id="premiumLiteStandardPricePeriod">/month</span></p>
+                  <p class="pricing-lite-price"><span id="premiumLiteStandardPriceMain"><span class="pricing-lite-coin" aria-hidden="true">🪙</span> 1,500</span> <span id="premiumLiteStandardPricePeriod">coins / 30 days</span></p>
                   <p id="premiumLiteStandardSub" class="pricing-lite-subline hidden"></p>
                   <ul class="pricing-lite-benefits">
                     <li data-t="premiumLiteStd1">Full Web Chat + reminders saved from chat</li>
@@ -912,7 +912,7 @@
                     <li data-t="premiumLiteStd4">Daily planner &amp; richer workspace flows</li>
                     <li data-t="premiumLiteStd5">Rewards &amp; coins (e.g. 30‑day unlock)</li>
                   </ul>
-                  <button type="button" id="premiumLiteStandardCta" class="save-button pricing-lite-cta" onclick="event.stopPropagation(); premiumPlanCheckoutClick('standard')" data-t="premiumLiteCtaStandard">Start Standard</button>
+                  <button type="button" id="premiumLiteStandardCta" class="save-button pricing-lite-cta" onclick="event.stopPropagation(); premiumPlanCoinsActivate('standard')" data-t="premiumLiteCtaStandard">Unlock with coins</button>
                 </article>
               </div>
 
@@ -941,11 +941,11 @@
             </section>
 
             <footer class="pricing-lite-trust">
-              <p data-t="premiumLiteTrust1">🔒 Secure payments with Stripe</p>
-              <p data-t="premiumLiteTrust2">💳 Cards supported</p>
-              <p data-t="premiumLiteTrust3">❌ No card data stored</p>
+              <p data-t="premiumLiteTrust1">🪙 Standard unlocks with coins — no card billing</p>
+              <p data-t="premiumLiteTrust2">🎁 New accounts get 14 days of Standard free</p>
+              <p data-t="premiumLiteTrust3">🔄 Earn coins daily, from videos, and invites</p>
             </footer>
-            <button type="button" id="premiumLiteStickyCta" class="save-button pricing-lite-sticky-cta" onclick="premiumPlanCheckoutClick('standard')" data-t="premiumLiteCtaStandard">Start Standard</button>
+            <button type="button" id="premiumLiteStickyCta" class="save-button pricing-lite-sticky-cta" onclick="premiumPlanCoinsActivate('standard')" data-t="premiumLiteCtaStandard">Unlock with coins</button>
           </div>
         </div>
       </section>
@@ -1058,7 +1058,7 @@
             <div class="coins-dash-balance-digits">
               <span id="coinsHubBalanceValue" class="coins-dash-balance-num">0</span>
               <span class="coins-dash-balance-max"
-                ><span data-t="coinsDashBalanceSlash">/</span> <span id="coinsHubCapDisplay">1200</span></span
+                ><span data-t="coinsDashBalanceSlash">/</span> <span id="coinsHubCapDisplay">15000</span></span
               >
             </div>
             <div class="coins-dash-bar-wrap coins-dash-bar-wrap--wallet">
@@ -1915,6 +1915,6 @@
   <script defer src="/js/features/premium.js?v=trial-sync-v1"></script>
   <script defer src="/translations.js?v=share-whatsapp-v1"></script>
   <script defer src="/js/components/toast.js?v=toast-balance-v1"></script>
-  <script defer src="/js/app.js?v=scan-cam-list-v1"></script>
+  <script defer src="/js/app.js?v=coins-standard-v1"></script>
 </body>
 </html>

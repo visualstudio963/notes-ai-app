@@ -2,29 +2,38 @@
 
 const TRIAL_DURATION_MS = 14 * 24 * 60 * 60 * 1000;
 
-const COIN_CAP = 1200;
+const COIN_CAP = 15000;
 
-const STANDARD_COIN_COST = 600;
+/** Standard unlock via coins — monthly */
+const STANDARD_MONTHLY_COIN_COST = 1500;
+const STANDARD_MONTHLY_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
 
-/** 30 calendar days extension */
-const STANDARD_COIN_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
+/** Standard unlock via coins — yearly */
+const STANDARD_YEARLY_COIN_COST = 14400;
+const STANDARD_YEARLY_DURATION_MS = 365 * 24 * 60 * 60 * 1000;
+
+/** @deprecated Use STANDARD_MONTHLY_* — kept for imports */
+const STANDARD_COIN_COST = STANDARD_MONTHLY_COIN_COST;
+const STANDARD_COIN_DURATION_MS = STANDARD_MONTHLY_DURATION_MS;
 
 const DAILY_STREAK_REWARDS = [10, 15, 20, 25, 30, 40, 60];
 
 const VIDEO_REWARD = 10;
-
 const VIDEO_DAILY_MAX = 10;
 
-const INVITE_REWARD = 100;
-
+const INVITE_REWARD = 50;
 const INVITE_MONTHLY_CAP = 10;
 
-/** Standard / paid-standard earn slightly less per spec */
-const STANDARD_TIER_EARN_MULTIPLIER = 0.85;
+/** Uniform earn rate (no Stripe / paid-tier penalty) */
+const STANDARD_TIER_EARN_MULTIPLIER = 1;
 
 module.exports = {
   TRIAL_DURATION_MS,
   COIN_CAP,
+  STANDARD_MONTHLY_COIN_COST,
+  STANDARD_MONTHLY_DURATION_MS,
+  STANDARD_YEARLY_COIN_COST,
+  STANDARD_YEARLY_DURATION_MS,
   STANDARD_COIN_COST,
   STANDARD_COIN_DURATION_MS,
   DAILY_STREAK_REWARDS,

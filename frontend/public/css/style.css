@@ -1403,16 +1403,18 @@ body.modal-open {
 
 #category[data-active-category="scan_cam"] {
   animation: none;
+  content-visibility: visible;
 }
 
 #category[data-active-category="scan_cam"] #notes {
-  content-visibility: auto;
-  contain-intrinsic-size: 1px 140px;
+  content-visibility: visible;
+  contain: layout style;
 }
 
 #category[data-active-category="scan_cam"] .note-card--scan-list {
-  contain: content;
-  transition: border-color 0.2s ease, transform 0.2s ease;
+  contain: layout style;
+  transition: border-color 0.2s ease;
+  will-change: auto;
 }
 
 #category[data-active-category="scan_cam"] .note-card--scan-list .note-card-preview--plain {
@@ -1839,6 +1841,8 @@ body.modal-open {
   font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease, transform 0.15s ease;
 }
 
@@ -2027,6 +2031,8 @@ body.modal-open {
   border-radius: 50%;
   border: none;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   display: grid;
   place-items: center;
   color: #e0f2fe;
@@ -11258,6 +11264,14 @@ body {
 .pricing-lite-price #premiumLitePremiumPriceMain {
   display: inline-block;
   transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.pricing-lite-coin {
+  display: inline-block;
+  font-size: 1.05em;
+  line-height: 1;
+  vertical-align: -0.06em;
+  margin-right: 0.12em;
 }
 
 .pricing-lite-subline {

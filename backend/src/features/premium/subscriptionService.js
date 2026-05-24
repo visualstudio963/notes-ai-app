@@ -3,12 +3,14 @@
  * All Standard paths (trial, coins, Stripe) share one grant/revoke model and {@link hasStandardAccess}.
  */
 
-const { COIN_CAP, TRIAL_DURATION_MS, STANDARD_COIN_DURATION_MS } = require("../coins/coinConstants");
+const { COIN_CAP, TRIAL_DURATION_MS, STANDARD_MONTHLY_DURATION_MS } = require("../coins/coinConstants");
+
+const STANDARD_COIN_DURATION_MS = STANDARD_MONTHLY_DURATION_MS;
 
 const PLAN_ORDER = { free: 0, standard: 1 };
 
-/** Paid Standard via Stripe checkout — 30 calendar days per purchase. */
-const STRIPE_STANDARD_DURATION_MS = STANDARD_COIN_DURATION_MS;
+/** Legacy alias — monthly coin unlock duration. */
+const STRIPE_STANDARD_DURATION_MS = STANDARD_MONTHLY_DURATION_MS;
 
 const STANDARD_SOURCES = ["trial", "coins", "stripe"];
 
@@ -371,13 +373,13 @@ async function adminGrantPremiumMonths(User, userId, months) {
   }
   const d = new Date(baseMs);
   d.setUTCMonth(d.getUTCMonth() + m);
-  return grantPremium(User, userId, { expiresAt: d, source: "stripe" });
+  return grantPremium(User, userId, { expiresAt: d, source: "coins" });
 }
 
 async function adminGrantPremiumLifetime(User, userId) {
   const d = new Date();
   d.setUTCFullYear(d.getUTCFullYear() + 10);
-  return grantPremium(User, userId, { expiresAt: d, source: "stripe" });
+  return grantPremium(User, userId, { expiresAt: d, source: "coins" });
 }
 
 /**
@@ -392,9 +394,9 @@ async function applyProductPlan(User, userId, plan, options = {}) {
     return revokeStandardAccess(User, userId);
   }
   return grantStandardAccess(User, userId, {
-    source: options.source || "stripe",
+    source: options.source || "coins",
     expiresAt: options.expiresAt,
-    durationMs: options.durationMs || STRIPE_STANDARD_DURATION_MS,
+    durationMs: options.durationMs || STANDARD_COIN_DURATION_MS,
     startedAt: options.startedAt,
     billingCycle: options.billingCycle
   });

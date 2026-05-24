@@ -1352,7 +1352,7 @@
     if (balanceEl) balanceEl.textContent = String(resolveUserCoinBalance(user));
     if (amountInput) {
       amountInput.value = "";
-      amountInput.max = "1200";
+      amountInput.max = "15000";
     }
     if (reasonInput) reasonInput.value = "";
 

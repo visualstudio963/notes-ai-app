@@ -91,7 +91,8 @@ function createCoinsRouter({ User, authMiddleware }) {
 
   router.post("/coins/redeem-standard", authMiddleware, async (req, res) => {
     try {
-      await redeemStandardWithCoins(User, req.userId);
+      const plan = req.body && (req.body.plan || req.body.billing);
+      await redeemStandardWithCoins(User, req.userId, plan);
       const fresh = await User.findById(req.userId).lean();
       res.json({ ok: true, coins: buildCoinsStatusPayload(fresh) });
     } catch (err) {

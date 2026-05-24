@@ -1,8 +1,11 @@
 const crypto = require("crypto");
 const {
   COIN_CAP,
+  STANDARD_MONTHLY_COIN_COST,
+  STANDARD_MONTHLY_DURATION_MS,
+  STANDARD_YEARLY_COIN_COST,
+  STANDARD_YEARLY_DURATION_MS,
   STANDARD_COIN_COST,
-  STANDARD_COIN_DURATION_MS,
   DAILY_STREAK_REWARDS,
   VIDEO_REWARD,
   VIDEO_DAILY_MAX,
@@ -133,10 +136,15 @@ async function finalizeInviteBonus(User, inviteeDoc) {
     return { capped: true };
   }
 
+  const inviterBalance = Number(inviter.coins) || 0;
+  if (inviterBalance >= COIN_CAP) {
+    return { capped: true, walletFull: true };
+  }
   const reward = INVITE_REWARD;
+  const actualReward = Math.min(reward, COIN_CAP - inviterBalance);
   inviter.inviteFriendMonthYm = ym;
   inviter.inviteFriendMonthCount = monthCount + 1;
-  inviter.coins = clampCoins((Number(inviter.coins) || 0) + reward);
+  inviter.coins = clampCoins(inviterBalance + actualReward);
   await inviter.save();
 
   return { rewarded: reward };
@@ -221,10 +229,25 @@ async function claimDailyLogin(User, userId) {
     nextIdx = 1;
   }
 
+  const balanceBefore = Number(userLean.coins) || 0;
+  if (balanceBefore >= COIN_CAP) {
+    const err = new Error("Wallet is full. Spend coins on Standard before earning more.");
+    err.statusCode = 400;
+    err.code = "WALLET_FULL";
+    throw err;
+  }
+
   const base = DAILY_STREAK_REWARDS[nextIdx - 1] ?? DAILY_STREAK_REWARDS[0];
   const gained = scaledReward(base, userLean);
+  const actualGain = Math.min(gained, COIN_CAP - balanceBefore);
+  if (actualGain < 1) {
+    const err = new Error("Wallet is full. Spend coins on Standard before earning more.");
+    err.statusCode = 400;
+    err.code = "WALLET_FULL";
+    throw err;
+  }
   const nextAfter = nextIdx >= 7 ? 1 : nextIdx + 1;
-  const newCoins = clampCoins((Number(userLean.coins) || 0) + gained);
+  const newCoins = clampCoins(balanceBefore + actualGain);
 
   /* Atomic $set only — skips full-document Mongoose validation (legacy users without email rows). */
   const updated = await User.findOneAndUpdate(
@@ -261,19 +284,100 @@ async function claimDailyLogin(User, userId) {
 }
 
 async function claimVideoReward(User, userId) {
-  const user = await User.findById(userId);
-  if (!user) {
+  const userLean = await User.findById(userId).lean();
+  if (!userLean) {
     const err = new Error("User not found");
     err.statusCode = 404;
     throw err;
   }
-  const disabledErr = new Error("Rewarded video payouts are disabled for now.");
-  disabledErr.statusCode = 503;
-  disabledErr.code = "VIDEO_DISABLED";
-  throw disabledErr;
+
+  const today = utcTodayString();
+  const sameDay = String(userLean.videoRewardUtcDate || "") === today;
+  const countToday = sameDay ? Number(userLean.videoRewardCount || 0) || 0 : 0;
+
+  if (countToday >= VIDEO_DAILY_MAX) {
+    const err = new Error("Daily video reward limit reached.");
+    err.statusCode = 429;
+    err.code = "VIDEO_CAP";
+    throw err;
+  }
+
+  const balance = Number(userLean.coins) || 0;
+  if (balance >= COIN_CAP) {
+    const err = new Error("Wallet is full. Spend coins on Standard before earning more.");
+    err.statusCode = 400;
+    err.code = "WALLET_FULL";
+    throw err;
+  }
+
+  const gained = scaledReward(VIDEO_REWARD, userLean);
+  const headroom = COIN_CAP - balance;
+  const actualGain = Math.min(gained, headroom);
+  if (actualGain < 1) {
+    const err = new Error("Wallet is full. Spend coins on Standard before earning more.");
+    err.statusCode = 400;
+    err.code = "WALLET_FULL";
+    throw err;
+  }
+
+  const newCoins = clampCoins(balance + actualGain);
+  const newCount = countToday + 1;
+
+  const updated = await User.findOneAndUpdate(
+    { _id: userId, coins: balance },
+    {
+      $set: {
+        coins: newCoins,
+        videoRewardUtcDate: today,
+        videoRewardCount: newCount
+      }
+    },
+    { new: true, runValidators: false, lean: true }
+  );
+
+  if (!updated) {
+    const check = await User.findById(userId).select("videoRewardUtcDate videoRewardCount coins").lean();
+    if (!check) {
+      const err = new Error("User not found");
+      err.statusCode = 404;
+      throw err;
+    }
+    const c2 =
+      String(check.videoRewardUtcDate || "") === today ? Number(check.videoRewardCount || 0) || 0 : 0;
+    if (c2 >= VIDEO_DAILY_MAX) {
+      const err = new Error("Daily video reward limit reached.");
+      err.statusCode = 429;
+      err.code = "VIDEO_CAP";
+      throw err;
+    }
+    if (Number(check.coins) >= COIN_CAP) {
+      const err = new Error("Wallet is full. Spend coins on Standard before earning more.");
+      err.statusCode = 400;
+      err.code = "WALLET_FULL";
+      throw err;
+    }
+    const err = new Error("Video reward failed.");
+    err.statusCode = 500;
+    throw err;
+  }
+
+  return updated;
 }
 
-async function redeemStandardWithCoins(User, userId) {
+function resolveCoinRedeemPlan(planRaw) {
+  const p = String(planRaw || "monthly")
+    .trim()
+    .toLowerCase();
+  if (p === "yearly" || p === "annual") return "yearly";
+  return "monthly";
+}
+
+async function redeemStandardWithCoins(User, userId, planRaw) {
+  const plan = resolveCoinRedeemPlan(planRaw);
+  const cost = plan === "yearly" ? STANDARD_YEARLY_COIN_COST : STANDARD_MONTHLY_COIN_COST;
+  const durationMs = plan === "yearly" ? STANDARD_YEARLY_DURATION_MS : STANDARD_MONTHLY_DURATION_MS;
+  const daysLabel = plan === "yearly" ? 365 : 30;
+
   const userLean = await User.findById(userId).lean();
   if (!userLean) {
     const err = new Error("User not found");
@@ -282,30 +386,30 @@ async function redeemStandardWithCoins(User, userId) {
   }
 
   const coins = Number(userLean.coins) || 0;
-  if (coins < STANDARD_COIN_COST) {
-    const err = new Error(`Need ${STANDARD_COIN_COST} coins to unlock Standard for 30 days.`);
+  if (coins < cost) {
+    const err = new Error(`Need ${cost} coins to unlock Standard for ${daysLabel} days.`);
     err.statusCode = 400;
     err.code = "INSUFFICIENT_COINS";
     throw err;
   }
 
-  if (hasStandardAccess(userLean)) {
-    const err = new Error("Standard is already active. You can redeem again after it ends.");
-    err.statusCode = 409;
-    err.code = "COIN_STANDARD_ACTIVE";
-    throw err;
+  const nowMs = Date.now();
+  let baseMs = nowMs;
+  const existing = resolveStandardExpiresAt(userLean);
+  if (existing && existing.getTime() > nowMs) {
+    baseMs = existing.getTime();
   }
-
-  const newCoins = clampCoins(coins - STANDARD_COIN_COST);
+  const expiresAt = new Date(baseMs + durationMs);
+  const newCoins = clampCoins(coins - cost);
 
   const debited = await User.findOneAndUpdate(
-    { _id: userId, coins: { $gte: STANDARD_COIN_COST } },
+    { _id: userId, coins: { $gte: cost } },
     { $set: { coins: newCoins } },
     { new: true, runValidators: false }
   );
 
   if (!debited) {
-    const err = new Error(`Need ${STANDARD_COIN_COST} coins to unlock Standard for 30 days.`);
+    const err = new Error(`Need ${cost} coins to unlock Standard for ${daysLabel} days.`);
     err.statusCode = 400;
     err.code = "INSUFFICIENT_COINS";
     throw err;
@@ -314,10 +418,11 @@ async function redeemStandardWithCoins(User, userId) {
   try {
     return await grantStandardAccess(User, userId, {
       source: "coins",
-      durationMs: STANDARD_COIN_DURATION_MS
+      expiresAt,
+      billingCycle: plan
     });
   } catch (err) {
-    await User.updateOne({ _id: userId }, { $inc: { coins: STANDARD_COIN_COST } }).exec();
+    await User.updateOne({ _id: userId }, { $inc: { coins: cost } }).exec();
     throw err;
   }
 }
@@ -403,7 +508,11 @@ function buildCoinsStatusPayload(userLean) {
   return {
     balance: clampCoins(Number(userLean.coins) || 0),
     cap: COIN_CAP,
-    standardCoinCost: STANDARD_COIN_COST,
+    standardCoinCost: STANDARD_MONTHLY_COIN_COST,
+    standardMonthlyCoinCost: STANDARD_MONTHLY_COIN_COST,
+    standardYearlyCoinCost: STANDARD_YEARLY_COIN_COST,
+    standardMonthlyDays: 30,
+    standardYearlyDays: 365,
     lifecycle,
     tier: getUserPlan(userLean),
     trialEndsAt: userLean.trialEndsAt ? new Date(userLean.trialEndsAt).toISOString() : null,
@@ -422,10 +531,11 @@ function buildCoinsStatusPayload(userLean) {
       streakStepCoins
     },
     videoRewards: {
-      passive: true,
+      passive: false,
       countToday: videoCountToday,
       maxToday: VIDEO_DAILY_MAX,
-      rewardEach: scaledReward(VIDEO_REWARD, userLean)
+      rewardEach: scaledReward(VIDEO_REWARD, userLean),
+      dailyCoinCap: VIDEO_REWARD * VIDEO_DAILY_MAX
     },
     referralCode: userLean.referralCode ? String(userLean.referralCode) : userLean.inviteCode ? String(userLean.inviteCode) : "",
     inviteMonthlyCap: INVITE_MONTHLY_CAP,

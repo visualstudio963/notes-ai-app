@@ -30,10 +30,6 @@ function createApiRouter(app, deps) {
     signupLimiter,
     contactLimiter,
     premiumDevSecret,
-    stripeSecretKey,
-    stripeStandardMonthlyLookupKey,
-    stripeStandardYearlyLookupKey,
-    stripePublishableKey,
     publicAppUrl,
     emailVerificationBypassUsernames,
     googleClientId,
@@ -66,7 +62,6 @@ function createApiRouter(app, deps) {
   api.use(
     createAppConfigRouter({
       AppConfig,
-      stripePublishableKey: stripePublishableKey || "",
       googleClientId: googleClientId || ""
     })
   );
@@ -113,11 +108,7 @@ function createApiRouter(app, deps) {
     createPremiumRouter({
       User,
       authMiddleware,
-      premiumDevSecret: premiumDevSecret || null,
-      stripeSecretKey: stripeSecretKey || null,
-      stripeStandardMonthlyLookupKey: stripeStandardMonthlyLookupKey || null,
-      stripeStandardYearlyLookupKey: stripeStandardYearlyLookupKey || null,
-      publicAppUrl: publicAppUrl || null
+      premiumDevSecret: premiumDevSecret || null
     })
   );
 

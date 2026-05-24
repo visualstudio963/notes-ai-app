@@ -8,8 +8,6 @@
     "start": "node backend/src/server.js",
     "server": "node backend/src/server.js",
     "build:note-editor": "esbuild editor/note-rich-editor.js --bundle --outfile=frontend/public/js/note-rich-editor.bundle.js --format=iife --platform=browser",
-    "stripe:server": "node backend/stripe-checkout-server.js",
-    "stripe:webhook": "node backend/stripe-webhook-server.js",
     "cap:sync": "npx cap sync",
     "cap:copy": "npx cap copy",
     "cap:add:android": "npx cap add android",

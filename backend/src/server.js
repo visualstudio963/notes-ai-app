@@ -26,7 +26,6 @@ const { configurePassport, passport } = require("./config/passport");
 const session = require("express-session");
 const MongoStoreModule = require("connect-mongo");
 const MongoStore = MongoStoreModule && MongoStoreModule.default ? MongoStoreModule.default : MongoStoreModule;
-const { createStripeWebhookHandler } = require("./features/premium/stripeWebhook");
 const { createPurgePastReminders } = require("./jobs/purgePastReminders");
 const { syncAllExpiredStandardAccess } = require("./features/premium/subscriptionService");
 const { createWebPushReminderJob } = require("./jobs/webPushReminderJob");
@@ -151,18 +150,6 @@ app.use(
     credentials: true
   })
 );
-
-if (config.stripeSecretKey && config.stripeWebhookSecret) {
-  app.post(
-    "/api/stripe/webhook",
-    express.raw({ type: "application/json" }),
-    createStripeWebhookHandler({
-      User,
-      stripeSecretKey: config.stripeSecretKey,
-      stripeWebhookSecret: config.stripeWebhookSecret
-    })
-  );
-}
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -473,10 +460,6 @@ const apiRouter = createApiRouter(app, {
   signupLimiter,
   contactLimiter,
   premiumDevSecret: config.premiumDevSecret,
-  stripeSecretKey: config.stripeSecretKey,
-  stripeStandardMonthlyLookupKey: config.stripeStandardMonthlyLookupKey,
-  stripeStandardYearlyLookupKey: config.stripeStandardYearlyLookupKey,
-  stripePublishableKey: config.stripePublishableKey,
   publicAppUrl: config.publicAppUrl,
   emailVerificationBypassUsernames: config.emailVerificationBypassUsernames,
   googleClientId: config.googleClientId,

@@ -14,9 +14,13 @@ let lastCategoryNotesRenderKey = "";
 let lastAllNotesRenderKey = "";
 const HISTORY_COLUMN_LIMIT = 5;
 const LIST_RENDER_BATCH = 20;
+const LIST_RENDER_BATCH_SCAN_CAM = 4;
 const LIST_VIRTUALIZE_THRESHOLD = 32;
-const LIST_VIRTUALIZE_THRESHOLD_SCAN_CAM = 8;
+const LIST_VIRTUALIZE_THRESHOLD_SCAN_CAM = 1;
 const SCAN_CAM_LIST_PREVIEW_MAX = 220;
+const SCAN_CAM_LIST_STRIP_HEAD = 2400;
+let listScrollBlockedUntil = 0;
+let listScrollIdleTimer = 0;
 const WEB_CHAT_DOM_MAX_ROWS = 44;
 let historyPruneInFlight = false;
 let allNotesSortMode = "newest";
@@ -200,6 +204,16 @@ window.openNoteExportModal = openNoteExportModalLazy;
 window.scheduleOnboardingTutorialAfterAuth = scheduleOnboardingTutorialAfterAuthLazy;
 
 /** Plain preview when the rich editor bundle is not loaded yet. */
+/** Avoid scanning multi‑MB scan_cam payloads when building list previews. */
+function scanCamStripHeavyRaw(raw) {
+  let s = String(raw || "");
+  if (!s) return "";
+  if (s.length > SCAN_CAM_LIST_STRIP_HEAD) {
+    s = `${s.slice(0, SCAN_CAM_LIST_STRIP_HEAD)}${s.slice(-400)}`;
+  }
+  return s.replace(/data:[^\s"'\\]+;base64,[A-Za-z0-9+/=\s]+/gi, " ").replace(/\s+/g, " ").trim();
+}
+
 function noteStoredPlainPreview(raw, maxLen) {
   const limit = Math.max(1, Number(maxLen) || 50000);
   if (window.NoteRichEditor && typeof window.NoteRichEditor.storedToPreviewText === "function") {
@@ -387,7 +401,6 @@ let discordUpdatesCount = 0;
 let tiktokCommunityUrl = "";
 let youtubeCommunityUrl = "";
 let supportContactEmail = "";
-let stripePublishableKey = "";
 /** Set from GET /api/public/app-config (GOOGLE_CLIENT_ID). Used by Sign in with Google. */
 let googleOAuthClientId = "";
 /** True after `/api/public/app-config` finishes (success or failure). Avoids blocking OAuth before config loads. */
@@ -2124,9 +2137,32 @@ function openNoteShareModal(note) {
   if (typeof applyTranslations === "function") applyTranslations();
 }
 
-function openNoteViewModal(note, origin = "all") {
+function isScanCamLocalNoteId(id) {
+  return String(id || "").startsWith("local-scan-");
+}
+
+async function resolveNoteForDetailView(note) {
+  if (!note) return note;
+  const id = note._id != null ? String(note._id) : "";
+  if (id && isScanCamLocalNoteId(id)) {
+    const local = readScanCamLocalNotes().find((n) => String(n._id) === id);
+    if (local) return local;
+  }
+  if (!note.textPreviewOnly) return note;
+  if (!id || isScanCamLocalNoteId(id)) return note;
+  try {
+    const data = await apiFetch(`/api/notes/detail/${encodeURIComponent(id)}`);
+    if (data && data.note) return data.note;
+  } catch {
+    /* keep list copy */
+  }
+  return note;
+}
+
+async function openNoteViewModal(note, origin = "all") {
   if (!note) return;
-  noteViewModalState = { note, origin: origin === "category" ? "category" : "all" };
+  const viewNote = await resolveNoteForDetailView(note);
+  noteViewModalState = { note: viewNote, origin: origin === "category" ? "category" : "all" };
 
   const modal = document.getElementById("noteViewModal");
   const titleEl = document.getElementById("noteViewTitle");
@@ -2136,23 +2172,23 @@ function openNoteViewModal(note, origin = "all") {
   const actionsEl = document.getElementById("noteViewActions");
   if (!modal || !titleEl || !badgeEl || !dateEl || !bodyEl || !actionsEl) return;
 
-  const theme = noteCategoryThemeKey(note.category);
-  const title = noteTitleTrim(note);
+  const theme = noteCategoryThemeKey(viewNote.category);
+  const title = noteTitleTrim(viewNote);
   titleEl.textContent = title || t("noteCardUntitled");
   titleEl.classList.toggle("note-card-title--placeholder", !title);
 
-  const categoryLabel = normalizeNoteCategoryLabel(note);
+  const categoryLabel = normalizeNoteCategoryLabel(viewNote);
   badgeEl.className = `note-category-badge note-category-badge--${theme}`;
   badgeEl.textContent = categoryLabel;
 
-  dateEl.textContent = new Date(note.createdAt).toLocaleString();
+  dateEl.textContent = new Date(viewNote.createdAt).toLocaleString();
   if (window.NoteRichEditor && typeof window.NoteRichEditor.storedToHtml === "function") {
-    bodyEl.innerHTML = window.NoteRichEditor.storedToHtml(note.text || "");
+    bodyEl.innerHTML = window.NoteRichEditor.storedToHtml(viewNote.text || "");
   } else {
-    bodyEl.textContent = (note.text || "").toString();
+    bodyEl.textContent = (viewNote.text || "").toString();
   }
 
-  const canManage = currentUser && !note.public;
+  const canManage = currentUser && !viewNote.public;
   actionsEl.innerHTML = "";
   if (canManage) {
     actionsEl.classList.remove("hidden");
@@ -2169,19 +2205,21 @@ function openNoteViewModal(note, origin = "all") {
 
     addBtn("note-action-btn--edit", "editNoteTitle", NOTE_EDIT_SVG, () => {
       closeNoteViewModal();
-      openNoteEditorEdit(note, noteViewModalState.origin);
+      void resolveNoteForDetailView(viewNote).then((full) => openNoteEditorEdit(full, noteViewModalState.origin));
     });
     addBtn("note-action-btn--download", "noteExportDownloadTitle", NOTE_DOWNLOAD_SVG, () => {
       closeNoteViewModal();
-      if (typeof openNoteExportModal === "function") openNoteExportModal(note);
+      void resolveNoteForDetailView(viewNote).then((full) => {
+        if (typeof openNoteExportModal === "function") openNoteExportModal(full);
+      });
     });
     addBtn("note-action-btn--share", "noteShareTitle", NOTE_SHARE_SVG, () => {
       closeNoteViewModal();
-      openNoteShareModal(note);
+      void resolveNoteForDetailView(viewNote).then((full) => openNoteShareModal(full));
     });
     addBtn("note-action-btn--delete", "deleteNoteTitle", NOTE_TRASH_SVG, () => {
       closeNoteViewModal();
-      void deleteNoteById(note);
+      void deleteNoteById(viewNote);
     });
   } else {
     actionsEl.classList.add("hidden");
@@ -2333,6 +2371,24 @@ function noteContentFingerprint(text) {
 
 const listIncrementalObservers = new WeakMap();
 
+function bindScanCamListScrollGuard() {
+  if (document.documentElement.dataset.scanCamScrollGuard === "1") return;
+  document.documentElement.dataset.scanCamScrollGuard = "1";
+  const onScroll = () => {
+    if (!isScanCamCategoryActive()) return;
+    listScrollBlockedUntil = performance.now() + 160;
+    clearTimeout(listScrollIdleTimer);
+    listScrollIdleTimer = window.setTimeout(() => {
+      listScrollBlockedUntil = 0;
+    }, 180);
+  };
+  window.addEventListener("scroll", onScroll, { passive: true, capture: true });
+}
+
+function listRenderBatchForCategory() {
+  return isScanCamCategoryActive() ? LIST_RENDER_BATCH_SCAN_CAM : LIST_RENDER_BATCH;
+}
+
 function disconnectListIncremental(container) {
   const state = listIncrementalObservers.get(container);
   if (!state) return;
@@ -2372,8 +2428,12 @@ function renderIncrementalList(container, items, appendItem, opts = {}) {
 
   const loadBatch = () => {
     if (cursor >= list.length) return;
+    if (isScanCamCategoryActive() && performance.now() < listScrollBlockedUntil) {
+      listScrollIdleTimer = window.setTimeout(loadBatch, 100);
+      return;
+    }
     const fragment = document.createDocumentFragment();
-    const end = Math.min(cursor + LIST_RENDER_BATCH, list.length);
+    const end = Math.min(cursor + listRenderBatchForCategory(), list.length);
     for (; cursor < end; cursor += 1) {
       appendItem(fragment, list[cursor]);
     }
@@ -2415,8 +2475,13 @@ function isScanCamListNote(note) {
 function noteStoredPlainPreviewForList(note, maxLen) {
   const limit = Math.max(1, Number(maxLen) || SCAN_CAM_LIST_PREVIEW_MAX);
   const raw = note && note.text != null ? String(note.text) : "";
-  let plain = noteStoredPlainPreview(raw, limit);
-  plain = plain.replace(/data:[^\s]+;base64,[A-Za-z0-9+/=\s]+/gi, " ").replace(/\s+/g, " ").trim();
+  let plain = "";
+  if (isScanCamListNote(note)) {
+    plain = scanCamStripHeavyRaw(raw).slice(0, limit);
+  } else {
+    plain = noteStoredPlainPreview(raw, limit);
+    plain = plain.replace(/data:[^\s]+;base64,[A-Za-z0-9+/=\s]+/gi, " ").replace(/\s+/g, " ").trim();
+  }
   if (note && note.scanCamImageDataUrl) {
     const tag = "📷";
     plain = plain ? `${tag} ${plain}` : tag;
@@ -2754,6 +2819,20 @@ function updateScanCamLocalNote(id, patch) {
   }
 }
 
+function scanCamNoteListPreviewText(raw, maxLen) {
+  return scanCamStripHeavyRaw(raw).slice(0, Math.max(80, Number(maxLen) || SCAN_CAM_LIST_PREVIEW_MAX));
+}
+
+function scanCamNotesForListDisplay(notes) {
+  return (notes || []).map((n) => {
+    if (!n || !isScanCamListNote(n)) return n;
+    if (n.textPreviewOnly) return n;
+    const raw = n.text != null ? String(n.text) : "";
+    if (raw.length <= 720) return n;
+    return { ...n, text: scanCamNoteListPreviewText(raw, 720) };
+  });
+}
+
 function mergeNotesWithScanCamLocal(serverNotes) {
   const local = readScanCamLocalNotes();
   const byId = new Map();
@@ -2780,7 +2859,7 @@ function persistScanCamNoteLocally(text, title, imageDataUrl) {
   const id = String(note._id);
   allNotes = [note, ...allNotes.filter((n) => String(n._id) !== id)];
   if (currentCategory === "scan_cam") {
-    currentNotes = [note, ...currentNotes.filter((n) => String(n._id) !== id)];
+    currentNotes = scanCamNotesForListDisplay([note, ...currentNotes.filter((n) => String(n._id) !== id)]);
   }
   return note;
 }
@@ -3615,26 +3694,56 @@ function premiumSelectPaymentMethod(kind) {
   });
 }
 
-async function premiumPlanCheckoutClick(tier) {
+async function premiumPlanCoinsActivate(tier) {
   if (tier !== "standard") return;
   if (!currentUser || !accessToken) {
     showToast(t("premiumCheckoutLoginRequired"));
     openAccountModal();
     return;
   }
+  const billing = premiumLiteBillingMode === "yearly" ? "yearly" : "monthly";
+  let coinsStatus = null;
   try {
-    const billing = premiumLiteBillingMode === "yearly" ? "yearly" : "monthly";
-    const data = await apiFetch("/api/create-checkout-session", {
+    coinsStatus = await apiFetch("/api/coins/status");
+  } catch {
+    coinsStatus = null;
+  }
+  const monthlyCost = Number(coinsStatus && coinsStatus.standardMonthlyCoinCost) || 1500;
+  const yearlyCost = Number(coinsStatus && coinsStatus.standardYearlyCoinCost) || 14400;
+  const cost = billing === "yearly" ? yearlyCost : monthlyCost;
+  const days = billing === "yearly" ? 365 : 30;
+  const balance = Number(coinsStatus && coinsStatus.balance) || Number(currentUser.coins) || 0;
+  if (balance < cost) {
+    showToast(
+      typeof t === "function"
+        ? t("coinsInsufficientForPlan").replace("{cost}", String(cost)).replace("{balance}", String(balance))
+        : `Need ${cost} coins (you have ${balance}).`
+    );
+    void openCoinsRewards();
+    return;
+  }
+  const msg =
+    typeof t === "function"
+      ? t("coinsRedeemConfirmPlan").replace("{cost}", String(cost)).replace("{days}", String(days))
+      : `Spend ${cost} coins for ${days} days of Standard?`;
+  if (typeof window !== "undefined" && window.confirm && !window.confirm(msg)) return;
+  try {
+    await apiFetch("/api/coins/redeem-standard", {
       method: "POST",
-      body: JSON.stringify({ plan: tier, billing })
+      body: JSON.stringify({ plan: billing })
     });
-    if (data && data.url) {
-      window.location.href = data.url;
-      return;
-    }
-    showToast(t("premiumBillingSoon"));
+    showToast(typeof t === "function" ? t("coinsRedeemSuccess") : "Standard unlocked.");
+    await mergePremiumFromServer();
+    await refreshCoinsHubUi();
+    updatePremiumUi();
+    syncPremiumGatedNav();
+    goHome();
   } catch (e) {
-    showToast(e && e.message ? e.message : t("paymentFailedTryAgain"));
+    if (e && e.status === 409) {
+      showToast(typeof t === "function" ? t("coinsRedeemAlreadyActive") : e.message);
+    } else {
+      showToast(e && e.message ? e.message : typeof t === "function" ? t("coinsActionFailed") : "Failed.");
+    }
   }
 }
 
@@ -3662,31 +3771,10 @@ function consumeCheckoutQueryToast() {
   try {
     const params = new URLSearchParams(window.location.search);
     const path = String(window.location.pathname || "").toLowerCase();
-    const checkout = params.get("checkout") || (path === "/success" ? "success" : path === "/pricing" ? "cancel" : "");
-    if (checkout !== "success" && checkout !== "cancel") return;
-
+    const checkout = params.get("checkout");
+    if (!checkout) return;
     const cleanUrl = `/${window.location.hash || ""}`;
     window.history.replaceState({}, "", cleanUrl);
-
-    if (checkout === "success") {
-      void (async () => {
-        await refreshCurrentUserFromBackend();
-        await mergePremiumFromServer();
-        showToast(t("paymentSuccessfulToast"));
-        goHome();
-        updatePremiumUi();
-        syncPremiumGatedNav();
-        setTimeout(() => {
-          void mergePremiumFromServer().then(() => {
-            updatePremiumUi();
-            syncPremiumGatedNav();
-          });
-        }, 3000);
-      })();
-      return;
-    }
-    showToast(t("paymentFailedTryAgain"));
-    goHome();
   } catch {
     /* ignore */
   }
@@ -3698,8 +3786,12 @@ function consumeBillingRoute() {
     if (path !== "/billing") return;
     const cleanUrl = `/${window.location.hash || ""}`;
     window.history.replaceState({}, "", cleanUrl);
-    void openSettings();
-    showToast("Billing loaded. You can review or cancel subscription in your account.");
+    void openCoinsRewards();
+    showToast(
+      typeof t === "function"
+        ? t("premiumBillingCoinsOnly")
+        : "Standard uses coins only — open Rewards & coins to earn or redeem."
+    );
   } catch {
     /* ignore */
   }
@@ -4724,6 +4816,10 @@ function openCategory(cat) {
     categoryScanBtn.classList.toggle("hidden", !isScanCam);
   }
 
+  if (cat === "scan_cam") {
+    bindScanCamListScrollGuard();
+  }
+
   if (currentUser) {
     const runLoad = () => void loadNotes();
     if (cat === "scan_cam") {
@@ -4965,8 +5061,9 @@ async function refreshCoinsHubUi() {
   }
 
   const balance = Number(coins.balance) || 0;
-  const cap = Number(coins.cap) || 1200;
-  const cost = coins.standardCoinCost || 600;
+  const monthlyCost = Number(coins.standardMonthlyCoinCost) || Number(coins.standardCoinCost) || 1500;
+  const cost = monthlyCost;
+  const cap = Number(coins.cap) || 15000;
   const vReward = coins.videoRewards && coins.videoRewards.rewardEach != null ? Number(coins.videoRewards.rewardEach) : 10;
   const codeStr =
     coins.referralCode && String(coins.referralCode).trim() ? String(coins.referralCode).trim() : "";
@@ -5047,7 +5144,8 @@ async function refreshCoinsHubUi() {
     }
   }
   if (btnRedeem) {
-    btnRedeem.disabled = coins.lifecycle === "standard" || balance < cost;
+    btnRedeem.disabled = balance < monthlyCost;
+    btnRedeem.dataset.redeemPlan = "monthly";
   }
 
   if (linkInput) {
@@ -5118,29 +5216,60 @@ async function coinsHubClaimDaily() {
 
 async function coinsHubWatchVideoAd() {
   if (!requireAuth("watch rewarded ads")) return;
-  showToast(typeof t === "function" ? t("coinsHubVideoSoonToast") : "Rewarded videos are not available yet.");
+  try {
+    await apiFetch("/api/coins/rewarded-ad", { method: "POST", body: JSON.stringify({}) });
+    showToast(typeof t === "function" ? t("coinsVideoRewardSuccess") : "+10 coins added.");
+    await refreshCoinsHubUi();
+    coinsHubPulseHero();
+  } catch (e) {
+    const code = e && e.code ? String(e.code) : "";
+    if (code === "VIDEO_CAP" || (e && e.status === 429)) {
+      showToast(typeof t === "function" ? t("coinsHubVideoCappedFoot") : "Daily video limit reached.");
+      await refreshCoinsHubUi();
+      return;
+    }
+    if (code === "WALLET_FULL") {
+      showToast(typeof t === "function" ? t("coinsWalletFull") : "Wallet is full.");
+      return;
+    }
+    showToast(e && e.message ? e.message : typeof t === "function" ? t("coinsActionFailed") : "Failed.");
+  }
 }
 
 async function coinsHubRedeemStandard() {
   if (!requireAuth("redeem rewards")) return;
-  const msg = typeof t === "function" ? t("coinsRedeemConfirm") : "Spend 600 coins for 30 days of Standard access?";
-  const okConfirm = typeof window !== "undefined" && window.confirm && window.confirm(msg);
-  if (!okConfirm) return;
+  const btn = document.getElementById("coinsHubRedeemBtn");
+  const plan = btn && btn.dataset.redeemPlan === "yearly" ? "yearly" : "monthly";
+  let coinsStatus = null;
   try {
-    await apiFetch("/api/coins/redeem-standard", { method: "POST", body: JSON.stringify({}) });
+    coinsStatus = await apiFetch("/api/coins/status");
+  } catch {
+    coinsStatus = null;
+  }
+  const monthlyCost = Number(coinsStatus && coinsStatus.standardMonthlyCoinCost) || 1500;
+  const yearlyCost = Number(coinsStatus && coinsStatus.standardYearlyCoinCost) || 14400;
+  const cost = plan === "yearly" ? yearlyCost : monthlyCost;
+  const days = plan === "yearly" ? 365 : 30;
+  const msg =
+    typeof t === "function"
+      ? t("coinsRedeemConfirmPlan").replace("{cost}", String(cost)).replace("{days}", String(days))
+      : `Spend ${cost} coins for ${days} days of Standard?`;
+  if (typeof window !== "undefined" && window.confirm && !window.confirm(msg)) return;
+  try {
+    await apiFetch("/api/coins/redeem-standard", {
+      method: "POST",
+      body: JSON.stringify({ plan })
+    });
     showToast(typeof t === "function" ? t("coinsRedeemSuccess") : "Standard unlocked with coins.");
   } catch (e) {
-    if (e && e.status === 409) {
-      showToast(
-        typeof t === "function" ? t("coinsRedeemAlreadyActive") : e.message || "Already active."
-      );
-    } else {
-      showToast(e && e.message ? e.message : typeof t === "function" ? t("coinsActionFailed") : "Action failed.");
-    }
+    showToast(e && e.message ? e.message : typeof t === "function" ? t("coinsActionFailed") : "Action failed.");
     return;
   }
+  await mergePremiumFromServer();
   await refreshCoinsHubUi();
   coinsHubPulseHero();
+  updatePremiumUi();
+  syncPremiumGatedNav();
 }
 
 function coinsHubCopyInvite() {
@@ -5241,9 +5370,10 @@ function premiumLiteBillingToggle(mode) {
   const sticky = document.getElementById("premiumLiteStickyCta");
   const root = document.getElementById("premiumPlansSection");
   if (root) root.classList.toggle("pricing-lite-plans--yearly", m === "yearly");
+  const coinIcon = '<span class="pricing-lite-coin" aria-hidden="true">🪙</span> ';
   if (m === "yearly") {
-    if (stdMain) stdMain.textContent = "€29";
-    if (stdPeriod) stdPeriod.textContent = "/year";
+    if (stdMain) stdMain.innerHTML = `${coinIcon}14,400`;
+    if (stdPeriod) stdPeriod.textContent = typeof t === "function" ? t("premiumLiteCoinsPeriodYear") : "coins / year";
     if (stdSub) {
       stdSub.classList.remove("hidden");
       stdSub.textContent = t("premiumLiteYearlyStandardSub");
@@ -5257,8 +5387,8 @@ function premiumLiteBillingToggle(mode) {
       sticky.textContent = t("premiumLiteCtaStandardYearly");
     }
   } else {
-    if (stdMain) stdMain.textContent = "€2.99";
-    if (stdPeriod) stdPeriod.textContent = "/month";
+    if (stdMain) stdMain.innerHTML = `${coinIcon}1,500`;
+    if (stdPeriod) stdPeriod.textContent = typeof t === "function" ? t("premiumLiteCoinsPeriodMonth") : "coins / 30 days";
     if (stdSub) stdSub.classList.add("hidden");
     if (stdCta) {
       stdCta.setAttribute("data-t", "premiumLiteCtaStandard");
@@ -5538,7 +5668,6 @@ async function loadDiscordCommunityConfig(forceReload) {
       tiktokCommunityUrl = String((data && data.tiktokUrl) || "").trim();
       youtubeCommunityUrl = String((data && data.youtubeUrl) || "").trim();
       supportContactEmail = String((data && data.supportEmail) || "").trim();
-      stripePublishableKey = String((data && data.stripePublishableKey) || "").trim();
       googleOAuthClientId = String((data && data.googleClientId) || "").trim();
       appPublicConfigCacheExpiresAt = Date.now() + APP_PUBLIC_CONFIG_CACHE_TTL_MS;
     } catch {
@@ -5547,7 +5676,6 @@ async function loadDiscordCommunityConfig(forceReload) {
       tiktokCommunityUrl = "";
       youtubeCommunityUrl = "";
       supportContactEmail = "";
-      stripePublishableKey = "";
       googleOAuthClientId = "";
       appPublicConfigCacheExpiresAt = Date.now() + APP_PUBLIC_CONFIG_RETRY_MS;
     } finally {
@@ -6164,6 +6292,7 @@ function openScanCamPage() {
     hideCoinsHubPage();
     const scan = document.getElementById("scan-cam");
     if (scan) scan.classList.remove("hidden");
+    scanCamEnsureUploadInputsPortaled();
     applyTranslations();
 
     const st = document.getElementById("scanCamStatus");
@@ -6443,9 +6572,32 @@ async function scanCamOpenCamera() {
   }
 }
 
+function scanCamEnsureUploadInputsPortaled() {
+  ["scanCamUploadInput", "scanCamUploadInputDoc"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el || el.parentElement === document.body) return;
+    el.classList.add("hidden");
+    document.body.appendChild(el);
+  });
+}
+
+function scanCamTriggerFileInput(inputEl) {
+  if (!inputEl) return;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      try {
+        inputEl.value = "";
+        inputEl.click();
+      } catch {
+        /* ignore */
+      }
+    });
+  });
+}
+
 function scanCamUploadPhoto() {
-  const inp = document.getElementById("scanCamUploadInput");
-  if (inp) inp.click();
+  scanCamEnsureUploadInputsPortaled();
+  scanCamTriggerFileInput(document.getElementById("scanCamUploadInput"));
 }
 
 function scanCamOpenDocSourceSheet() {
@@ -6488,11 +6640,8 @@ function scanCamUploadDocument() {
  */
 function scanCamDocPickFromFilesDevice() {
   scanCamCloseDocSourceSheet();
-  const inp = document.getElementById("scanCamUploadInputDoc");
-  if (inp) {
-    inp.value = "";
-    inp.click();
-  }
+  scanCamEnsureUploadInputsPortaled();
+  scanCamTriggerFileInput(document.getElementById("scanCamUploadInputDoc"));
 }
 
 /** Opens Google Drive in a new tab so the user can locate cloud files (upload still uses device picker). */
@@ -9130,7 +9279,7 @@ async function loadNotesInner(category) {
     const data = await apiFetch(`/api/notes/${category}`);
     let list = data.notes || [];
     if (category === "scan_cam") {
-      list = mergeNotesWithScanCamLocal(list);
+      list = scanCamNotesForListDisplay(mergeNotesWithScanCamLocal(list));
     }
     currentNotes = list;
     offlineNotesRecordSuccessfulCategoryLoad(category, list);
@@ -9142,7 +9291,7 @@ async function loadNotesInner(category) {
     if (fallback != null && Array.isArray(fallback)) {
       let list = fallback;
       if (category === "scan_cam") {
-        list = mergeNotesWithScanCamLocal(list);
+        list = scanCamNotesForListDisplay(mergeNotesWithScanCamLocal(list));
       }
       currentNotes = list;
       renderNotes(currentNotes);
@@ -10580,8 +10729,10 @@ function displayAccountInfo() {
 
   const planText = String(currentUser.plan || currentUser.subscriptionPlan || "free").toLowerCase();
   const normalizedPlan = planText === "premium" ? "standard" : planText;
-  const statusText = String(currentUser.subscriptionStatus || (standardActive ? "active" : "inactive"));
-  const cancelScheduled = Boolean(currentUser.cancelAtPeriodEnd);
+  const statusText = standardActive
+    ? String(currentUser.standardSource || currentUser.lifecycle || "active")
+    : "free";
+  const cancelScheduled = false;
   const periodEndText = currentUser.currentPeriodEnd
     ? new Date(currentUser.currentPeriodEnd).toLocaleString()
     : currentUser.trialEndsAt || currentUser.standardExpiresAt || currentUser.premiumExpiresAt
@@ -10593,26 +10744,8 @@ function displayAccountInfo() {
   if (billingStatus) billingStatus.textContent = statusText;
   if (billingCancelAtPeriodEnd) billingCancelAtPeriodEnd.textContent = cancelScheduled ? "Yes" : "No";
   if (billingCurrentPeriodEnd) billingCurrentPeriodEnd.textContent = periodEndText;
-  if (cancelBtn) {
-    const showCancel = standardActive && !!currentUser.subscriptionStatus;
-    cancelBtn.classList.toggle("hidden", !showCancel);
-    cancelBtn.disabled = cancelScheduled || !showCancel;
-    if (!cancelBtn.dataset.defaultLabel) {
-      cancelBtn.dataset.defaultLabel = cancelBtn.textContent || "Cancel Subscription";
-    }
-    if (!cancelBtn.dataset.loadingLabel) {
-      cancelBtn.dataset.loadingLabel = "Canceling...";
-    }
-  }
-  if (cancelHint) {
-    if (cancelScheduled) {
-      cancelHint.classList.remove("hidden");
-      cancelHint.textContent = "Cancelation scheduled";
-    } else {
-      cancelHint.classList.add("hidden");
-      cancelHint.textContent = "";
-    }
-  }
+  if (cancelBtn) cancelBtn.classList.add("hidden");
+  if (cancelHint) cancelHint.classList.add("hidden");
 
   const adminRow = document.getElementById("settingsAdminRow");
   if (adminRow) {
@@ -10624,28 +10757,7 @@ function displayAccountInfo() {
 }
 
 async function cancelSubscriptionFromSettings() {
-  if (!requireAuth("manage billing")) return;
-  const btn = document.getElementById("settingsCancelSubscriptionBtn");
-  if (!btn || btn.disabled) return;
-  const defaultLabel = btn.dataset.defaultLabel || btn.textContent || "Cancel Subscription";
-  const loadingLabel = btn.dataset.loadingLabel || "Canceling...";
-  btn.disabled = true;
-  btn.textContent = loadingLabel;
-  try {
-    const data = await apiFetch("/api/premium/cancel-subscription", { method: "POST" });
-    currentUser.cancelAtPeriodEnd = true;
-    currentUser.subscriptionStatus = data && data.status ? data.status : currentUser.subscriptionStatus;
-    currentUser.currentPeriodEnd =
-      data && data.currentPeriodEnd ? data.currentPeriodEnd : currentUser.currentPeriodEnd;
-    persistCurrentUserToStorage();
-    displayAccountInfo();
-    showToast("Your subscription will be canceled at the end of the billing period");
-  } catch (err) {
-    btn.disabled = false;
-    showToast((err && err.message) || "Failed to cancel subscription");
-  } finally {
-    btn.textContent = defaultLabel;
-  }
+  showToast(typeof t === "function" ? t("premiumBillingCoinsOnly") : "Standard is unlocked with coins — no card subscription.");
 }
 
 function toggleSettingsProfileEdit(show) {
